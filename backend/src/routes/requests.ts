@@ -110,16 +110,28 @@ export function createRequestRouter(
 
         // Create real PR if GitHub service is available
         if (githubService) {
-          const prResult = await githubService.createPullRequest(
-            request.id,
-            request.clientId,
-            request.modelName,
-            request.title,
-            request.description,
-            result.actions?.map(a => `${a.type}: ${a.measureName || 'N/A'}`) || ['Changes applied']
-          );
+          const prResult = await githubService.createPullRequest({
+            requestId: request.id,
+            clientId: request.clientId,
+            modelId: request.modelName,
+            title: request.title,
+            description: request.description,
+            changeType: request.changeType,
+            changes: result.actions?.map(a => `${a.type}: ${a.measureName || 'N/A'}`) || ['Changes applied'],
+            testResults: result.testResults?.map(t => ({
+              name: t.testName,
+              passed: t.passed,
+              message: t.message,
+            })),
+            executionLogs: result.logs?.map(l => ({
+              action: l.action,
+              details: l.details,
+              status: l.status,
+            })),
+          });
           if (prResult.success && prResult.prUrl) {
             store.setPRUrl(request.id, prResult.prUrl);
+            store.setStatus(request.id, 'pr_created');
             store.addLog(request.id, 'PR created', prResult.prUrl, 'success');
           } else {
             store.addLog(request.id, 'PR creation failed', prResult.error || 'Unknown error', 'error');
@@ -128,6 +140,7 @@ export function createRequestRouter(
           // Fallback to simulated PR
           const prUrl = `https://github.com/org/powerbi-models/pull/${Math.floor(Math.random() * 1000)}`;
           store.setPRUrl(request.id, prUrl);
+          store.setStatus(request.id, 'pr_created');
           store.addLog(request.id, 'PR created (simulated)', prUrl, 'success');
         }
       } else {
@@ -287,25 +300,36 @@ async function triageAndProcess(
         // All tests passed - create PR
         if (result.testResults.every(t => t.passed)) {
           if (githubService) {
-            const prResult = await githubService.createPullRequest(
+            const prResult = await githubService.createPullRequest({
               requestId,
-              request.clientId,
-              request.modelName,
-              request.title,
-              request.description,
-              result.actions?.map(a => `${a.type}: ${a.measureName || 'N/A'}`) || ['Changes applied']
-            );
+              clientId: request.clientId,
+              modelId: request.modelName,
+              title: request.title,
+              description: request.description,
+              changeType: request.changeType,
+              changes: result.actions?.map(a => `${a.type}: ${a.measureName || 'N/A'}`) || ['Changes applied'],
+              testResults: result.testResults?.map(t => ({
+                name: t.testName,
+                passed: t.passed,
+                message: t.message,
+              })),
+              executionLogs: result.logs?.map(l => ({
+                action: l.action,
+                details: l.details,
+                status: l.status,
+              })),
+            });
             if (prResult.success && prResult.prUrl) {
               store.setPRUrl(requestId, prResult.prUrl);
+              store.setStatus(requestId, 'pr_created');
               store.addLog(requestId, 'PR created', prResult.prUrl, 'success');
             } else {
               store.addLog(requestId, 'PR creation failed', prResult.error || 'Unknown error', 'error');
-              // Still mark as successful since changes were applied
-              store.setStatus(requestId, 'pr_created');
             }
           } else {
             const prUrl = `https://github.com/org/powerbi-models/pull/${Math.floor(Math.random() * 1000)}`;
             store.setPRUrl(requestId, prUrl);
+            store.setStatus(requestId, 'pr_created');
             store.addLog(requestId, 'PR created (simulated)', prUrl, 'success');
           }
         } else {

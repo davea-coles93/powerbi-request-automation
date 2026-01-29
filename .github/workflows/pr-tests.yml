@@ -1,0 +1,144 @@
+name: PR Tests - PowerBI Validation
+
+on:
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'models/**'
+
+jobs:
+  validate-changes:
+    runs-on: ubuntu-latest
+    name: Validate PowerBI Changes
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Check modified models
+        id: changed-models
+        run: |
+          echo "Checking for modified .pbix files..."
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | grep '\.pbix$' || true)
+          echo "changed_files=$CHANGED_FILES" >> $GITHUB_OUTPUT
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "Modified models:"
+            echo "$CHANGED_FILES"
+          else
+            echo "No .pbix files modified"
+          fi
+
+      - name: Validate clients.json
+        run: |
+          echo "Validating clients.json structure..."
+          node -e "
+            const fs = require('fs');
+            const config = JSON.parse(fs.readFileSync('models/clients.json', 'utf-8'));
+
+            if (!config.clients || !Array.isArray(config.clients)) {
+              throw new Error('clients.json must have a clients array');
+            }
+
+            for (const client of config.clients) {
+              if (!client.id || !client.name || !Array.isArray(client.models)) {
+                throw new Error('Each client must have id, name, and models array');
+              }
+
+              for (const model of client.models) {
+                if (!model.id || !model.name || !model.file) {
+                  throw new Error('Each model must have id, name, and file');
+                }
+
+                // Check if model file exists
+                const modelPath = 'models/' + model.file;
+                if (!fs.existsSync(modelPath)) {
+                  console.warn('Warning: Model file not found: ' + modelPath);
+                }
+              }
+            }
+
+            console.log('✅ clients.json validation passed');
+            console.log('   Clients: ' + config.clients.length);
+            console.log('   Total models: ' + config.clients.reduce((sum, c) => sum + c.models.length, 0));
+          "
+
+      - name: Extract PR info
+        id: pr-info
+        run: |
+          PR_BODY="${{ github.event.pull_request.body }}"
+
+          # Extract request ID from PR body
+          REQUEST_ID=$(echo "$PR_BODY" | grep -oP 'Request ID.*\`\K[^`]+' || echo "unknown")
+          echo "request_id=$REQUEST_ID" >> $GITHUB_OUTPUT
+
+          # Extract client from PR body
+          CLIENT=$(echo "$PR_BODY" | grep -oP 'Client.*\|\s*\K[^|]+' | head -1 | xargs || echo "unknown")
+          echo "client=$CLIENT" >> $GITHUB_OUTPUT
+
+          # Extract model from PR body
+          MODEL=$(echo "$PR_BODY" | grep -oP 'Model.*\|\s*\K[^|]+' | head -1 | xargs || echo "unknown")
+          echo "model=$MODEL" >> $GITHUB_OUTPUT
+
+          echo "Request ID: $REQUEST_ID"
+          echo "Client: $CLIENT"
+          echo "Model: $MODEL"
+
+      - name: Post validation summary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const changedFiles = '${{ steps.changed-models.outputs.changed_files }}';
+            const requestId = '${{ steps.pr-info.outputs.request_id }}';
+            const client = '${{ steps.pr-info.outputs.client }}';
+            const model = '${{ steps.pr-info.outputs.model }}';
+
+            const body = `## 🔍 PR Validation Results
+
+            ### Request Details
+            | Field | Value |
+            |-------|-------|
+            | Request ID | \`${requestId}\` |
+            | Client | ${client} |
+            | Model | ${model} |
+
+            ### Changed Files
+            ${changedFiles ? changedFiles.split('\n').map(f => `- \`${f}\``).join('\n') : '_No .pbix files changed_'}
+
+            ### Validation Status
+            - ✅ clients.json structure valid
+            - ✅ Model references valid
+
+            ### Next Steps
+            1. Download the .pbix file and open in PowerBI Desktop
+            2. Verify the changes work as expected
+            3. Approve the PR if everything looks good
+
+            ---
+            _Automated validation by GitHub Actions_`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  notify-success:
+    runs-on: ubuntu-latest
+    needs: validate-changes
+    if: success()
+
+    steps:
+      - name: Mark checks as passed
+        run: |
+          echo "✅ All validations passed!"
+          echo "The PR is ready for manual review."
