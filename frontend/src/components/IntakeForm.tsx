@@ -1,13 +1,34 @@
 import { useState } from 'react';
-import { CreateRequestDTO } from '../types';
+import type { CreateRequestDTO } from '../types';
 import { requestsApi } from '../api';
 
 interface IntakeFormProps {
   onSubmit: () => void;
 }
 
-const SAMPLE_CLIENTS = ['Contoso Corp', 'Northwind Traders', 'Adventure Works', 'Fabrikam Inc'];
-const SAMPLE_MODELS = ['Finance Model', 'Sales Analytics', 'HR Dashboard', 'Operations KPIs'];
+const SAMPLE_CLIENTS = [
+  { id: 'contoso-corp', name: 'Contoso Corporation' },
+  { id: 'adventure-works', name: 'Adventure Works Inc' },
+  { id: 'retail-dynamics', name: 'Retail Dynamics Ltd' },
+  { id: 'acme-hr', name: 'ACME HR Solutions' }
+];
+
+const MODELS_BY_CLIENT: Record<string, Array<{ id: string; name: string }>> = {
+  'contoso-corp': [
+    { id: 'sales-returns', name: 'Sales & Returns Analysis' },
+    { id: 'customer-profitability', name: 'Customer Profitability' }
+  ],
+  'adventure-works': [
+    { id: 'sales-sample', name: 'Sales Analytics' }
+  ],
+  'retail-dynamics': [
+    { id: 'retail-analysis', name: 'Retail Performance' },
+    { id: 'store-sales', name: 'Store Sales Dashboard' }
+  ],
+  'acme-hr': [
+    { id: 'human-resources', name: 'HR Analytics' }
+  ]
+};
 
 export function IntakeForm({ onSubmit }: IntakeFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -74,7 +95,7 @@ export function IntakeForm({ onSubmit }: IntakeFormProps) {
             >
               <option value="">Select client...</option>
               {SAMPLE_CLIENTS.map(client => (
-                <option key={client} value={client}>{client}</option>
+                <option key={client.id} value={client.id}>{client.name}</option>
               ))}
             </select>
           </div>
@@ -89,8 +110,8 @@ export function IntakeForm({ onSubmit }: IntakeFormProps) {
               required
             >
               <option value="">Select model...</option>
-              {SAMPLE_MODELS.map(model => (
-                <option key={model} value={model}>{model}</option>
+              {formData.clientId && MODELS_BY_CLIENT[formData.clientId]?.map(model => (
+                <option key={model.id} value={model.id}>{model.name}</option>
               ))}
             </select>
           </div>

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "VisualContainer",
+  "position": {
+    "x": 9.7990430622009566,
+    "y": 4.8995215311004783,
+    "z": 0,
+    "height": 714.10526315789468,
+    "width": 1268.9760765550238
+  },
+  "visual": {
+    "visualType": "image",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "imageUrl": {
+              "expr": {
+                "ResourcePackageItem": {
+                  "PackageName": "RegisteredResources",
+                  "PackageType": 1,
+                  "ItemName": "obvience-splash-screen-16-95959706779103726.png"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

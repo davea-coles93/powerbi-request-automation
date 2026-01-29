@@ -6,6 +6,22 @@ on:
     paths:
       - 'models/**'
 
+# OIDC permissions for Azure authentication
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  # Azure Analysis Services configuration
+  AZURE_AAS_SERVER: ${{ secrets.AZURE_AAS_SERVER }}
+  AZURE_AAS_DATABASE: ${{ secrets.AZURE_AAS_DATABASE }}
+  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+  AZURE_AAS_SERVER_NAME: ${{ secrets.AZURE_AAS_SERVER_NAME }}
+
 jobs:
   validate-changes:
     runs-on: ubuntu-latest
@@ -132,9 +148,148 @@ jobs:
               body: body
             });
 
+  # Azure Analysis Services DAX validation (runs if AAS is configured)
+  dax-validation:
+    runs-on: ubuntu-latest
+    name: DAX Validation (Azure Analysis Services)
+    if: vars.ENABLE_AAS_VALIDATION == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      # OIDC Login to Azure
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Build backend
+        working-directory: ./backend
+        run: npm run build
+
+      - name: Start Azure Analysis Services
+        id: start-aas
+        run: |
+          echo "Starting Azure Analysis Services (billing begins)..."
+          az analysis-services server resume \
+            --name ${{ secrets.AZURE_AAS_SERVER_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }}
+          echo "Waiting for server to be ready..."
+          sleep 30
+
+      - name: Get Azure access token for AAS
+        id: get-token
+        run: |
+          # Get token for Analysis Services
+          TOKEN=$(az account get-access-token --resource "https://*.asazure.windows.net" --query accessToken -o tsv)
+          echo "::add-mask::$TOKEN"
+          echo "AAS_ACCESS_TOKEN=$TOKEN" >> $GITHUB_ENV
+
+      - name: Run DAX validation tests
+        id: dax-tests
+        working-directory: ./backend
+        env:
+          AAS_ACCESS_TOKEN: ${{ env.AAS_ACCESS_TOKEN }}
+        run: |
+          echo "Running DAX validation against Azure Analysis Services..."
+          node -e "
+            const { AzureAnalysisService } = require('./dist/services/azureAnalysisService');
+
+            async function runTests() {
+              const service = new AzureAnalysisService();
+
+              // Basic connectivity test
+              console.log('Testing AAS connectivity...');
+              const connected = await service.isConnected();
+              if (!connected) {
+                throw new Error('Cannot connect to Azure Analysis Services');
+              }
+              console.log('✅ Connected to AAS');
+
+              // Get model info
+              console.log('Getting model info...');
+              const model = await service.getModelInfo();
+              console.log('✅ Model: ' + model.name);
+
+              // List measures
+              console.log('Listing measures...');
+              const measures = await service.getMeasures();
+              console.log('✅ Found ' + measures.length + ' measures');
+
+              // Validate a simple DAX expression
+              console.log('Validating DAX expressions...');
+              const validation = await service.validateDAX('1 + 1');
+              if (!validation.valid) {
+                throw new Error('Basic DAX validation failed: ' + validation.error);
+              }
+              console.log('✅ DAX validation working');
+
+              console.log('');
+              console.log('All DAX validation tests passed!');
+            }
+
+            runTests().catch(err => {
+              console.error('DAX validation failed:', err);
+              process.exit(1);
+            });
+          "
+
+      - name: Stop Azure Analysis Services
+        if: always()
+        run: |
+          echo "Stopping Azure Analysis Services (billing stops)..."
+          az analysis-services server suspend \
+            --name ${{ secrets.AZURE_AAS_SERVER_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} || true
+
+      - name: Azure Logout
+        if: always()
+        run: az logout || true
+
+      - name: Post DAX validation results
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const testResult = '${{ steps.dax-tests.outcome }}';
+            const emoji = testResult === 'success' ? '✅' : '❌';
+
+            const body = `## 🧪 DAX Validation Results
+
+            | Test | Status |
+            |------|--------|
+            | AAS Connectivity | ${emoji} |
+            | Model Info | ${emoji} |
+            | Measure Listing | ${emoji} |
+            | DAX Expression Validation | ${emoji} |
+
+            **Overall Result:** ${testResult === 'success' ? '✅ All tests passed' : '❌ Some tests failed'}
+
+            ---
+            _Validated against Azure Analysis Services_`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
   notify-success:
     runs-on: ubuntu-latest
-    needs: validate-changes
+    needs: [validate-changes]
     if: success()
 
     steps:

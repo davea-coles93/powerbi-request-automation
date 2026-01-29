@@ -1,0 +1,103 @@
+table District
+	lineageTag: 9e8c18f4-2e79-4b7f-b18f-b959563f499d
+
+	column DistrictID
+		dataType: int64
+		lineageTag: fbf81129-e8f7-4206-9b27-4db090696061
+		summarizeBy: none
+		sourceColumn: DistrictID
+
+		annotation DataTypeAtRefresh = Int64#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column District
+		dataType: string
+		lineageTag: b4f66fef-5662-4e48-b13c-37dd1eda7a47
+		summarizeBy: none
+		sourceColumn: District
+
+		annotation DataTypeAtRefresh = String#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column DM
+		dataType: string
+		isKey
+		keepUniqueRows
+		lineageTag: 7369d660-1806-45b1-bede-4800b5d2546c
+		isDefaultLabel
+		summarizeBy: none
+		sourceColumn: DM
+
+		annotation DataTypeAtRefresh = String#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column DM_Pic_fl
+		dataType: string
+		lineageTag: 70fcdc15-c890-47a1-a5a3-426f54ff3f9b
+		dataCategory: ImageUrl
+		summarizeBy: none
+		sourceColumn: DM_Pic_fl
+
+		annotation DataTypeAtRefresh = String#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column DM_Pic
+		dataType: string
+		lineageTag: a981f81d-61e8-4567-bd77-fd784d3da5da
+		dataCategory: ImageUrl
+		summarizeBy: none
+		sourceColumn: DM_Pic
+
+		annotation DataTypeAtRefresh = String#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column BusinessUnitID
+		dataType: int64
+		lineageTag: 3dc0ac30-a0bc-4f8a-ba57-7ba30f209afe
+		summarizeBy: none
+		sourceColumn: BusinessUnitID
+
+		annotation DataTypeAtRefresh = Int64#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column DMImage
+		dataType: binary
+		lineageTag: 7430a8f2-9276-4539-95b8-eb3ac991aad3
+		dataCategory: Image
+		isDefaultImage
+		summarizeBy: none
+		sourceColumn: DMImage
+
+		annotation DataTypeAtRefresh = Binary#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition District = m
+		source =
+				let
+				    Source = Sql.Database(".", "RetailBIDW", [Query="SELECT [dbo].[District_Dimension].*   FROM [dbo].[District_Dimension]"]),
+				    #"Renamed Columns" = Table.RenameColumns(Source, {{"DistrictID", "DistrictID"}, {"DistrictName", "District"}, {"DM", "DM"}, {"DM_Pic_fl", "DM_Pic_fl"}, {"DM_Pic", "DM_Pic"}, {"BusinessUnitID", "BusinessUnitID"}, {"DMImage", "DMImage"}}),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Renamed Columns", {{"DistrictID", Int64.Type}, {"District", type text}, {"DM", type text}, {"DM_Pic_fl", type text}, {"DM_Pic", type text}, {"BusinessUnitID", Int64.Type}, {"DMImage", type binary}})
+				in
+				    #"Changed Type"
+

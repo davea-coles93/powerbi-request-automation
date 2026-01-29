@@ -1,0 +1,38 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "VisualContainer",
+  "position": {
+    "x": 405.37678207739305,
+    "y": 9.124236252545824,
+    "z": 2000,
+    "height": 69.083503054989819,
+    "width": 457.5152749490835
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": "New Stores Analysis",
+                    "textStyle": {
+                      "fontFamily": "Segoe UI Light",
+                      "fontSize": "28pt",
+                      "fontStyle": "normal",
+                      "fontWeight": "normal"
+                    }
+                  }
+                ],
+                "horizontalTextAlignment": "center"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

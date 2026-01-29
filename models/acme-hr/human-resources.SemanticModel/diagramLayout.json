@@ -1,0 +1,139 @@
+{
+  "version": "1.1.0",
+  "diagrams": [
+    {
+      "ordinal": 0,
+      "scrollPosition": {
+        "x": 0,
+        "y": 0
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 646.84508820847623,
+            "y": 771.29225357982807
+          },
+          "nodeIndex": "AgeGroup",
+          "nodeLineageTag": "f6363dd9-5054-42e0-ae70-0326a98a1333",
+          "size": {
+            "height": 128,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1450.8027768427071,
+            "y": 391.06364250731792
+          },
+          "nodeIndex": "BU",
+          "nodeLineageTag": "98346af9-0be8-49b7-8afd-c0ab79bdceab",
+          "size": {
+            "height": 200,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 804.2184622740225,
+            "y": 86.382891825631248
+          },
+          "nodeIndex": "Date",
+          "nodeLineageTag": "2ae71484-a0ca-4536-b3a9-9dc6d1bb83eb",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 725.37813430679887,
+            "y": 428.80486962511526
+          },
+          "nodeIndex": "Employee",
+          "nodeLineageTag": "cd666df2-2d21-40d7-b0dd-17dac8e84225",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 131.19007729610939
+          },
+          "nodeIndex": "Ethnicity",
+          "nodeLineageTag": "f1547220-8bdd-46d5-9f7f-ca01e49b0deb",
+          "size": {
+            "height": 128,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1067.83616139479,
+            "y": 507.44515742582627
+          },
+          "nodeIndex": "FP",
+          "nodeLineageTag": "109f0994-0088-4d4d-baa6-3786ce722db8",
+          "size": {
+            "height": 128,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 421.25184682610546,
+            "y": 0
+          },
+          "nodeIndex": "Gender",
+          "nodeLineageTag": "f95895fb-c397-46cd-addb-ff9888e6034f",
+          "size": {
+            "height": 152,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 382.96661544791704,
+            "y": 350.09610566336062
+          },
+          "nodeIndex": "PayType",
+          "nodeLineageTag": "d076e6ac-7ef1-41cf-924d-df9b22253dd4",
+          "size": {
+            "height": 128,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 427.64792886827416,
+            "y": 615.36423477080712
+          },
+          "nodeIndex": "SeparationReason",
+          "nodeLineageTag": "624ed4a9-d9d5-4048-a590-fd65d346db5a",
+          "size": {
+            "height": 128,
+            "width": 234
+          },
+          "zIndex": 0
+        }
+      ],
+      "name": "All tables",
+      "zoomValue": 100,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false
+    }
+  ],
+  "selectedDiagram": "All tables",
+  "defaultDiagram": "All tables"
+}

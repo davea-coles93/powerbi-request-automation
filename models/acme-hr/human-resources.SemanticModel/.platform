@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "human-resources"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "0383b39f-1ec5-4015-96aa-883644ea04a2"
+  }
+}

@@ -1,0 +1,79 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: powerbi-backend
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/dist:/app/dist
+      - ./models:/models
+    restart: unless-stopped
+    networks:
+      - powerbi-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: powerbi-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - powerbi-network
+
+  powerbi-report-mcp:
+    build:
+      context: ./mcp-servers/powerbi-report
+      dockerfile: Dockerfile
+    container_name: powerbi-report-mcp
+    volumes:
+      - ./models:/models
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    networks:
+      - powerbi-network
+
+  powerbi-semantic-mcp:
+    build:
+      context: ./mcp-servers/powerbi-semantic
+      dockerfile: Dockerfile
+    container_name: powerbi-semantic-mcp
+    volumes:
+      - ./models:/models
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    networks:
+      - powerbi-network
+
+  powerbi-automation-mcp:
+    build:
+      context: ./mcp-servers/powerbi-automation
+      dockerfile: Dockerfile
+    container_name: powerbi-automation-mcp
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    networks:
+      - powerbi-network
+
+networks:
+  powerbi-network:
+    driver: bridge

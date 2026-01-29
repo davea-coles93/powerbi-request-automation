@@ -1,0 +1,193 @@
+table Date
+	lineageTag: 2ae71484-a0ca-4536-b3a9-9dc6d1bb83eb
+	dataCategory: Time
+
+	measure 'Count of Date' = COUNTA('Date'[Date])
+		lineageTag: 0ae3f614-6f4a-49dc-a4ba-1cdec73ac53c
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column Date
+		dataType: dateTime
+		isKey
+		formatString: General Date
+		lineageTag: d9b15646-4640-49d5-8143-e0bdea1c0ced
+		summarizeBy: none
+		sourceColumn: Date
+
+		variation Variation
+			isDefault
+			relationship: 0f809af4-d31b-4977-a214-8f13fa42f41d
+			defaultHierarchy: LocalDateTable_6f19fed3-1fc0-4f7a-878d-34aca93d6782.'Date Hierarchy'
+
+		annotation DataTypeAtRefresh = DateTime#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+	column Month
+		dataType: string
+		lineageTag: 0540410e-8d82-4efa-b20e-b3afd44a4ffd
+		summarizeBy: none
+		sourceColumn: Month
+		sortByColumn: MonthNumber
+
+		annotation DataTypeAtRefresh = String#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column MonthNumber
+		dataType: int64
+		lineageTag: 2aed1688-96d6-4614-b15c-8007b2babc0e
+		summarizeBy: sum
+		sourceColumn: MonthNumber
+
+		annotation DataTypeAtRefresh = Int64#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column Period
+		dataType: string
+		lineageTag: 6d8ec491-7f13-4a1e-b61c-b738c19a3695
+		summarizeBy: none
+		sourceColumn: Period
+		sortByColumn: PeriodNumber
+
+		annotation DataTypeAtRefresh = String#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column PeriodNumber
+		dataType: int64
+		lineageTag: 9509c1ed-d36a-4637-81d6-15c005c833d1
+		summarizeBy: sum
+		sourceColumn: PeriodNumber
+
+		annotation DataTypeAtRefresh = Int64#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column Qtr
+		dataType: int64
+		lineageTag: e6641db6-6790-4211-bc33-3f0ef36ea726
+		summarizeBy: sum
+		sourceColumn: Qtr
+
+		annotation DataTypeAtRefresh = Int64#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column QtrNumber
+		dataType: string
+		lineageTag: 7054cfd0-5b7c-4a84-90e3-426d217b6709
+		summarizeBy: none
+		sourceColumn: QtrNumber
+
+		annotation DataTypeAtRefresh = String#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column Year
+		dataType: int64
+		lineageTag: 709cb921-aecd-4c62-ac09-7de6797bb219
+		summarizeBy: sum
+		sourceColumn: Year
+
+		annotation DataTypeAtRefresh = Int64#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column Day
+		dataType: int64
+		lineageTag: 82c79fda-fdf0-49fb-904c-b1ff199f9790
+		summarizeBy: sum
+		sourceColumn: Day
+
+		annotation DataTypeAtRefresh = Int64#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column MonthStartDate
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 6b480a06-02a3-4fed-8e14-5f2dad43cac9
+		summarizeBy: none
+		sourceColumn: MonthStartDate
+
+		variation Variation
+			isDefault
+			relationship: f496f9ad-5665-4785-a30e-b1bbcf7be215
+			defaultHierarchy: LocalDateTable_d2ea5b26-668d-4c17-b228-695669b066a6.'Date Hierarchy'
+
+		annotation DataTypeAtRefresh = DateTime#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+	column MonthEndDate
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: e8a575ee-0380-4f21-94de-df55c2a8d13e
+		summarizeBy: none
+		sourceColumn: MonthEndDate
+
+		variation Variation
+			isDefault
+			relationship: b2a9d346-0212-432d-a1a9-57680b4a73ea
+			defaultHierarchy: LocalDateTable_c9dde99e-7ac1-4e8e-a5f2-c5ffc41d9cac.'Date Hierarchy'
+
+		annotation DataTypeAtRefresh = DateTime#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+	column MonthIncrementNumber = ([Year]-MIN([Year]))*12 +[MonthNumber]
+		isHidden
+		lineageTag: a3e92a05-6b36-4ae5-82f1-15a9b2463d25
+		summarizeBy: sum
+
+		annotation DataTypeAtRefresh = Int64#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	hierarchy YQM
+		lineageTag: 1bd1b2c6-5127-4114-bfeb-675c785938da
+
+		level Year
+			lineageTag: a3b977e4-5945-446b-b944-f0a294fc0654
+			column: Year
+
+		level QtrNumber
+			lineageTag: c8bef162-2674-4e8c-b86a-e397ebebfb85
+			column: QtrNumber
+
+		level PeriodNumber
+			lineageTag: 2dee0fa4-93d7-463c-b3c1-31221d38cd5f
+			column: PeriodNumber
+
+	partition Date = m
+		source =
+				let
+				    Source = Sql.Database(".", "IP", [Query="SELECT [HR].[Date].*   FROM [HR].[Date]"]),
+				    #"Renamed Columns" = Table.RenameColumns(Source, {{"Date", "Date"}, {"Month", "Month"}, {"MonthNumber", "MonthNumber"}, {"Period", "Period"}, {"PeriodNumber", "PeriodNumber"}, {"Qtr", "Qtr"}, {"QtrNumber", "QtrNumber"}, {"Year", "Year"}, {"Day", "Day"}, {"MonthStartDate", "MonthStartDate"}, {"MonthEndDate", "MonthEndDate"}}),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Renamed Columns", {{"Date", type datetime}, {"Month", type text}, {"MonthNumber", Int64.Type}, {"Period", type text}, {"PeriodNumber", Int64.Type}, {"Qtr", Int64.Type}, {"QtrNumber", type text}, {"Year", Int64.Type}, {"Day", Int64.Type}, {"MonthStartDate", type datetime}, {"MonthEndDate", type datetime}})
+				in
+				    #"Changed Type"
+
+	annotation __PBI_LegacyCustomDateTable = true
+

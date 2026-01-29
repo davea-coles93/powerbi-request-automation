@@ -1,0 +1,69 @@
+table Item
+	lineageTag: eab30f1c-8bb4-4999-b28a-48347027daf9
+
+	column ItemID
+		dataType: int64
+		isHidden
+		lineageTag: 1bdbbf3e-fb4c-44fb-b5cc-48d4f75732d9
+		summarizeBy: none
+		sourceColumn: ItemID
+
+		annotation DataTypeAtRefresh = Int64#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column Segment
+		dataType: string
+		lineageTag: fdb5a4e2-8d9e-40e2-b80d-73ef5ba17584
+		summarizeBy: none
+		sourceColumn: Segment
+
+		annotation DataTypeAtRefresh = String#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column Category
+		dataType: string
+		lineageTag: 0812e361-5374-4067-a965-8d5c4b91a9a4
+		summarizeBy: none
+		sourceColumn: Category
+
+		annotation DataTypeAtRefresh = String#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column Buyer
+		dataType: string
+		lineageTag: effb1651-95d9-4035-b79b-16f1de1a5716
+		summarizeBy: none
+		sourceColumn: Buyer
+
+		annotation DataTypeAtRefresh = String#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+	column FamilyNane
+		dataType: string
+		lineageTag: 524fa1e7-3f1f-4167-a760-abace3448a18
+		summarizeBy: none
+		sourceColumn: FamilyNane
+
+		annotation DataTypeAtRefresh = String#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Item = m
+		source =
+				let
+				    Source = Sql.Database(".", "RetailBIDW", [Query="SELECT [ItemID]#(lf)     -- ,[SupplierID]#(lf)      --,[Name]#(lf)      --,[Description]#(lf)      --,[BrandName]#(lf)      ,[ResponsibleBuyerLastName] +', ' + [ResponsibleBuyerFirstName] Buyer#(lf)      ,left([SegmentName], 4) [SegmentName]#(lf)     -- ,[SegmentID]#(lf)      ,left([FamilyName], 3) FamilyNane#(lf)    --  ,[FamilyID]#(lf)      ,[ClassName]#(lf)     -- ,[ClassID]#(lf)   --   ,[ItemCost]#(lf)     -- ,[OriginalItemCost]#(lf)  FROM [RetailBIDW].[dbo].[Item_Dimension]"]),
+				    #"Renamed Columns" = Table.RenameColumns(Source, {{"ItemID", "ItemID"}, {"SegmentName", "Segment"}, {"ClassName", "Category"}, {"Buyer", "Buyer"}, {"FamilyNane", "FamilyNane"}}),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Renamed Columns", {{"ItemID", Int64.Type}, {"Segment", type text}, {"Category", type text}, {"Buyer", type text}, {"FamilyNane", type text}})
+				in
+				    #"Changed Type"
+

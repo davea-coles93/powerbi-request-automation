@@ -1,0 +1,35 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "VisualContainer7",
+  "position": {
+    "x": 479.67413441955193,
+    "y": 65.173116089613032,
+    "z": 7000,
+    "height": 91.242362525458248,
+    "width": 114.70468431771894
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Store"
+                    }
+                  },
+                  "Property": "New Stores"
+                }
+              },
+              "queryRef": "Store.New Stores"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

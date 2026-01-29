@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { ChangeRequest, RequestStatus, TriageResult } from '../types';
+import type { ChangeRequest, RequestStatus, TriageResult } from '../types';
 import { requestsApi } from '../api';
+import { ClarificationForm } from './ClarificationForm';
+import { validateUrl, sanitizeErrorMessage } from '../utils/validation';
 
 interface RequestListProps {
   requests: ChangeRequest[];
@@ -10,7 +12,9 @@ interface RequestListProps {
 const STATUS_COLORS: Record<RequestStatus, string> = {
   pending: '#6b7280',
   triaging: '#f59e0b',
+  awaiting_clarification: '#f59e0b',
   in_progress: '#3b82f6',
+  validating: '#8b5cf6',
   testing: '#8b5cf6',
   pr_created: '#10b981',
   completed: '#22c55e',
@@ -28,6 +32,7 @@ const TRIAGE_LABELS: Record<TriageResult, string> = {
 export function RequestList({ requests, onRefresh }: RequestListProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [executing, setExecuting] = useState<string | null>(null);
+  const [submittingClarification, setSubmittingClarification] = useState<string | null>(null);
 
   const handleExecute = async (id: string) => {
     setExecuting(id);
@@ -38,6 +43,22 @@ export function RequestList({ requests, onRefresh }: RequestListProps) {
       console.error('Execution failed:', error);
     } finally {
       setExecuting(null);
+    }
+  };
+
+  const handleClarificationSubmit = async (id: string, answers: string) => {
+    setSubmittingClarification(id);
+    try {
+      await requestsApi.submitClarification(id, answers);
+      // Clear expanded state and refresh
+      setExpandedId(null);
+      onRefresh();
+    } catch (error: any) {
+      console.error('Failed to submit clarification:', error);
+      const message = sanitizeErrorMessage(error);
+      alert(message);
+    } finally {
+      setSubmittingClarification(null);
     }
   };
 
@@ -94,6 +115,30 @@ export function RequestList({ requests, onRefresh }: RequestListProps) {
                   <p>{request.description}</p>
                 </div>
 
+                {request.status === 'awaiting_clarification' && request.clarificationQuestions && (
+                  <>
+                    {request.clarificationAttempts && request.clarificationAttempts >= 2 && (
+                      <div style={{
+                        background: '#fef3c7',
+                        border: '1px solid #f59e0b',
+                        padding: '12px',
+                        borderRadius: '6px',
+                        marginBottom: '16px',
+                        fontSize: '14px',
+                        color: '#92400e'
+                      }}>
+                        ⚠ Multiple clarification rounds ({request.clarificationAttempts}).
+                        Consider providing more detail or contacting support.
+                      </div>
+                    )}
+                    <ClarificationForm
+                      questions={request.clarificationQuestions}
+                      onSubmit={(answers) => handleClarificationSubmit(request.id, answers)}
+                      isSubmitting={submittingClarification === request.id}
+                    />
+                  </>
+                )}
+
                 <div className="detail-row">
                   <div className="detail-item">
                     <label>Change Type</label>
@@ -113,7 +158,7 @@ export function RequestList({ requests, onRefresh }: RequestListProps) {
                   </div>
                 </div>
 
-                {request.prUrl && (
+                {request.prUrl && validateUrl(request.prUrl) && (
                   <div className="detail-section">
                     <h4>Pull Request</h4>
                     <a href={request.prUrl} target="_blank" rel="noopener noreferrer">

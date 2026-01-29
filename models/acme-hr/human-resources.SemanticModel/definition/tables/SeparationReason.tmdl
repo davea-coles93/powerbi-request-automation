@@ -1,0 +1,33 @@
+table SeparationReason
+	lineageTag: 624ed4a9-d9d5-4048-a590-fd65d346db5a
+
+	column SeparationTypeID
+		dataType: string
+		isHidden
+		lineageTag: 9067e557-77ef-436d-bd44-58bee7c0cf43
+		summarizeBy: none
+		sourceColumn: SeparationTypeID
+
+		annotation DataTypeAtRefresh = String#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+	column SeparationReason
+		dataType: string
+		lineageTag: 32f61922-6235-4047-8673-d4c23a0e213b
+		summarizeBy: none
+		sourceColumn: SeparationReason
+
+		annotation DataTypeAtRefresh = String#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+	partition TermReason = m
+		source =
+				let
+				    Source = Sql.Database(".", "IP", [Query="SELECT distinct SeparationTypeID, [Vol-Invol] SeparationReason#(lf)  FROM [IP].[HR].[TermReason]"]),
+				    #"Renamed Columns" = Table.RenameColumns(Source, {{"SeparationTypeID", "SeparationTypeID"}, {"SeparationReason", "SeparationReason"}}),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Renamed Columns", {{"SeparationTypeID", type text}, {"SeparationReason", type text}})
+				in
+				    #"Changed Type"
+

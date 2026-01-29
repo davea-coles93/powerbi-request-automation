@@ -1,0 +1,52 @@
+table Gender
+	lineageTag: f95895fb-c397-46cd-addb-ff9888e6034f
+
+	column ID
+		dataType: string
+		isHidden
+		lineageTag: cacb424d-04b6-4fd6-a2c6-9b2a30157072
+		summarizeBy: none
+		sourceColumn: ID
+
+		annotation DataTypeAtRefresh = String#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column Gender
+		dataType: string
+		lineageTag: b6133eda-1ca1-4061-81bc-8321c4ce7b79
+		summarizeBy: none
+		sourceColumn: Gender
+		sortByColumn: Sort
+
+		annotation DataTypeAtRefresh = String#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column Sort
+		dataType: int64
+		isHidden
+		lineageTag: d6aec956-c6b2-486f-b89c-68f61706c110
+		summarizeBy: none
+		sourceColumn: Sort
+
+		annotation DataTypeAtRefresh = Int64#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition Gender = m
+		mode: import
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i45WclHSUfJNzEkFUoZKsTrRSs5AlltqLkTISCk2FgA=", BinaryEncoding.Base64), Compression.Deflate))),
+				    #"Renamed Columns" = Table.RenameColumns(Source, {{"Column1", "ID"}, {"Column2", "Gender"}, {"Column3", "Sort"}}),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Renamed Columns", {{"ID", type text}, {"Gender", type text}, {"Sort", Int64.Type}})
+				 in
+				    #"Changed Type"
+

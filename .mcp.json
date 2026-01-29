@@ -1,0 +1,29 @@
+{
+  "mcpServers": {
+    "powerbi-report": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "C:/Users/Dave/Documents/powerBI experiments/mcp-servers/powerbi-report/build/index.js"
+      ],
+      "env": {}
+    },
+    "powerbi-automation": {
+      "type": "stdio",
+      "command": "py",
+      "args": [
+        "-m",
+        "powerbi_automation_mcp.server"
+      ],
+      "env": {}
+    },
+    "powerbi-semantic": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "C:/Users/Dave/Documents/powerBI experiments/mcp-servers/powerbi-semantic/build/index.js"
+      ],
+      "env": {}
+    }
+  }
+}

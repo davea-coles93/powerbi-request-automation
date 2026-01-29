@@ -1,0 +1,36 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "VisualContainer6",
+  "position": {
+    "x": 969,
+    "y": 451,
+    "z": 6000,
+    "height": 269,
+    "width": 280
+  },
+  "visual": {
+    "visualType": "slicer",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Store"
+                    }
+                  },
+                  "Property": "Name"
+                }
+              },
+              "queryRef": "Store.Name",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}

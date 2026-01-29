@@ -1,0 +1,35 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.5.0/schema.json",
+  "name": "VisualContainer1",
+  "position": {
+    "x": 470.54989816700612,
+    "y": 189.0020366598778,
+    "z": 1000,
+    "height": 91.242362525458248,
+    "width": 114.70468431771894
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Store"
+                    }
+                  },
+                  "Property": "Total Stores"
+                }
+              },
+              "queryRef": "Store.Total Stores"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

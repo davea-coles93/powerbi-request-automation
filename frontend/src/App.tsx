@@ -3,7 +3,7 @@ import { IntakeForm } from './components/IntakeForm';
 import { RequestList } from './components/RequestList';
 import { Dashboard } from './components/Dashboard';
 import { requestsApi, healthApi } from './api';
-import { ChangeRequest, Stats } from './types';
+import type { ChangeRequest, Stats } from './types';
 import './App.css';
 
 function App() {

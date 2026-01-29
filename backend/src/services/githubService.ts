@@ -3,12 +3,10 @@
  * Handles real git operations and PR creation for PowerBI model changes
  */
 
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import simpleGit, { SimpleGit } from 'simple-git';
 import * as fs from 'fs';
 import * as path from 'path';
-
-const execAsync = promisify(exec);
+import { sanitizeBranchName } from '../utils/validation';
 
 // Default reviewers for PRs - can be configured via environment
 const DEFAULT_REVIEWERS = process.env.PR_REVIEWERS?.split(',') || [];
@@ -98,13 +96,11 @@ export class GitHubService {
    */
   async createPullRequest(details: ChangeDetails): Promise<GitHubPRResult> {
     // Branch name includes request ID for traceability
-    const branchName = `request/${details.requestId}`;
+    const branchName = sanitizeBranchName(`request/${details.requestId}`);
     const shortId = details.requestId.slice(0, 8);
+    const git: SimpleGit = simpleGit(this.repoPath);
 
     try {
-      // Check if gh CLI is available
-      await execAsync('gh --version', { cwd: this.repoPath });
-
       // Get client and model info for PR description
       const client = await this.getClient(details.clientId);
       const model = client?.models.find(m => m.id === details.modelId);
@@ -112,69 +108,80 @@ export class GitHubService {
       // Get the model file path
       const modelPath = await this.getModelPath(details.clientId, details.modelId);
       if (!modelPath) {
-        return { success: false, error: `Model ${details.modelId} not found for client ${details.clientId}` };
+        return { success: false, error: 'Model not found' };
       }
 
       // Check if there are actually changes to commit
-      const { stdout: statusOutput } = await execAsync('git status --porcelain', { cwd: this.repoPath });
-
-      if (!statusOutput.trim()) {
+      const status = await git.status();
+      if (status.files.length === 0) {
         console.log('[GitHub] No changes detected in working directory');
         return {
           success: false,
-          error: 'No changes detected. Make sure the PowerBI model is saved after modifications.'
+          error: 'No changes detected'
         };
       }
 
       // Ensure we're on the base branch and up to date
       console.log(`[GitHub] Switching to ${BASE_BRANCH} and pulling latest...`);
-      await execAsync(`git checkout ${BASE_BRANCH}`, { cwd: this.repoPath });
-      await execAsync(`git pull origin ${BASE_BRANCH}`, { cwd: this.repoPath }).catch(() => {
+      await git.checkout(BASE_BRANCH);
+      try {
+        await git.pull('origin', BASE_BRANCH);
+      } catch {
         // Ignore pull errors (might be a fresh repo)
-      });
+      }
 
       // Create new branch from base
       console.log(`[GitHub] Creating branch: ${branchName}`);
       try {
-        await execAsync(`git branch -D "${branchName}"`, { cwd: this.repoPath });
+        await git.deleteLocalBranch(branchName, true);
       } catch {
         // Branch doesn't exist, that's fine
       }
-      await execAsync(`git checkout -b "${branchName}"`, { cwd: this.repoPath });
+      await git.checkoutLocalBranch(branchName);
 
       // Stage the model file and any related changes
       const relativeModelPath = path.relative(this.repoPath, modelPath);
-      await execAsync(`git add "${relativeModelPath}"`, { cwd: this.repoPath });
-      await execAsync('git add -A models/', { cwd: this.repoPath });
+      await git.add([relativeModelPath, 'models/']);
 
       // Create detailed commit message
       const commitMessage = this.buildCommitMessage(details, client, model);
 
-      // Use heredoc for commit to handle special characters
-      const commitCmd = `git commit -m "${commitMessage.replace(/"/g, '\\"').replace(/\n/g, '\\n')}"`;
-      await execAsync(commitCmd, { cwd: this.repoPath });
+      // Commit (simple-git handles escaping)
+      await git.commit(commitMessage);
 
       // Push to remote
       console.log(`[GitHub] Pushing branch to remote...`);
-      await execAsync(`git push -u origin "${branchName}" --force`, { cwd: this.repoPath });
+      await git.push(['--force', '-u', 'origin', branchName]);
 
       // Create PR using gh CLI
       console.log(`[GitHub] Creating pull request...`);
       const prBody = this.buildPRBody(details, client, model);
       const prTitle = `[${shortId}] ${details.title}`;
 
-      // Build gh pr create command
-      let prCommand = `gh pr create --title "${prTitle.replace(/"/g, '\\"')}" --body "${prBody.replace(/"/g, '\\"')}" --base "${BASE_BRANCH}"`;
+      // Write PR details to temp files to avoid command injection
+      const tmpDir = path.join(this.repoPath, '.git', 'tmp-pr');
+      await fs.promises.mkdir(tmpDir, { recursive: true });
+      const titleFile = path.join(tmpDir, 'title.txt');
+      const bodyFile = path.join(tmpDir, 'body.txt');
+
+      await fs.promises.writeFile(titleFile, prTitle, 'utf-8');
+      await fs.promises.writeFile(bodyFile, prBody, 'utf-8');
+
+      // Use gh CLI with file input (safe from injection)
+      const { execSync } = require('child_process');
+      let ghCommand = `gh pr create --title "$(cat "${titleFile}")" --body "$(cat "${bodyFile}")" --base "${BASE_BRANCH}"`;
 
       // Add reviewers if configured
       if (DEFAULT_REVIEWERS.length > 0) {
-        prCommand += ` --reviewer "${DEFAULT_REVIEWERS.join(',')}"`;
+        ghCommand += ` --reviewer "${DEFAULT_REVIEWERS.join(',')}"`;
       }
 
-      const { stdout: prOutput } = await execAsync(prCommand, { cwd: this.repoPath });
+      const prUrl = execSync(ghCommand, { cwd: this.repoPath, encoding: 'utf-8' }).trim();
+
+      // Cleanup temp files
+      await fs.promises.rm(tmpDir, { recursive: true, force: true });
 
       // Parse PR URL from output
-      const prUrl = prOutput.trim();
       const prNumberMatch = prUrl.match(/\/pull\/(\d+)/);
       const prNumber = prNumberMatch ? parseInt(prNumberMatch[1]) : undefined;
 
@@ -184,7 +191,7 @@ export class GitHubService {
       }
 
       // Switch back to base branch
-      await execAsync(`git checkout ${BASE_BRANCH}`, { cwd: this.repoPath });
+      await git.checkout(BASE_BRANCH);
 
       console.log(`[GitHub] PR created: ${prUrl}`);
 
@@ -199,14 +206,14 @@ export class GitHubService {
 
       // Try to clean up - switch back to base branch
       try {
-        await execAsync(`git checkout ${BASE_BRANCH}`, { cwd: this.repoPath });
+        await git.checkout(BASE_BRANCH);
       } catch {
         // Ignore cleanup errors
       }
 
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to create PR',
+        error: 'Failed to create PR',
         branch: branchName,
       };
     }
@@ -311,10 +318,19 @@ ${testSummary}
 ---
 _Tested at: ${new Date().toISOString()}_`;
 
-      await execAsync(
-        `gh pr comment ${prNumber} --body "${comment.replace(/"/g, '\\"')}"`,
+      // Write comment to temp file to avoid injection
+      const tmpDir = path.join(this.repoPath, '.git', 'tmp-pr');
+      await fs.promises.mkdir(tmpDir, { recursive: true });
+      const commentFile = path.join(tmpDir, 'comment.txt');
+      await fs.promises.writeFile(commentFile, comment, 'utf-8');
+
+      const { execSync } = require('child_process');
+      execSync(
+        `gh pr comment ${prNumber} --body "$(cat "${commentFile}")"`,
         { cwd: this.repoPath }
       );
+
+      await fs.promises.rm(tmpDir, { recursive: true, force: true });
       console.log(`[GitHub] Added test results comment to PR #${prNumber}`);
     } catch (error) {
       console.error('[GitHub] Failed to add PR comment:', error);
@@ -326,7 +342,8 @@ _Tested at: ${new Date().toISOString()}_`;
    */
   async checkGitHubAuth(): Promise<boolean> {
     try {
-      await execAsync('gh auth status', { cwd: this.repoPath });
+      const { execSync } = require('child_process');
+      execSync('gh auth status', { cwd: this.repoPath, stdio: 'ignore' });
       return true;
     } catch {
       return false;
@@ -338,8 +355,10 @@ _Tested at: ${new Date().toISOString()}_`;
    */
   async getRemoteUrl(): Promise<string | null> {
     try {
-      const { stdout } = await execAsync('git remote get-url origin', { cwd: this.repoPath });
-      return stdout.trim();
+      const git: SimpleGit = simpleGit(this.repoPath);
+      const remotes = await git.getRemotes(true);
+      const origin = remotes.find(r => r.name === 'origin');
+      return origin?.refs?.fetch || null;
     } catch {
       return null;
     }

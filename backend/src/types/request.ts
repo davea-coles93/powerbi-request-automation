@@ -45,6 +45,7 @@ export interface ChangeRequest {
   testResults?: TestResult[];
   clarificationQuestions?: ClarificationQuestion[];
   clarificationResponse?: string;
+  clarificationAttempts?: number;
 }
 
 export interface ExecutionLogEntry {

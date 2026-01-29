@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ChangeRequest, CreateRequestDTO, Stats } from './types';
+import type { ChangeRequest, CreateRequestDTO, Stats } from './types';
 
 const API_BASE = 'http://localhost:3001/api';
 
@@ -28,6 +28,11 @@ export const requestsApi = {
 
   execute: async (id: string): Promise<{ success: boolean }> => {
     const response = await api.post(`/requests/${id}/execute`);
+    return response.data;
+  },
+
+  submitClarification: async (id: string, answers: string): Promise<ChangeRequest> => {
+    const response = await api.post<ChangeRequest>(`/requests/${id}/clarify`, { response: answers });
     return response.data;
   },
 

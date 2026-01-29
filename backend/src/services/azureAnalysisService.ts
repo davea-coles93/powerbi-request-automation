@@ -15,10 +15,12 @@ import {
  * - Validate DAX syntax against real models
  * - Execute test queries
  * - Deploy model changes
+ * - START/STOP the server to minimize costs (billing is per-minute!)
  *
  * Prerequisites:
  * - Azure Analysis Services instance deployed
  * - Service principal with admin rights on the AAS
+ * - Service principal needs "Contributor" role on the AAS resource for start/stop
  * - Sample model deployed for testing
  *
  * Environment variables:
@@ -27,11 +29,35 @@ import {
  * - AZURE_CLIENT_ID: Service principal app ID
  * - AZURE_CLIENT_SECRET: Service principal secret
  * - AZURE_TENANT_ID: Azure AD tenant ID
+ * - AZURE_SUBSCRIPTION_ID: Azure subscription ID (for start/stop)
+ * - AZURE_RESOURCE_GROUP: Resource group containing the AAS (for start/stop)
+ * - AZURE_AAS_SERVER_NAME: AAS server name without URL (for start/stop)
  */
+
+// Azure Management API base URL
+const AZURE_MANAGEMENT_API = 'https://management.azure.com';
 
 interface AzureToken {
   accessToken: string;
   expiresAt: number;
+}
+
+interface AzureTokenResponse {
+  access_token: string;
+  expires_in: number;
+  token_type: string;
+}
+
+interface AASServerResponse {
+  properties: {
+    state: 'Succeeded' | 'Paused' | 'Pausing' | 'Resuming' | 'Scaling' | 'Suspended';
+    provisioningState: string;
+  };
+}
+
+export interface AASServerStatus {
+  state: 'Succeeded' | 'Paused' | 'Pausing' | 'Resuming' | 'Scaling' | 'Suspended';
+  provisioningState: string;
 }
 
 export class AzureAnalysisService implements IPowerBIService {
@@ -40,7 +66,11 @@ export class AzureAnalysisService implements IPowerBIService {
   private clientId: string;
   private clientSecret: string;
   private tenantId: string;
+  private subscriptionId: string;
+  private resourceGroup: string;
+  private serverName: string;
   private token: AzureToken | null = null;
+  private managementToken: AzureToken | null = null;
   private modelCache: PowerBIModel | null = null;
 
   constructor() {
@@ -49,16 +79,67 @@ export class AzureAnalysisService implements IPowerBIService {
     this.clientId = process.env.AZURE_CLIENT_ID || '';
     this.clientSecret = process.env.AZURE_CLIENT_SECRET || '';
     this.tenantId = process.env.AZURE_TENANT_ID || '';
+    // For server start/stop (cost management)
+    this.subscriptionId = process.env.AZURE_SUBSCRIPTION_ID || '';
+    this.resourceGroup = process.env.AZURE_RESOURCE_GROUP || '';
+    this.serverName = process.env.AZURE_AAS_SERVER_NAME || '';
   }
 
   private async getAccessToken(): Promise<string> {
+    // Check for pre-acquired token from OIDC (GitHub Actions)
+    const oidcToken = process.env.AAS_ACCESS_TOKEN;
+    if (oidcToken) {
+      return oidcToken;
+    }
+
     // Check if we have a valid cached token
     if (this.token && this.token.expiresAt > Date.now()) {
       return this.token.accessToken;
     }
 
+    // Fall back to client credentials flow (requires client secret)
+    const clientSecret = process.env.AZURE_CLIENT_SECRET;
+    if (!clientSecret) {
+      throw new Error('No access token available. Set AAS_ACCESS_TOKEN (OIDC) or AZURE_CLIENT_SECRET (client credentials).');
+    }
+
     const tokenUrl = `https://login.microsoftonline.com/${this.tenantId}/oauth2/v2.0/token`;
     const scope = 'https://analysis.windows.net/.default';
+
+    const response = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: this.clientId,
+        client_secret: clientSecret,
+        scope: scope,
+        grant_type: 'client_credentials',
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get Azure token: ${response.status}`);
+    }
+
+    const data = await response.json() as AzureTokenResponse;
+    this.token = {
+      accessToken: data.access_token,
+      expiresAt: Date.now() + (data.expires_in - 60) * 1000,
+    };
+
+    return this.token.accessToken;
+  }
+
+  /**
+   * Get Azure AD access token for Azure Management API (start/stop server)
+   */
+  private async getManagementToken(): Promise<string> {
+    if (this.managementToken && this.managementToken.expiresAt > Date.now()) {
+      return this.managementToken.accessToken;
+    }
+
+    const tokenUrl = `https://login.microsoftonline.com/${this.tenantId}/oauth2/v2.0/token`;
+    const scope = 'https://management.azure.com/.default';
 
     const response = await fetch(tokenUrl, {
       method: 'POST',
@@ -72,16 +153,172 @@ export class AzureAnalysisService implements IPowerBIService {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to get Azure token: ${response.status}`);
+      throw new Error(`Failed to get Azure management token: ${response.status}`);
     }
 
-    const data = await response.json();
-    this.token = {
+    const data = await response.json() as AzureTokenResponse;
+    this.managementToken = {
       accessToken: data.access_token,
       expiresAt: Date.now() + (data.expires_in - 60) * 1000,
     };
 
-    return this.token.accessToken;
+    return this.managementToken.accessToken;
+  }
+
+  /**
+   * Check if server management is configured (subscription, resource group, server name)
+   */
+  private isManagementConfigured(): boolean {
+    return !!(this.subscriptionId && this.resourceGroup && this.serverName);
+  }
+
+  /**
+   * Get the current status of the AAS server
+   */
+  async getServerStatus(): Promise<AASServerStatus> {
+    if (!this.isManagementConfigured()) {
+      throw new Error('Server management not configured (missing subscription/resource group/server name)');
+    }
+
+    const token = await this.getManagementToken();
+    const url = `${AZURE_MANAGEMENT_API}/subscriptions/${this.subscriptionId}/resourceGroups/${this.resourceGroup}/providers/Microsoft.AnalysisServices/servers/${this.serverName}?api-version=2017-08-01`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to get server status: ${error}`);
+    }
+
+    const data = await response.json() as AASServerResponse;
+    return {
+      state: data.properties.state,
+      provisioningState: data.properties.provisioningState,
+    };
+  }
+
+  /**
+   * Start the AAS server (resume from paused state)
+   * IMPORTANT: Server billing starts when resumed!
+   */
+  async startServer(): Promise<void> {
+    if (!this.isManagementConfigured()) {
+      console.log('[AAS] Server management not configured, skipping start');
+      return;
+    }
+
+    console.log('[AAS] Starting server (billing will begin)...');
+
+    const status = await this.getServerStatus();
+    if (status.state === 'Succeeded') {
+      console.log('[AAS] Server is already running');
+      return;
+    }
+
+    const token = await this.getManagementToken();
+    const url = `${AZURE_MANAGEMENT_API}/subscriptions/${this.subscriptionId}/resourceGroups/${this.resourceGroup}/providers/Microsoft.AnalysisServices/servers/${this.serverName}/resume?api-version=2017-08-01`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok && response.status !== 202) {
+      const error = await response.text();
+      throw new Error(`Failed to start server: ${error}`);
+    }
+
+    // Wait for server to be ready
+    console.log('[AAS] Waiting for server to start...');
+    await this.waitForServerState('Succeeded');
+    console.log('[AAS] Server is now running');
+  }
+
+  /**
+   * Stop the AAS server (pause to stop billing)
+   * IMPORTANT: Always call this when done to minimize costs!
+   */
+  async stopServer(): Promise<void> {
+    if (!this.isManagementConfigured()) {
+      console.log('[AAS] Server management not configured, skipping stop');
+      return;
+    }
+
+    console.log('[AAS] Stopping server (billing will stop)...');
+
+    const status = await this.getServerStatus();
+    if (status.state === 'Paused') {
+      console.log('[AAS] Server is already paused');
+      return;
+    }
+
+    const token = await this.getManagementToken();
+    const url = `${AZURE_MANAGEMENT_API}/subscriptions/${this.subscriptionId}/resourceGroups/${this.resourceGroup}/providers/Microsoft.AnalysisServices/servers/${this.serverName}/suspend?api-version=2017-08-01`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok && response.status !== 202) {
+      const error = await response.text();
+      throw new Error(`Failed to stop server: ${error}`);
+    }
+
+    // Wait for server to be paused
+    console.log('[AAS] Waiting for server to pause...');
+    await this.waitForServerState('Paused');
+    console.log('[AAS] Server is now paused (billing stopped)');
+  }
+
+  /**
+   * Wait for server to reach a specific state
+   */
+  private async waitForServerState(targetState: string, timeoutMs: number = 300000): Promise<void> {
+    const startTime = Date.now();
+    const pollInterval = 5000; // 5 seconds
+
+    while (Date.now() - startTime < timeoutMs) {
+      const status = await this.getServerStatus();
+      console.log(`[AAS] Server state: ${status.state}`);
+      if (status.state === targetState) {
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+
+    throw new Error(`Timeout waiting for server to reach state: ${targetState}`);
+  }
+
+  /**
+   * Execute operations with automatic server start/stop
+   * This ensures we don't leave the server running and incurring costs
+   *
+   * Usage:
+   *   await aasService.withAASServer(async () => {
+   *     await aasService.executeDAX('EVALUATE ...');
+   *     await aasService.createMeasure(...);
+   *   });
+   */
+  async withAASServer<T>(operation: () => Promise<T>): Promise<T> {
+    try {
+      await this.startServer();
+      return await operation();
+    } finally {
+      await this.stopServer();
+    }
   }
 
   private async executeXmla(query: string): Promise<unknown> {
@@ -426,7 +663,9 @@ export class AzureAnalysisService implements IPowerBIService {
   // Helper method to check configuration status
   getConfigurationStatus(): {
     configured: boolean;
+    managementConfigured: boolean;
     missing: string[];
+    missingManagement: string[];
   } {
     const missing: string[] = [];
     if (!this.serverUrl) missing.push('AZURE_AAS_SERVER');
@@ -435,9 +674,36 @@ export class AzureAnalysisService implements IPowerBIService {
     if (!this.clientSecret) missing.push('AZURE_CLIENT_SECRET');
     if (!this.tenantId) missing.push('AZURE_TENANT_ID');
 
+    const missingManagement: string[] = [];
+    if (!this.subscriptionId) missingManagement.push('AZURE_SUBSCRIPTION_ID');
+    if (!this.resourceGroup) missingManagement.push('AZURE_RESOURCE_GROUP');
+    if (!this.serverName) missingManagement.push('AZURE_AAS_SERVER_NAME');
+
     return {
       configured: missing.length === 0,
+      managementConfigured: missingManagement.length === 0,
       missing,
+      missingManagement,
     };
   }
+}
+
+/**
+ * Create AAS service configured from environment variables
+ * Returns null if required configuration is missing
+ */
+export function createAASServiceFromEnv(): AzureAnalysisService | null {
+  const service = new AzureAnalysisService();
+  const status = service.getConfigurationStatus();
+
+  if (!status.configured) {
+    console.log(`[AAS] Missing required configuration: ${status.missing.join(', ')}`);
+    return null;
+  }
+
+  if (!status.managementConfigured) {
+    console.log(`[AAS] Warning: Server management not configured (start/stop disabled): ${status.missingManagement.join(', ')}`);
+  }
+
+  return service;
 }

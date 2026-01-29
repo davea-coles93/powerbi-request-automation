@@ -1,0 +1,333 @@
+table Sales
+	isHidden
+	lineageTag: b882bc01-7f29-4d86-be84-f64891a8c9b6
+
+	measure Regular_Sales_Dollars = SUM([Sum_Regular_Sales_Dollars])
+		lineageTag: 37397a8f-f414-4f85-b313-e151f97da5af
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure Markdown_Sales_Dollars = SUM([Sum_Markdown_Sales_Dollars])
+		lineageTag: 00a7c849-1034-4be2-ad85-3d91661430ec
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure TotalSales = [Regular_Sales_Dollars]+[Markdown_Sales_Dollars]
+		lineageTag: fc0a0ff7-eb80-4302-81d0-c304c6b5a91d
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure TotalSalesLY = CALCULATE([TotalSales], Sales[ScenarioID]=2)
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: 7ecdf623-9440-4594-95e0-59ab2bd8bd75
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'Gross Margin This Year' = CALCULATE(SUM([Sum_GrossMarginAmount]), Sales[ScenarioID]=1)
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: 5ef70421-cdb7-4051-9a29-f725d4c503a0
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'Gross Margin This Year %' = [Gross Margin This Year]/[TotalSalesTY]
+		formatString: 0.00%;-0.00%;0.00%
+		lineageTag: 43516b97-1d5c-4cc1-8aee-a560b5faa43e
+
+	measure 'Gross Margin Last Year' = CALCULATE(SUM([Sum_GrossMarginAmount]), Sales[ScenarioID]=2)
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: 43b47247-bac0-430d-9376-cf0086042ae2
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'Gross Margin Last Year %' = [Gross Margin Last Year]/[TotalSalesLY]
+		formatString: 0.00%;-0.00%;0.00%
+		lineageTag: 0d8c33a4-00ed-491f-a98a-5c3d5e1d9f09
+
+	measure Regular_Sales_Units = SUM([Sum_Regular_Sales_Units])
+		lineageTag: 7e845205-5586-446b-a374-a1b1cf8ff790
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure Markdown_Sales_Units = SUM([Sum_Markdown_Sales_Units])
+		lineageTag: 719e8401-0bfc-447f-943b-b06f6edd7d7a
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure TotalUnits = [Regular_Sales_Units]+[Markdown_Sales_Units]
+		lineageTag: 83157f7d-8a12-479b-9e41-bf0a61f394a0
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	measure 'Total Units Last Year' = CALCULATE([TotalUnits], Sales[ScenarioID]=2)
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: 23c3888d-6504-42e3-8045-ceef442f29d6
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'Total Units This Year' = CALCULATE([TotalUnits], Sales[ScenarioID]=1)
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: 8a4093a2-8a67-4559-be38-032552593a97
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'Avg $/Unit TY' = IF([Total Units This Year]<>0, [TotalSalesTY]/[Total Units This Year], BLANK())
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: 4f4e9602-6850-46f8-a25f-bacd0d05a834
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'Avg $/Unit LY' = IF([Total Units Last Year]<>0, [TotalSalesLY]/[Total Units Last Year], BLANK())
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: 5b86198b-635b-4d6d-9300-b60c01f2597b
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'Total Sales Var' = [TotalSalesTY]-[TotalSalesLY]
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: bd10f5bd-1cab-4095-8e18-197fd59ee0f8
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'Total Sales Var %' = IF([TotalSalesLY]<>0, [Total Sales Var]/[TotalSalesLY], BLANK())
+		formatString: 0.00%;-0.00%;0.00%
+		lineageTag: 4df278d1-bed5-44b0-9846-8e882e3a3005
+
+	measure 'Sales Per Sq Ft' = ([TotalSalesTY]/(DISTINCTCOUNT([MonthID])*SUM(Store[SellingAreaSize])))*12
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: 4152a2cf-59c6-48ad-a83a-63dd030ced2b
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'Last Year Sales' = [TotalSalesLY]
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: 929e39c7-2d46-4b41-b85a-26ce9c23a483
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'Total Sales Variance' = [Total Sales Var]
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: 91bafa1f-eab5-484d-b79f-677a3414467a
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'Total Sales Variance %' = [Total Sales Var %]
+		formatString: 0.00%;-0.00%;0.00%
+		lineageTag: d05a687d-69d3-4a83-8c2a-5ac793aa8e4a
+
+	measure 'Store Count' = DISTINCTCOUNT([LocationID])
+		formatString: 0
+		lineageTag: 26335d20-ac40-4341-9a9d-ca1d76e0f7ca
+
+	measure 'Average Unit Price' = [Avg $/Unit TY]
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: 89f68db8-823a-4dcf-97d1-79b1c2b9273e
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'Average Unit Price Last Year' = [Avg $/Unit LY]
+		formatString: \$#,0.00;(\$#,0.00);\$#,0.00
+		lineageTag: 077e78e5-e31d-45c4-a2db-4903ec865411
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure TotalSalesTY = CALCULATE([TotalSales], Sales[ScenarioID]=1)
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: 576db27b-47ad-402e-b666-1c04f8af94f8
+
+		kpi
+			targetExpression = 'Sales'[TotalSalesLY]
+			targetFormatString: \$#,0;(\$#,0);\$#,0
+			statusGraphic: Traffic Light - Single
+			statusExpression = ```
+				var x='Sales'[TotalSalesTY]/'Sales'[_TotalSalesTY Goal] return
+				if(ISBLANK(x),BLANK(),
+				        If(x<0.95,-1,
+					    If(x<1,0,1)
+				    )
+				)
+				
+				```
+
+			annotation GoalType = Measure
+
+			annotation KpiStatusType = Linear
+
+			annotation KpiThresholdType = Percentage
+
+			annotation KpiThresholdOrdering = Ascending
+
+			annotation KpiThresholdCount = 2
+
+			annotation KpiThreshold_0 = 95
+
+			annotation KpiThreshold_1 = 100
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	measure 'This Year Sales' = [TotalSalesTY]
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: 9bb76f5a-d072-4b21-92f0-2b9558ca0e4c
+
+		kpi
+			targetExpression = 'Sales'[Last Year Sales]
+			targetFormatString: \$#,0;(\$#,0);\$#,0
+			statusGraphic: Traffic Light - Single
+			statusExpression = ```
+				var x='Sales'[This Year Sales]/'Sales'[_This Year Sales Goal] return
+				if(ISBLANK(x),BLANK(),
+				        If(x<0.95,-1,
+					    If(x<1,0,1)
+				    )
+				)
+				
+				```
+
+			annotation GoalType = Measure
+
+			annotation KpiStatusType = Linear
+
+			annotation KpiThresholdType = Percentage
+
+			annotation KpiThresholdOrdering = Ascending
+
+			annotation KpiThresholdCount = 2
+
+			annotation KpiThreshold_0 = 95
+
+			annotation KpiThreshold_1 = 100
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	column MonthID
+		dataType: int64
+		isHidden
+		lineageTag: d058212f-4cfe-41e1-8f19-b515171aecb4
+		summarizeBy: count
+		sourceColumn: MonthID
+
+		annotation DataTypeAtRefresh = Int64#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column ItemID
+		dataType: int64
+		isHidden
+		lineageTag: 2729b44d-f949-486d-8f8c-3919ad74aba7
+		summarizeBy: none
+		sourceColumn: ItemID
+
+		annotation DataTypeAtRefresh = Int64#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column LocationID
+		dataType: int64
+		isHidden
+		lineageTag: d2139d76-0d67-43d2-a50d-4361c384cbf4
+		summarizeBy: none
+		sourceColumn: LocationID
+
+		annotation DataTypeAtRefresh = Int64#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column Sum_GrossMarginAmount
+		dataType: double
+		isHidden
+		lineageTag: 86b1cfd1-1128-4dcf-b1f2-454843fa7d96
+		summarizeBy: sum
+		sourceColumn: Sum_GrossMarginAmount
+
+		annotation DataTypeAtRefresh = Double#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column Sum_Regular_Sales_Dollars
+		dataType: double
+		isHidden
+		lineageTag: e1b77fd8-7dbe-4258-97a7-1f24e3231817
+		summarizeBy: sum
+		sourceColumn: Sum_Regular_Sales_Dollars
+
+		annotation DataTypeAtRefresh = Double#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column Sum_Markdown_Sales_Dollars
+		dataType: double
+		isHidden
+		lineageTag: 7b9ab5f5-a826-4234-a406-dac792cbf8f8
+		summarizeBy: sum
+		sourceColumn: Sum_Markdown_Sales_Dollars
+
+		annotation DataTypeAtRefresh = Double#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column ScenarioID
+		dataType: int64
+		isHidden
+		lineageTag: ca0169fd-f110-4d4f-8e98-23bbd7ba81e2
+		summarizeBy: count
+		sourceColumn: ScenarioID
+
+		annotation DataTypeAtRefresh = Int64#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column ReportingPeriodID = [MonthID]&"01"
+		isHidden
+		lineageTag: b43e566c-4a7c-47b5-abf5-48a01736b890
+		summarizeBy: none
+
+		annotation DataTypeAtRefresh = String#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isText":true}
+
+	column Sum_Regular_Sales_Units
+		dataType: double
+		isHidden
+		lineageTag: f52c555f-e3b7-4799-9235-47d4391ed134
+		summarizeBy: sum
+		sourceColumn: Sum_Regular_Sales_Units
+
+		annotation DataTypeAtRefresh = Double#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+	column Sum_Markdown_Sales_Units
+		dataType: double
+		isHidden
+		lineageTag: 81daac4b-0962-4268-b0d4-b62ec7510c0d
+		summarizeBy: sum
+		sourceColumn: Sum_Markdown_Sales_Units
+
+		annotation DataTypeAtRefresh = Double#####not a type
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Sales = m
+		source =
+				let
+				    Source = Sql.Database(".", "RetailBIDW", [Query="SELECT s.[MonthID]+200 MonthID#(lf)      ,s.[ItemID]#(lf)      ,s.[LocationID]#(lf)      ,s.[Sum_GrossMarginAmount]#(lf)      ,s.[Sum_Regular_Sales_Dollars]#(lf)      ,s.[Sum_Markdown_Sales_Dollars]#(lf)      ,s.[Sum_Regular_Sales_Units]#(lf)      ,s.[Sum_Markdown_Sales_Units]#(lf)      ,s.[ScenarioID]#(lf)  FROM [dbo].[Monthly_sales] s tablesample (10 percent), IP.[Retail].[StoreDim] d #(lf)  where s.LocationID = d.[LocationID]#(lf) and MonthID+200>=concat(year(d.opendate ),RIGHT('0'+cast(month(d.opendate ) as varchar(2)), 2) )"]),
+				    #"Renamed Columns" = Table.RenameColumns(Source, {{"MonthID", "MonthID"}, {"ItemID", "ItemID"}, {"LocationID", "LocationID"}, {"Sum_GrossMarginAmount", "Sum_GrossMarginAmount"}, {"Sum_Regular_Sales_Dollars", "Sum_Regular_Sales_Dollars"}, {"Sum_Markdown_Sales_Dollars", "Sum_Markdown_Sales_Dollars"}, {"ScenarioID", "ScenarioID"}, {"Sum_Regular_Sales_Units", "Sum_Regular_Sales_Units"}, {"Sum_Markdown_Sales_Units", "Sum_Markdown_Sales_Units"}}),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Renamed Columns", {{"MonthID", Int64.Type}, {"ItemID", Int64.Type}, {"LocationID", Int64.Type}, {"Sum_GrossMarginAmount", type number}, {"Sum_Regular_Sales_Dollars", type number}, {"Sum_Markdown_Sales_Dollars", type number}, {"ScenarioID", Int64.Type}, {"Sum_Regular_Sales_Units", type number}, {"Sum_Markdown_Sales_Units", type number}})
+				in
+				    #"Changed Type"
+

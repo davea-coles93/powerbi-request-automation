@@ -1,4 +1,4 @@
-import { Stats, RequestStatus } from '../types';
+import type { Stats, RequestStatus } from '../types';
 
 interface DashboardProps {
   stats: Stats | null;
@@ -8,7 +8,9 @@ interface DashboardProps {
 const STATUS_LABELS: Record<RequestStatus, string> = {
   pending: 'Pending',
   triaging: 'Triaging',
+  awaiting_clarification: 'Awaiting Clarification',
   in_progress: 'In Progress',
+  validating: 'Validating',
   testing: 'Testing',
   pr_created: 'PR Created',
   completed: 'Completed',

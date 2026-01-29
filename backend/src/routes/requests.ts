@@ -173,18 +173,28 @@ export function createRequestRouter(
     }
 
     const { response: clarificationResponse } = req.body;
-    if (!clarificationResponse) {
-      res.status(400).json({ error: 'Clarification response required' });
+    if (!clarificationResponse || !clarificationResponse.trim()) {
+      res.status(400).json({ error: 'Valid clarification response required' });
+      return;
+    }
+
+    // Check clarification attempt limit (max 3 rounds)
+    const attempts = (request.clarificationAttempts || 0) + 1;
+    if (attempts > 3) {
+      store.setStatus(id, 'needs_human');
+      store.addLog(id, 'Too many clarifications', 'Request needs human review after 3 clarification rounds', 'error');
+      res.status(400).json({ error: 'Maximum clarification attempts reached. Request escalated to human review.' });
       return;
     }
 
     // Update request with clarification
     store.update(id, {
       clarificationResponse,
-      description: `${request.description}\n\n--- Additional Information ---\n${clarificationResponse}`,
+      description: `${request.description}\n\n--- Clarification ${attempts} ---\n${clarificationResponse.trim()}`,
       status: 'triaging',
+      clarificationAttempts: attempts,
     });
-    store.addLog(id, 'Clarification received', clarificationResponse, 'info');
+    store.addLog(id, `Clarification ${attempts} received`, clarificationResponse.substring(0, 100), 'info');
 
     // Re-trigger triage with updated information
     triageAndProcess(id, {

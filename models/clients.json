@@ -27,7 +27,7 @@
         {
           "id": "sales-sample",
           "name": "Sales Analytics",
-          "file": "adventure-works/sales-sample.pbix",
+          "file": "adventure-works/sales-sample.pbip",
           "description": "Product and territory sales analysis"
         }
       ]
