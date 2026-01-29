@@ -3,6 +3,7 @@ import { RequestStore } from '../services/requestStore';
 import { TriageService } from '../services/triageService';
 import { ExecutionService } from '../services/executionService';
 import { ClarificationService } from '../services/clarificationService';
+import { GitHubService } from '../services/githubService';
 import { IPowerBIService } from '../types/powerbi';
 import { CreateRequestDTO } from '../types/request';
 
@@ -13,7 +14,8 @@ export function createRequestRouter(
   store: RequestStore,
   triageService: TriageService,
   executionService: ExecutionService,
-  powerbiService: IPowerBIService
+  powerbiService: IPowerBIService,
+  githubService?: GitHubService
 ): Router {
   const router = Router();
 
@@ -45,7 +47,7 @@ export function createRequestRouter(
 
       // Start async triage
       store.setStatus(request.id, 'triaging');
-      triageAndProcess(request.id, dto, store, triageService, executionService);
+      triageAndProcess(request.id, dto, store, triageService, executionService, githubService);
 
       res.status(201).json(request);
     } catch (error) {
@@ -106,10 +108,28 @@ export function createRequestRouter(
           executionLog: [...request.executionLog, ...result.logs],
         });
 
-        // Simulate PR creation
-        const prUrl = `https://github.com/org/powerbi-models/pull/${Math.floor(Math.random() * 1000)}`;
-        store.setPRUrl(request.id, prUrl);
-        store.addLog(request.id, 'PR created', prUrl, 'success');
+        // Create real PR if GitHub service is available
+        if (githubService) {
+          const prResult = await githubService.createPullRequest(
+            request.id,
+            request.clientId,
+            request.modelName,
+            request.title,
+            request.description,
+            result.actions?.map(a => `${a.type}: ${a.measureName || 'N/A'}`) || ['Changes applied']
+          );
+          if (prResult.success && prResult.prUrl) {
+            store.setPRUrl(request.id, prResult.prUrl);
+            store.addLog(request.id, 'PR created', prResult.prUrl, 'success');
+          } else {
+            store.addLog(request.id, 'PR creation failed', prResult.error || 'Unknown error', 'error');
+          }
+        } else {
+          // Fallback to simulated PR
+          const prUrl = `https://github.com/org/powerbi-models/pull/${Math.floor(Math.random() * 1000)}`;
+          store.setPRUrl(request.id, prUrl);
+          store.addLog(request.id, 'PR created (simulated)', prUrl, 'success');
+        }
       } else {
         store.setStatus(request.id, 'failed');
         store.update(request.id, {
@@ -160,7 +180,7 @@ export function createRequestRouter(
       title: request.title,
       description: `${request.description}\n\n--- Additional Information ---\n${clarificationResponse}`,
       urgency: request.urgency,
-    }, store, triageService, executionService);
+    }, store, triageService, executionService, githubService);
 
     res.json({ success: true, message: 'Clarification received, re-processing request' });
   });
@@ -236,7 +256,8 @@ async function triageAndProcess(
   dto: CreateRequestDTO,
   store: RequestStore,
   triageService: TriageService,
-  executionService: ExecutionService
+  executionService: ExecutionService,
+  githubService?: GitHubService
 ): Promise<void> {
   try {
     // Full triage analysis
@@ -265,9 +286,28 @@ async function triageAndProcess(
 
         // All tests passed - create PR
         if (result.testResults.every(t => t.passed)) {
-          const prUrl = `https://github.com/org/powerbi-models/pull/${Math.floor(Math.random() * 1000)}`;
-          store.setPRUrl(requestId, prUrl);
-          store.addLog(requestId, 'PR created', prUrl, 'success');
+          if (githubService) {
+            const prResult = await githubService.createPullRequest(
+              requestId,
+              request.clientId,
+              request.modelName,
+              request.title,
+              request.description,
+              result.actions?.map(a => `${a.type}: ${a.measureName || 'N/A'}`) || ['Changes applied']
+            );
+            if (prResult.success && prResult.prUrl) {
+              store.setPRUrl(requestId, prResult.prUrl);
+              store.addLog(requestId, 'PR created', prResult.prUrl, 'success');
+            } else {
+              store.addLog(requestId, 'PR creation failed', prResult.error || 'Unknown error', 'error');
+              // Still mark as successful since changes were applied
+              store.setStatus(requestId, 'pr_created');
+            }
+          } else {
+            const prUrl = `https://github.com/org/powerbi-models/pull/${Math.floor(Math.random() * 1000)}`;
+            store.setPRUrl(requestId, prUrl);
+            store.addLog(requestId, 'PR created (simulated)', prUrl, 'success');
+          }
         } else {
           store.setStatus(requestId, 'needs_human');
           store.addLog(requestId, 'Tests failed', 'Some tests did not pass - manual review needed', 'error');

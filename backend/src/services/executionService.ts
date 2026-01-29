@@ -217,7 +217,19 @@ Provide the implementation as JSON with actions and test queries.`;
         throw new Error('Unexpected response type');
       }
 
-      return JSON.parse(content.text);
+      // Strip markdown code blocks if present
+      let jsonText = content.text.trim();
+      if (jsonText.startsWith('```json')) {
+        jsonText = jsonText.slice(7);
+      } else if (jsonText.startsWith('```')) {
+        jsonText = jsonText.slice(3);
+      }
+      if (jsonText.endsWith('```')) {
+        jsonText = jsonText.slice(0, -3);
+      }
+      jsonText = jsonText.trim();
+
+      return JSON.parse(jsonText);
     } catch (error) {
       console.error('Claude API failed, using rule-based plan:', error);
       return this.generateRuleBasedPlan(request, model);
@@ -231,69 +243,120 @@ Provide the implementation as JSON with actions and test queries.`;
     const desc = request.description.toLowerCase();
     const actions: ExecutionAction[] = [];
 
-    // Find the fact table (usually has Sales in it)
-    const factTable = model.tables.find(t => t.name.includes('Fact') || t.name.includes('Sales')) || model.tables[0];
+    // Find a table with measures (prefer Analysis DAX or tables with many measures)
+    const tablesWithMeasures = model.tables.filter(t => t.measures.length > 0);
+    const measureTable = tablesWithMeasures.find(t => t.name.includes('Analysis') || t.name.includes('DAX'))
+      || tablesWithMeasures.find(t => t.name.includes('Fact') || t.name.includes('Sales'))
+      || tablesWithMeasures[0]
+      || model.tables[0];
 
-    // Try to identify what measure is being referenced
-    const measureMatch = desc.match(/\b(gross margin|total sales|total cost|profit)\b/i);
-    const measureName = measureMatch ? measureMatch[1] : null;
+    // Get all available measures for reference
+    const allMeasures = model.tables.flatMap(t => t.measures);
 
-    if (request.changeType === 'dax_formula_tweak' && measureName) {
-      // Find the existing measure
-      const existingMeasure = factTable.measures.find(
-        m => m.name.toLowerCase().includes(measureName.toLowerCase())
+    // Try to find relevant measures mentioned in description
+    const findMeasure = (keywords: string[]): PowerBIMeasure | undefined => {
+      return allMeasures.find(m =>
+        keywords.some(k => m.name.toLowerCase().includes(k.toLowerCase()))
+      );
+    };
+
+    // Look for key measures that might be referenced
+    const netSalesMeasure = findMeasure(['net sales', 'total sales', 'sales']);
+    const returnsMeasure = findMeasure(['returns', 'return']);
+    const profitMeasure = findMeasure(['profit', 'margin']);
+
+    if (request.changeType === 'dax_formula_tweak') {
+      // Find the measure being modified
+      const measureWords = desc.match(/\b([\w\s]+(?:measure|%|margin|rate|ratio))\b/gi) || [];
+      const targetMeasure = allMeasures.find(m =>
+        measureWords.some(w => m.name.toLowerCase().includes(w.toLowerCase().trim()))
       );
 
-      if (existingMeasure) {
-        // Generate a fix based on common patterns
-        let newExpression = existingMeasure.expression;
+      if (targetMeasure) {
+        let newExpression = targetMeasure.expression;
 
-        // Common fix: division by wrong denominator
-        if (desc.includes('divide') && desc.includes('total sales')) {
-          newExpression = 'DIVIDE([Gross Profit], [Total Sales], 0)';
+        // Try to understand what change is needed
+        if (desc.includes('divide') && netSalesMeasure) {
+          newExpression = `DIVIDE(${targetMeasure.expression}, [${netSalesMeasure.name}], 0)`;
         }
 
         actions.push({
           type: 'update_measure',
-          tableName: factTable.name,
-          measureName: existingMeasure.name,
+          tableName: targetMeasure.tableName || measureTable.name,
+          measureName: targetMeasure.name,
           expression: newExpression,
-          description: `Fixed calculation based on request`,
+          description: `Updated based on request`,
         });
       }
     } else if (request.changeType === 'new_measure') {
-      // Create a new measure based on common patterns
-      if (desc.includes('year') && desc.includes('year') || desc.includes('yoy')) {
+      // Determine what new measure to create based on description
+      let measureName = 'New Measure';
+      let expression = '';
+      let formatString = '';
+
+      if (desc.includes('margin') || desc.includes('profit')) {
+        measureName = 'Profit Margin %';
+        if (netSalesMeasure && returnsMeasure) {
+          expression = `DIVIDE([${netSalesMeasure.name}] - [${returnsMeasure.name}], [${netSalesMeasure.name}], 0)`;
+        } else if (netSalesMeasure) {
+          expression = `DIVIDE([${netSalesMeasure.name}], [${netSalesMeasure.name}], 0)`;
+        }
+        formatString = '0.00%';
+      } else if (desc.includes('year') || desc.includes('yoy')) {
+        measureName = 'YoY Sales %';
+        const salesMeasure = netSalesMeasure || allMeasures[0];
+        if (salesMeasure) {
+          expression = `
+VAR CurrentSales = [${salesMeasure.name}]
+VAR PreviousSales = CALCULATE([${salesMeasure.name}], SAMEPERIODLASTYEAR('Calendar'[Date]))
+RETURN DIVIDE(CurrentSales - PreviousSales, PreviousSales, 0)`;
+        }
+        formatString = '0.00%';
+      } else if (desc.includes('average') || desc.includes('avg')) {
+        measureName = 'Average Value';
+        const baseMeasure = netSalesMeasure || allMeasures[0];
+        if (baseMeasure) {
+          expression = `AVERAGEX(ALL('Calendar'[Date]), [${baseMeasure.name}])`;
+        }
+        formatString = '#,##0.00';
+      }
+
+      // Extract custom measure name if specified
+      const nameMatch = desc.match(/called\s+["']?([^"'\n]+)["']?/i)
+        || desc.match(/named?\s+["']?([^"'\n]+)["']?/i);
+      if (nameMatch) {
+        measureName = nameMatch[1].trim();
+      }
+
+      if (expression) {
         actions.push({
           type: 'create_measure',
-          tableName: factTable.name,
-          measureName: 'YoY Sales %',
-          expression: `
-VAR CurrentYearSales = [Total Sales]
-VAR PreviousYearSales = CALCULATE([Total Sales], SAMEPERIODLASTYEAR(DimDate[Date]))
-RETURN DIVIDE(CurrentYearSales - PreviousYearSales, PreviousYearSales, 0)`,
-          formatString: '0.00%',
-          description: 'Year-over-year sales percentage change',
+          tableName: measureTable.name,
+          measureName,
+          expression,
+          formatString,
+          description: `Created based on: ${request.description.substring(0, 100)}`,
         });
       }
     }
 
-    // If no specific actions identified, create a placeholder
-    if (actions.length === 0) {
+    // If no specific actions identified, try to create something sensible
+    if (actions.length === 0 && netSalesMeasure) {
       actions.push({
-        type: 'update_measure',
-        tableName: factTable.name,
-        measureName: 'Gross Margin %',
-        expression: 'DIVIDE([Gross Profit], [Total Sales], 0)',
-        description: 'Standard gross margin calculation',
+        type: 'create_measure',
+        tableName: measureTable.name,
+        measureName: 'Custom Measure',
+        expression: `[${netSalesMeasure.name}]`,
+        description: 'Placeholder measure - review needed',
       });
     }
 
+    const testMeasure = actions[0]?.measureName || netSalesMeasure?.name || 'Net Sales';
     return {
       actions,
       explanation: `Rule-based implementation for ${request.changeType}. Generated ${actions.length} action(s).`,
       testQueries: [
-        `EVALUATE ROW("Result", [${actions[0]?.measureName || 'Total Sales'}])`,
+        `EVALUATE ROW("Result", [${testMeasure}])`,
       ],
     };
   }
