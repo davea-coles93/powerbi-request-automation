@@ -2,8 +2,12 @@ import { Router, Request, Response } from 'express';
 import { RequestStore } from '../services/requestStore';
 import { TriageService } from '../services/triageService';
 import { ExecutionService } from '../services/executionService';
+import { ClarificationService } from '../services/clarificationService';
 import { IPowerBIService } from '../types/powerbi';
 import { CreateRequestDTO } from '../types/request';
+
+// Initialize clarification service
+const clarificationService = new ClarificationService();
 
 export function createRequestRouter(
   store: RequestStore,
@@ -58,7 +62,8 @@ export function createRequestRouter(
 
   // Get request by ID
   router.get('/:id', (req: Request, res: Response) => {
-    const request = store.get(req.params.id);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const request = store.get(id);
     if (!request) {
       res.status(404).json({ error: 'Request not found' });
       return;
@@ -68,7 +73,8 @@ export function createRequestRouter(
 
   // Get requests by client
   router.get('/client/:clientId', (req: Request, res: Response) => {
-    const requests = store.getByClient(req.params.clientId);
+    const clientId = Array.isArray(req.params.clientId) ? req.params.clientId[0] : req.params.clientId;
+    const requests = store.getByClient(clientId);
     res.json(requests);
   });
 
@@ -80,7 +86,8 @@ export function createRequestRouter(
 
   // Manually trigger execution for a request
   router.post('/:id/execute', async (req: Request, res: Response) => {
-    const request = store.get(req.params.id);
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const request = store.get(id);
     if (!request) {
       res.status(404).json({ error: 'Request not found' });
       return;
@@ -115,6 +122,89 @@ export function createRequestRouter(
       store.setStatus(request.id, 'failed');
       res.status(500).json({ error: 'Execution failed' });
     }
+  });
+
+  // Provide clarification for a request
+  router.post('/:id/clarify', async (req: Request, res: Response) => {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const request = store.get(id);
+
+    if (!request) {
+      res.status(404).json({ error: 'Request not found' });
+      return;
+    }
+
+    if (request.status !== 'awaiting_clarification') {
+      res.status(400).json({ error: 'Request is not awaiting clarification' });
+      return;
+    }
+
+    const { response: clarificationResponse } = req.body;
+    if (!clarificationResponse) {
+      res.status(400).json({ error: 'Clarification response required' });
+      return;
+    }
+
+    // Update request with clarification
+    store.update(id, {
+      clarificationResponse,
+      description: `${request.description}\n\n--- Additional Information ---\n${clarificationResponse}`,
+      status: 'triaging',
+    });
+    store.addLog(id, 'Clarification received', clarificationResponse, 'info');
+
+    // Re-trigger triage with updated information
+    triageAndProcess(id, {
+      clientId: request.clientId,
+      modelName: request.modelName,
+      title: request.title,
+      description: `${request.description}\n\n--- Additional Information ---\n${clarificationResponse}`,
+      urgency: request.urgency,
+    }, store, triageService, executionService);
+
+    res.json({ success: true, message: 'Clarification received, re-processing request' });
+  });
+
+  // Send clarification request notification
+  router.post('/:id/notify', async (req: Request, res: Response) => {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const request = store.get(id);
+
+    if (!request) {
+      res.status(404).json({ error: 'Request not found' });
+      return;
+    }
+
+    if (!request.clarificationQuestions?.length) {
+      res.status(400).json({ error: 'No clarification questions to send' });
+      return;
+    }
+
+    const { channel, recipient } = req.body;
+
+    let result;
+    if (channel === 'teams') {
+      result = await clarificationService.sendTeamsNotification(
+        request,
+        request.clarificationQuestions,
+        req.body.webhookUrl
+      );
+    } else if (channel === 'email') {
+      result = await clarificationService.sendEmailNotification(
+        request,
+        request.clarificationQuestions,
+        recipient
+      );
+    } else {
+      res.status(400).json({ error: 'Invalid channel. Use "teams" or "email"' });
+      return;
+    }
+
+    store.addLog(id, 'Notification sent',
+      `${channel} notification to ${result.recipient}: ${result.sent ? 'success' : result.error}`,
+      result.sent ? 'success' : 'error');
+
+    res.json(result);
   });
 
   // Get PowerBI model info
@@ -201,12 +291,33 @@ async function triageAndProcess(
         'info'
       );
     } else {
-      store.addLog(
-        requestId,
-        'Clarification needed',
-        'The request needs more information before proceeding',
-        'info'
-      );
+      // Clarification needed - analyze what's missing
+      const clarificationResult = await clarificationService.analyzeForClarification(dto);
+
+      if (clarificationResult.needsClarification) {
+        store.update(requestId, {
+          status: 'awaiting_clarification',
+          clarificationQuestions: clarificationResult.questions,
+        });
+        store.addLog(
+          requestId,
+          'Clarification needed',
+          `Missing: ${clarificationResult.missingInfo.join(', ')}`,
+          'info'
+        );
+
+        // Log each question
+        clarificationResult.questions.forEach((q, i) => {
+          store.addLog(requestId, `Question ${i + 1}`, q.question, 'info');
+        });
+      } else {
+        store.addLog(
+          requestId,
+          'Manual review required',
+          'Could not determine clarification questions - manual review needed',
+          'info'
+        );
+      }
     }
   } catch (error) {
     console.error('Triage/processing error:', error);

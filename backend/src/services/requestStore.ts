@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { ChangeRequest, CreateRequestDTO, RequestStatus, TriageAnalysis } from '../types/request';
 
 // In-memory store for the POC
@@ -8,7 +8,7 @@ export class RequestStore {
 
   create(dto: CreateRequestDTO): ChangeRequest {
     const request: ChangeRequest = {
-      id: uuidv4(),
+      id: randomUUID(),
       clientId: dto.clientId,
       modelName: dto.modelName,
       title: dto.title,
@@ -109,7 +109,9 @@ export class RequestStore {
     const byStatus: Record<RequestStatus, number> = {
       pending: 0,
       triaging: 0,
+      awaiting_clarification: 0,
       in_progress: 0,
+      validating: 0,
       testing: 0,
       pr_created: 0,
       completed: 0,

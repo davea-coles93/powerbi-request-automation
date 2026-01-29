@@ -18,7 +18,9 @@ export type TriageResult =
 export type RequestStatus =
   | 'pending'
   | 'triaging'
+  | 'awaiting_clarification'
   | 'in_progress'
+  | 'validating'
   | 'testing'
   | 'pr_created'
   | 'completed'
@@ -41,6 +43,8 @@ export interface ChangeRequest {
   prUrl?: string;
   executionLog: ExecutionLogEntry[];
   testResults?: TestResult[];
+  clarificationQuestions?: ClarificationQuestion[];
+  clarificationResponse?: string;
 }
 
 export interface ExecutionLogEntry {
@@ -55,6 +59,14 @@ export interface TestResult {
   passed: boolean;
   message: string;
   executedAt: Date;
+  details?: unknown;
+}
+
+export interface ClarificationQuestion {
+  question: string;
+  context: string;
+  suggestedAnswers?: string[];
+  required: boolean;
 }
 
 export interface TriageAnalysis {

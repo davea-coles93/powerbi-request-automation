@@ -36,6 +36,15 @@ export class TriageService {
   }
 
   async analyzeRequest(request: CreateRequestDTO): Promise<TriageAnalysis> {
+    // First try rule-based analysis (works without API key)
+    const ruleBasedResult = this.ruleBasedAnalysis(request);
+
+    // If no API key configured, use rule-based only
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.log('No API key configured - using rule-based triage');
+      return ruleBasedResult;
+    }
+
     const prompt = `Analyze this PowerBI change request:
 
 Client: ${request.clientId}
@@ -71,9 +80,98 @@ Provide your analysis as JSON with these fields:
       const analysis = JSON.parse(content.text) as TriageAnalysis;
       return this.validateAnalysis(analysis);
     } catch (error) {
-      console.error('Triage analysis failed:', error);
-      return this.getFallbackAnalysis();
+      console.error('Triage analysis failed, using rule-based fallback:', error);
+      return ruleBasedResult;
     }
+  }
+
+  // Rule-based triage that works without API key
+  private ruleBasedAnalysis(request: CreateRequestDTO): TriageAnalysis {
+    const desc = request.description.toLowerCase();
+    const title = request.title.toLowerCase();
+    const combined = `${title} ${desc}`;
+
+    // Determine change type
+    let changeType: ChangeType = 'unknown';
+    let triageResult: TriageResult = 'clarification_needed';
+    let confidence = 0.6;
+    let reasoning = '';
+    let suggestedApproach = '';
+    let estimatedComplexity: 'trivial' | 'simple' | 'moderate' | 'complex' = 'moderate';
+
+    // DAX formula tweaks
+    if (/\b(fix|correct|typo|syntax|error|bug)\b.*\b(formula|dax|measure|calculation)\b/i.test(combined) ||
+        /\b(formula|dax|measure)\b.*\b(fix|correct|wrong|incorrect)\b/i.test(combined)) {
+      changeType = 'dax_formula_tweak';
+      triageResult = 'auto_fix';
+      confidence = 0.85;
+      reasoning = 'Request indicates a DAX formula correction - suitable for automated fix';
+      suggestedApproach = 'Identify the measure, analyze the error, generate corrected DAX';
+      estimatedComplexity = 'simple';
+    }
+    // New measure
+    else if (/\b(create|add|new|need)\b.*\bmeasure\b/i.test(combined) ||
+             /\bmeasure\b.*\b(create|add|new)\b/i.test(combined)) {
+      changeType = 'new_measure';
+      if (/\b(yoy|year.over.year|ytd|mtd|rolling|cumulative)\b/i.test(combined)) {
+        triageResult = 'auto_fix';
+        confidence = 0.8;
+        reasoning = 'Request for a common time intelligence measure - can be auto-generated';
+        suggestedApproach = 'Generate appropriate time intelligence DAX pattern';
+        estimatedComplexity = 'simple';
+      } else {
+        triageResult = 'assisted_fix';
+        confidence = 0.7;
+        reasoning = 'New measure request - may need clarification on exact requirements';
+        suggestedApproach = 'Generate measure based on description, human review recommended';
+        estimatedComplexity = 'moderate';
+      }
+    }
+    // Modify existing measure
+    else if (/\b(update|change|modify|edit|alter)\b.*\bmeasure\b/i.test(combined)) {
+      changeType = 'modify_measure';
+      triageResult = 'assisted_fix';
+      confidence = 0.75;
+      reasoning = 'Modification to existing measure - requires review of current implementation';
+      suggestedApproach = 'Retrieve current measure, analyze change request, propose modification';
+      estimatedComplexity = 'moderate';
+    }
+    // Schema changes
+    else if (/\b(relationship|table|schema|model|column)\b.*\b(add|change|remove|delete|create)\b/i.test(combined) ||
+             /\b(add|change|remove|delete|create)\b.*\b(relationship|table|column)\b/i.test(combined)) {
+      changeType = 'schema_change';
+      triageResult = 'human_design';
+      confidence = 0.8;
+      reasoning = 'Schema changes require careful consideration of data model impact';
+      estimatedComplexity = 'complex';
+    }
+    // New report
+    else if (/\b(new|create|build)\b.*\b(report|page|dashboard|visual)\b/i.test(combined)) {
+      changeType = 'new_report';
+      triageResult = 'human_design';
+      confidence = 0.85;
+      reasoning = 'New report creation requires design decisions and stakeholder input';
+      estimatedComplexity = 'complex';
+    }
+    // Formatting
+    else if (/\b(format|color|font|style|visual|layout|theme)\b/i.test(combined)) {
+      changeType = 'formatting';
+      triageResult = 'auto_fix';
+      confidence = 0.7;
+      reasoning = 'Visual formatting change - typically straightforward';
+      suggestedApproach = 'Apply formatting changes to specified elements';
+      estimatedComplexity = 'trivial';
+    }
+
+    return {
+      changeType,
+      triageResult,
+      confidence,
+      reasoning: reasoning || 'Classified using pattern matching - manual review recommended',
+      suggestedApproach,
+      estimatedComplexity,
+      affectedObjects: [],
+    };
   }
 
   private validateAnalysis(analysis: TriageAnalysis): TriageAnalysis {
