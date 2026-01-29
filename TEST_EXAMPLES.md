@@ -171,6 +171,61 @@ curl -X POST http://localhost:3001/api/requests \
 
 ---
 
+### 8. Visual Creation Test (MCP Integration)
+**Why**: Tests MCP report server integration, visual creation
+
+```bash
+# Currently not exposed via REST API - requires MCP direct testing
+# Test using Claude Code with MCP:
+# "Create a bar chart showing Sales Amount by Product Category on the Executive Summary page"
+```
+
+**Expected**:
+- MCP tools read current page state
+- Sees existing visuals on Executive Summary
+- Proposes adding new visual (not replacing page)
+- Creates visual with professional styling
+
+**Test Manually**:
+```typescript
+// Using MCP directly
+mcp_powerbi-report_create_bar_chart_visual({
+  reportPath: "models/adventure-works/sales-sample.Report",
+  pageName: "ExecutiveSummary",
+  categoryEntity: "Product",
+  categoryProperty: "Category",
+  measureEntity: "Sales",
+  measureProperty: "Sales Amount",
+  position: { x: 0, y: 550, width: 620, height: 300, z: 0 },
+  title: "Sales by Category"
+})
+```
+
+---
+
+### 9. Semantic Model Analysis Test
+**Why**: Tests model reading, state awareness
+
+```bash
+curl -X POST http://localhost:3001/api/requests \
+  -H "Content-Type: application/json" \
+  -d '{
+    "clientId": "adventure-works",
+    "modelName": "sales-sample",
+    "title": "List all measures",
+    "description": "Show me all existing measures in the model",
+    "urgency": "low"
+  }'
+```
+
+**Expected**:
+- Triage reads TMDL files
+- Lists existing measures in model
+- Status: `clarification_needed` or returns measure list
+- Demonstrates state awareness
+
+---
+
 ## Frontend Test Workflow
 
 1. Open http://localhost:5173
