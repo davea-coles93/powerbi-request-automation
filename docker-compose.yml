@@ -9,11 +9,14 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3001
+      - GH_TOKEN=${GITHUB_TOKEN}
+      - REPO_PATH=/repo
     env_file:
       - ./backend/.env
     volumes:
       - ./backend/src:/app/src
       - ./backend/dist:/app/dist
+      - .:/repo
       - ./models:/models
     restart: unless-stopped
     networks:

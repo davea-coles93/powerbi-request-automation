@@ -39,7 +39,7 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // Paths
-const repoPath = path.resolve(__dirname, '../..');
+const repoPath = process.env.REPO_PATH || path.resolve(__dirname, '../..');
 const modelsPath = path.join(repoPath, 'models');
 
 // Initialize services
