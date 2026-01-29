@@ -1,13 +1,22 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { ChangeType, TriageResult, TriageAnalysis, CreateRequestDTO } from '../types/request';
+import { sanitizeForLLM } from '../utils/validation';
 
 const TRIAGE_SYSTEM_PROMPT = `You are a PowerBI change request triage specialist. Analyze incoming requests and classify them.
 
 Your job is to:
 1. Identify the type of change being requested
-2. Assess whether it can be automated, needs human assistance, or requires human design
-3. Estimate complexity
-4. Identify what objects in the model might be affected
+2. **Understand what currently exists** in the report/model before proposing changes
+3. Assess whether it can be automated, needs human assistance, or requires human design
+4. Estimate complexity
+5. Identify what objects in the model might be affected
+6. **Propose changes that ADD to or ENHANCE existing work, not replace it** unless explicitly requested
+
+CRITICAL: Before proposing any changes:
+- Check what pages/visuals already exist
+- Identify if the request is to CREATE NEW or MODIFY EXISTING
+- If modifying, specify exactly what to change without overwriting other work
+- If creating, ensure it doesn't conflict with existing content
 
 Change Types:
 - dax_formula_tweak: Minor changes to existing DAX formulas (syntax fixes, small logic changes)
@@ -21,10 +30,12 @@ Change Types:
 - unknown: Cannot determine from description
 
 Triage Results:
-- auto_fix: Simple changes that can be executed automatically (formula tweaks, simple new measures, formatting)
-- assisted_fix: Changes that Claude can implement but should have human review (moderate complexity)
-- human_design: Complex requirements needing human architecture decisions (new reports, major schema changes)
-- clarification_needed: Request is unclear or missing critical information
+- auto_fix: Use this for MOST measure requests. If the request clearly describes what calculation is needed (sums, averages, ratios, percentages, time intelligence, business metrics like revenue/profit/customers), it should be auto_fix. Default to auto_fix unless there's a specific reason not to.
+- assisted_fix: Only use this when the request has genuine ambiguity or complex conditional business logic that needs human verification. Do NOT use this just because you're being cautious.
+- human_design: Only for architectural changes - new reports, major schema redesigns, fundamental model restructuring
+- clarification_needed: Only when the request is genuinely unclear or contradictory
+
+IMPORTANT: Err on the side of auto_fix. Most measure requests (sums, counts, percentages, ratios, time comparisons) are standard patterns that can be safely automated.
 
 Respond with JSON only, no markdown formatting.`;
 
@@ -35,7 +46,7 @@ export class TriageService {
     this.anthropic = new Anthropic();
   }
 
-  async analyzeRequest(request: CreateRequestDTO): Promise<TriageAnalysis> {
+  async analyzeRequest(request: CreateRequestDTO, repoPath?: string): Promise<TriageAnalysis> {
     // First try rule-based analysis (works without API key)
     const ruleBasedResult = this.ruleBasedAnalysis(request);
 
@@ -45,13 +56,27 @@ export class TriageService {
       return ruleBasedResult;
     }
 
+    // Get current state of report/model if path provided
+    let currentState = '';
+    if (repoPath) {
+      currentState = await this.getCurrentReportState(repoPath, request.clientId, request.modelName);
+    }
+
     const prompt = `Analyze this PowerBI change request:
 
-Client: ${request.clientId}
-Model: ${request.modelName}
-Title: ${request.title}
-Description: ${request.description}
+Client: ${sanitizeForLLM(request.clientId)}
+Model: ${sanitizeForLLM(request.modelName)}
+Title: ${sanitizeForLLM(request.title)}
+Description: ${sanitizeForLLM(request.description)}
 Urgency: ${request.urgency}
+
+CURRENT STATE OF REPORT:
+${currentState}
+
+IMPORTANT: Review the current state carefully. Propose changes that:
+- ADD to existing pages/visuals, don't replace them unless explicitly requested
+- If a page already exists, specify adding new visuals to it (not recreating it)
+- If visuals already exist, specify modifying specific ones (not deleting all and recreating)
 
 Provide your analysis as JSON with these fields:
 {
@@ -85,6 +110,70 @@ Provide your analysis as JSON with these fields:
     }
   }
 
+  /**
+   * Get current state of report to understand what exists before proposing changes
+   */
+  private async getCurrentReportState(repoPath: string, clientId: string, modelName: string): Promise<string> {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+
+      const reportPath = path.join(repoPath, 'models', clientId, `${modelName}.Report`, 'definition');
+
+      if (!fs.existsSync(reportPath)) {
+        return 'Report does not exist yet - this will be a new report.';
+      }
+
+      let state = '=== EXISTING REPORT STRUCTURE ===\n\n';
+
+      // Read pages
+      const pagesIndexPath = path.join(reportPath, 'pages', 'pages.json');
+      if (fs.existsSync(pagesIndexPath)) {
+        const pagesIndex = JSON.parse(fs.readFileSync(pagesIndexPath, 'utf-8'));
+        state += `PAGES (${pagesIndex.pages?.length || 0} total):\n`;
+
+        for (const pageRef of pagesIndex.pages || []) {
+          const pagePath = path.join(reportPath, 'pages', pageRef.name, 'page.json');
+          if (fs.existsSync(pagePath)) {
+            const page = JSON.parse(fs.readFileSync(pagePath, 'utf-8'));
+            state += `\n  📄 "${pageRef.displayName}" (${pageRef.name})\n`;
+
+            // Count visuals on this page
+            const visualsPath = path.join(reportPath, 'pages', pageRef.name, 'visuals');
+            if (fs.existsSync(visualsPath)) {
+              const visualContainers = fs.readdirSync(visualsPath);
+              state += `     Visuals: ${visualContainers.length}\n`;
+
+              // List visual types
+              for (const container of visualContainers.slice(0, 5)) { // Max 5 to avoid too much text
+                const visualJsonPath = path.join(visualsPath, container, 'visual.json');
+                if (fs.existsSync(visualJsonPath)) {
+                  const visual = JSON.parse(fs.readFileSync(visualJsonPath, 'utf-8'));
+                  const visualType = visual.visual?.visualType || 'unknown';
+                  const title = visual.visual?.visualContainerObjects?.title?.[0]?.properties?.text?.expr?.Literal?.Value || container;
+                  state += `       - ${visualType}: ${title}\n`;
+                }
+              }
+              if (visualContainers.length > 5) {
+                state += `       ... and ${visualContainers.length - 5} more\n`;
+              }
+            }
+          }
+        }
+      } else {
+        state += 'No pages exist yet.\n';
+      }
+
+      state += '\n⚠️  IMPORTANT: Do not propose deleting or replacing existing pages/visuals unless explicitly requested.\n';
+      state += 'Propose ADDING new content or MODIFYING specific existing items.\n';
+
+      return state;
+    } catch (error) {
+      console.error('Failed to read current report state:', error);
+      return 'Could not read current report state.';
+    }
+  }
+
   // Rule-based triage that works without API key
   private ruleBasedAnalysis(request: CreateRequestDTO): TriageAnalysis {
     const desc = request.description.toLowerCase();
@@ -113,18 +202,55 @@ Provide your analysis as JSON with these fields:
     else if (/\b(create|add|new|need)\b.*\bmeasure\b/i.test(combined) ||
              /\bmeasure\b.*\b(create|add|new)\b/i.test(combined)) {
       changeType = 'new_measure';
-      if (/\b(yoy|year.over.year|ytd|mtd|rolling|cumulative)\b/i.test(combined)) {
+
+      // Patterns that indicate clear, well-defined measures -> auto_fix
+      const autoFixPatterns = [
+        // Time intelligence
+        /\b(yoy|year.over.year|ytd|mtd|qtd|rolling|cumulative|previous\s*(year|month|quarter))\b/i,
+        // Aggregations with clear targets
+        /\b(sum|total|count|average|avg|min|max|distinct\s*count)\b.*\b(of|for)\b/i,
+        // Ratios and percentages
+        /\b(ratio|percentage|percent|%|margin|rate)\b/i,
+        // Variance and growth
+        /\b(variance|growth|change|difference|delta)\b/i,
+        // Common business metrics
+        /\b(revenue|sales|profit|cost|price|quantity|units|orders|customers|lifetime\s*value|clv|ltv|aov|arpu)\b/i,
+        // Running totals
+        /\b(running|cumulative)\s*(total|sum|count)\b/i,
+      ];
+
+      // Check if description is clear enough for auto-fix
+      const isWellDefined = autoFixPatterns.some(pattern => pattern.test(combined));
+      // Check for ambiguous language that needs clarification
+      const needsClarification = /\b(maybe|possibly|might|could|not sure|unclear|depends|various|multiple options)\b/i.test(combined);
+      // Check for complex requirements
+      const isComplex = /\b(depending on|based on multiple|complex logic|business rules|exceptions|special cases)\b/i.test(combined);
+
+      if (isWellDefined && !needsClarification && !isComplex) {
         triageResult = 'auto_fix';
-        confidence = 0.8;
-        reasoning = 'Request for a common time intelligence measure - can be auto-generated';
-        suggestedApproach = 'Generate appropriate time intelligence DAX pattern';
+        confidence = 0.9;
+        reasoning = 'Clear measure request with well-defined requirements - suitable for automation';
+        suggestedApproach = 'Generate DAX measure based on the specified calculation';
         estimatedComplexity = 'simple';
-      } else {
-        triageResult = 'assisted_fix';
+      } else if (needsClarification || /\b(unclear|ambiguous|need more info)\b/i.test(combined)) {
+        triageResult = 'clarification_needed';
         confidence = 0.7;
-        reasoning = 'New measure request - may need clarification on exact requirements';
-        suggestedApproach = 'Generate measure based on description, human review recommended';
+        reasoning = 'Request contains ambiguous language - clarification recommended';
+        suggestedApproach = 'Request clarification on specific requirements';
         estimatedComplexity = 'moderate';
+      } else if (isComplex) {
+        triageResult = 'assisted_fix';
+        confidence = 0.75;
+        reasoning = 'Measure involves complex business logic - human review recommended';
+        suggestedApproach = 'Generate measure and flag for review';
+        estimatedComplexity = 'moderate';
+      } else {
+        // Default: if reasonably clear, auto-fix with lower confidence
+        triageResult = 'auto_fix';
+        confidence = 0.75;
+        reasoning = 'New measure request - appears straightforward';
+        suggestedApproach = 'Generate measure based on description';
+        estimatedComplexity = 'simple';
       }
     }
     // Modify existing measure

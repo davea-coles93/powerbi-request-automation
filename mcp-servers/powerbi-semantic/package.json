@@ -1,0 +1,22 @@
+{
+  "name": "powerbi-semantic-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Power BI Semantic Model (TMDL) operations",
+  "type": "module",
+  "main": "build/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node build/index.js"
+  },
+  "keywords": ["mcp", "semantic-model", "tmdl", "powerbi"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  }
+}
