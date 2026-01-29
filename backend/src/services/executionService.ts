@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { ChangeRequest, ExecutionLogEntry, TestResult } from '../types/request';
 import { IPowerBIService, PowerBIMeasure } from '../types/powerbi';
+import { SelfHealingService } from './selfHealingService';
 
 const EXECUTION_SYSTEM_PROMPT = `You are a PowerBI DAX expert implementing changes to semantic models.
 
@@ -54,10 +55,12 @@ export interface ExecutionAction {
 export class ExecutionService {
   private anthropic: Anthropic;
   private powerbiService: IPowerBIService;
+  private selfHealingService: SelfHealingService;
 
   constructor(powerbiService: IPowerBIService) {
     this.anthropic = new Anthropic();
     this.powerbiService = powerbiService;
+    this.selfHealingService = new SelfHealingService(powerbiService);
   }
 
   async executeRequest(request: ChangeRequest): Promise<ExecutionResult> {
@@ -111,6 +114,52 @@ export class ExecutionService {
       }
 
       const allTestsPassed = testResults.every(t => t.passed);
+
+      // If tests failed, try self-healing
+      if (!allTestsPassed && executedActions.length > 0) {
+        this.log(logs, 'Tests failed', 'Initiating self-healing...', 'info');
+
+        // Find the action that likely caused the failure
+        const lastAction = executedActions[executedActions.length - 1];
+        if (lastAction.type === 'update_measure' || lastAction.type === 'create_measure') {
+          const healingResult = await this.selfHealingService.executeWithSelfHealing(
+            request,
+            lastAction.expression || '',
+            lastAction.tableName || '',
+            lastAction.measureName || ''
+          );
+
+          // Add healing logs
+          logs.push(...healingResult.logs);
+
+          if (healingResult.success) {
+            this.log(logs, 'Self-healing successful',
+              `Fixed after ${healingResult.attempts.length} attempt(s)`, 'success');
+
+            // Update action with final expression
+            lastAction.expression = healingResult.finalExpression;
+            lastAction.result = { success: true, message: 'Fixed via self-healing' };
+
+            return {
+              success: true,
+              actions: executedActions,
+              testResults: healingResult.testResults,
+              logs,
+            };
+          } else {
+            this.log(logs, 'Self-healing failed',
+              `Could not fix after ${healingResult.attempts.length} attempts`, 'error');
+
+            // Log each attempt's analysis
+            healingResult.attempts.forEach((attempt, i) => {
+              if (attempt.failureAnalysis) {
+                this.log(logs, `Attempt ${i + 1} analysis`, attempt.failureAnalysis, 'info');
+              }
+            });
+          }
+        }
+      }
+
       return {
         success: allTestsPassed,
         actions: executedActions,
