@@ -8,59 +8,9 @@
         {
           "id": "sales-returns",
           "name": "Sales & Returns Analysis",
-          "file": "contoso-corp/sales-returns.pbix",
+          "file": "contoso-corp/Sales-Returns-Sample.pbip",
+          "format": "pbip",
           "description": "Main sales and returns tracking model"
-        },
-        {
-          "id": "customer-profitability",
-          "name": "Customer Profitability",
-          "file": "contoso-corp/customer-profitability.pbix",
-          "description": "Customer segment profitability analysis"
-        }
-      ]
-    },
-    {
-      "id": "adventure-works",
-      "name": "Adventure Works Inc",
-      "contact": "sales@adventureworks.com",
-      "models": [
-        {
-          "id": "sales-sample",
-          "name": "Sales Analytics",
-          "file": "adventure-works/sales-sample.pbix",
-          "description": "Product and territory sales analysis"
-        }
-      ]
-    },
-    {
-      "id": "retail-dynamics",
-      "name": "Retail Dynamics Ltd",
-      "contact": "analytics@retaildynamics.co",
-      "models": [
-        {
-          "id": "retail-analysis",
-          "name": "Retail Performance",
-          "file": "retail-dynamics/retail-analysis.pbix",
-          "description": "Store and district sales performance"
-        },
-        {
-          "id": "store-sales",
-          "name": "Store Sales Dashboard",
-          "file": "retail-dynamics/store-sales.pbix",
-          "description": "Individual store sales tracking"
-        }
-      ]
-    },
-    {
-      "id": "acme-hr",
-      "name": "ACME HR Solutions",
-      "contact": "hr.analytics@acme.com",
-      "models": [
-        {
-          "id": "human-resources",
-          "name": "HR Analytics",
-          "file": "acme-hr/human-resources.pbix",
-          "description": "Employee and hiring analytics"
         }
       ]
     }

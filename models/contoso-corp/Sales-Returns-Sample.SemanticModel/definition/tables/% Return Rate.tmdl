@@ -1,0 +1,24 @@
+table '% Return Rate'
+	lineageTag: 9172a542-bcdf-4704-a32c-c34a9aa22b91
+
+	measure '% Return Rate Value' = SELECTEDVALUE('% Return Rate'[% Return Rate])/100
+		lineageTag: db190b46-face-4bb4-ad12-fef64850d74b
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	/// Calculates the total revenue from each customer across all their transactions by summing net sales for each unique customer across all time periods
+	measure 'Customer Lifetime Value' =
+		SUMX(
+		    VALUES(Sales[CustomerID]),
+		    CALCULATE(
+		        [Net Sales],
+		        ALL('Calendar'[Date])
+		    )
+		)
+		formatString: #,##0.00
+		lineageTag: 6dba9f95-2cca-4a4f-98c5-9924801859eb
+
+	partition '% Return Rate-0fd6aa09-f629-4715-98cc-32fa52b5c107' = calculated
+		mode: import
+		source = GENERATESERIES(0, 60, 1)
+
