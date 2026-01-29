@@ -7,7 +7,6 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { createTmdlRequestRouter } from './routes/tmdlRequests';
 import { createVisualRequestRouter } from './routes/visualRequests';
-import reportSafetyRouter from './routes/reportSafety';
 import { RequestStore } from './services/requestStore';
 import { TriageService } from './services/triageService';
 
@@ -52,9 +51,6 @@ app.use('/api/requests', createTmdlRequestRouter(requestStore, triageService, re
 
 // Routes - Visual creation with feedback loop
 app.use('/api/visuals', createVisualRequestRouter(requestStore));
-
-// Routes - Report safety (backups, validation, change management)
-app.use('/api/report-safety', reportSafetyRouter);
 
 // Client and model management endpoints
 app.get('/api/clients', async (_req, res) => {
