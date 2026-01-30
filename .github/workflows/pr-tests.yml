@@ -189,15 +189,11 @@ jobs:
         id: start-aas
         run: |
           echo "Starting Azure Analysis Services (billing begins)..."
-          # Get access token for Azure Management API
-          ACCESS_TOKEN=$(az account get-access-token --resource https://management.azure.com/ --query accessToken -o tsv)
-
-          # Resume AAS server using REST API
-          curl -X POST \
-            "https://management.azure.com/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ secrets.AZURE_RESOURCE_GROUP }}/providers/Microsoft.AnalysisServices/servers/${{ secrets.AZURE_AAS_SERVER_NAME }}/resume?api-version=2017-08-01" \
-            -H "Authorization: Bearer $ACCESS_TOKEN" \
-            -H "Content-Type: application/json"
-
+          # Use PowerShell Az.AnalysisServices with OIDC authentication already set by azure/login
+          pwsh -Command "
+            Install-Module -Name Az.AnalysisServices -Force -Scope CurrentUser -AllowClobber
+            Resume-AzAnalysisServicesServer -Name '${{ secrets.AZURE_AAS_SERVER_NAME }}' -ResourceGroupName '${{ secrets.AZURE_RESOURCE_GROUP }}'
+          "
           echo "Waiting for server to be ready..."
           sleep 30
 
@@ -262,14 +258,10 @@ jobs:
         if: always()
         run: |
           echo "Stopping Azure Analysis Services (billing stops)..."
-          # Get access token for Azure Management API
-          ACCESS_TOKEN=$(az account get-access-token --resource https://management.azure.com/ --query accessToken -o tsv) || true
-
-          # Suspend AAS server using REST API
-          curl -X POST \
-            "https://management.azure.com/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ secrets.AZURE_RESOURCE_GROUP }}/providers/Microsoft.AnalysisServices/servers/${{ secrets.AZURE_AAS_SERVER_NAME }}/suspend?api-version=2017-08-01" \
-            -H "Authorization: Bearer $ACCESS_TOKEN" \
-            -H "Content-Type: application/json" || true
+          # Use PowerShell Az.AnalysisServices with OIDC authentication
+          pwsh -Command "
+            Suspend-AzAnalysisServicesServer -Name '${{ secrets.AZURE_AAS_SERVER_NAME }}' -ResourceGroupName '${{ secrets.AZURE_RESOURCE_GROUP }}' -ErrorAction SilentlyContinue
+          " || true
 
       - name: Azure Logout
         if: always()
