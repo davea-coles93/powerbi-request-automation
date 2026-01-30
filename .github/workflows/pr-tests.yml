@@ -185,6 +185,11 @@ jobs:
         working-directory: ./backend
         run: npm run build
 
+      - name: Install Azure Analysis Services extension
+        run: |
+          echo "Installing Azure Analysis Services CLI extension..."
+          az extension add --name analysis-services
+
       - name: Start Azure Analysis Services
         id: start-aas
         run: |
