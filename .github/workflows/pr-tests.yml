@@ -90,19 +90,25 @@ jobs:
       - name: Extract PR info
         id: pr-info
         run: |
-          PR_BODY="${{ github.event.pull_request.body }}"
+          # Write PR body to file to avoid shell escaping issues with DAX expressions
+          cat > pr_body.txt << 'EOF'
+          ${{ github.event.pull_request.body }}
+          EOF
 
           # Extract request ID from PR body
-          REQUEST_ID=$(echo "$PR_BODY" | grep -oP 'Request ID.*\`\K[^`]+' || echo "unknown")
+          REQUEST_ID=$(grep -oP 'Request ID.*\`\K[^`]+' pr_body.txt || echo "unknown")
           echo "request_id=$REQUEST_ID" >> $GITHUB_OUTPUT
 
           # Extract client from PR body
-          CLIENT=$(echo "$PR_BODY" | grep -oP 'Client.*\|\s*\K[^|]+' | head -1 | xargs || echo "unknown")
+          CLIENT=$(grep -oP 'Client.*\|\s*\K[^|]+' pr_body.txt | head -1 | xargs || echo "unknown")
           echo "client=$CLIENT" >> $GITHUB_OUTPUT
 
           # Extract model from PR body
-          MODEL=$(echo "$PR_BODY" | grep -oP 'Model.*\|\s*\K[^|]+' | head -1 | xargs || echo "unknown")
+          MODEL=$(grep -oP 'Model.*\|\s*\K[^|]+' pr_body.txt | head -1 | xargs || echo "unknown")
           echo "model=$MODEL" >> $GITHUB_OUTPUT
+
+          # Cleanup
+          rm -f pr_body.txt
 
           echo "Request ID: $REQUEST_ID"
           echo "Client: $CLIENT"
