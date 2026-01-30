@@ -47,16 +47,21 @@
 ## ⚠️ In Progress
 
 ### 5. Report Visual Creation
-- **Status**: ⚠️ Path issue fixed, needs end-to-end testing
+- **Status**: ✅ Fully operational (Docker mode)
 - **Completed**:
   - ✅ Fixed MCP server path resolution in Docker
   - ✅ Added MCP servers volume mount to backend container
   - ✅ Environment-aware path selection (Docker vs local)
-  - ✅ Visual feedback service with Claude-powered screenshot analysis
-  - ✅ REST API endpoints for visual creation
-- **Needs**:
-  - 🧪 End-to-end test of visual creation workflow
-  - 🧪 Verify MCP server spawning works in backend container
+  - ✅ Fixed MCP initialization protocol (initialized as notification)
+  - ✅ Made PowerBI automation optional (Windows-only)
+  - ✅ Docker compatibility mode (visual creation without validation)
+  - ✅ REST API endpoints tested and working
+  - ✅ Multiple visual types working (card, table, bar chart)
+- **Tested**:
+  - ✅ Test endpoint: `POST /api/visuals/test-visual`
+  - ✅ Visual files created in Report directories
+  - ✅ Proper PowerBI report structure maintained
+- **Note**: Full visual validation with PowerBI Desktop requires Windows host. In Docker, visuals are created without screenshot analysis feedback loop.
 - **Files**:
   - `backend/src/services/reportMcpService.ts`
   - `backend/src/services/visualFeedbackService.ts`
@@ -91,7 +96,7 @@ ENABLE_AAS_VALIDATION=true  # Set to 'true' to enable AAS tests in PRs
 | Test | Status | Last Run | Notes |
 |------|--------|----------|-------|
 | Model creation (YoY measures) | ✅ PASS | PR #4 | 3 measures created |
-| Report visual creation | ⏸️ PENDING | - | Needs retest after MCP fix |
+| Report visual creation | ✅ PASS | Manual | 5 visuals created successfully |
 | PR creation workflow | ✅ PASS | PR #3-10 | All PRs created successfully |
 | Shell escaping (DAX in PR body) | ✅ PASS | PR #5 | Heredoc fix working |
 | AAS server start/stop | ✅ PASS | PR #10 | Billing cycle working |
@@ -99,15 +104,10 @@ ENABLE_AAS_VALIDATION=true  # Set to 'true' to enable AAS tests in PRs
 | AAS DAX validation | ⏸️ PENDING | - | Requires database secret + model deployment |
 
 ### Manual Tests Needed
-1. **Report Visual Creation** (priority: HIGH)
-   ```bash
-   curl -X POST http://localhost:3001/api/visuals/test-visual \
-     -H "Content-Type: application/json" \
-     -d '{
-       "clientId": "adventure-works",
-       "modelName": "sales-sample"
-     }'
-   ```
+1. **Report Visual Creation** ✅ COMPLETE
+   - Test endpoint verified working
+   - 5 visuals created successfully in sales-sample.Report
+   - Multiple visual types tested (card, table, bar chart)
 
 2. **AAS Connectivity** (after setting AZURE_AAS_DATABASE)
    - Create PR with model changes
@@ -139,8 +139,8 @@ ENABLE_AAS_VALIDATION=true  # Set to 'true' to enable AAS tests in PRs
 - ✅ PR creation automated with proper authentication
 - ✅ CI/CD integration tests passing
 - ✅ Cost optimization (AAS start/stop working)
-- ⏸️ Report visual creation (pending test)
-- ⏸️ AAS DAX validation (pending configuration)
+- ✅ Report visual creation (Docker mode)
+- ⏸️ AAS DAX validation (pending AZURE_AAS_DATABASE secret)
 
 ### Phase 2: Enhanced (Next Steps)
 - Deploy TMDL changes to AAS for validation
@@ -176,7 +176,13 @@ ENABLE_AAS_VALIDATION=true  # Set to 'true' to enable AAS tests in PRs
 
 ## 📁 Key Files Modified
 
-### Latest Commit (c15fe47)
+### Latest Commit (703c975)
+```
+backend/src/services/visualFeedbackService.ts   # Docker compatibility mode
+backend/src/services/reportMcpService.ts        # MCP initialization fix
+```
+
+### Previous Commit (c15fe47)
 ```
 backend/src/services/azureAnalysisService.ts    # OIDC support + auth improvements
 backend/src/services/reportMcpService.ts        # Docker path resolution
@@ -196,7 +202,7 @@ backend/src/routes/tmdlRequests.ts              # Git auth + error logging
 
 ### Warnings
 - ⚠️ XMLA query execution not fully implemented (basic validation only)
-- ⚠️ Report visual creation untested since MCP path fix
+- ⚠️ Visual validation requires Windows host (Docker mode skips validation)
 
 ### Nice-to-Have
 - 💡 Add retry logic for transient failures
@@ -214,5 +220,5 @@ backend/src/routes/tmdlRequests.ts              # Git auth + error logging
 ---
 
 **Last Updated**: 2026-01-30
-**Status**: 85% Complete (awaiting configuration and final testing)
-**Next Milestone**: Report visual creation + AAS validation working end-to-end
+**Status**: 95% Complete (one configuration item remaining)
+**Next Milestone**: AAS validation working end-to-end (requires AZURE_AAS_DATABASE secret)
