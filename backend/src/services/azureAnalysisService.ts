@@ -7,6 +7,7 @@ import {
   DAXQueryResult,
   PowerBIOperationResult,
 } from '../types/powerbi';
+import * as xmla4js from 'xmla4js';
 
 /**
  * Azure Analysis Services integration for cloud-based DAX validation.
@@ -337,95 +338,39 @@ export class AzureAnalysisService implements IPowerBIService {
 
   private async executeXmla(command: string, isDax: boolean = false): Promise<unknown> {
     const token = await this.getAccessToken();
+    const Xmla = (xmla4js as any).Xmla;
 
-    // Convert asazure:// URL to HTTPS endpoint
-    // asazure://eastus.asazure.windows.net/servername -> https://eastus.asazure.windows.net
-    const httpsEndpoint = this.serverUrl.replace('asazure://', 'https://');
+    return new Promise((resolve, reject) => {
+      const xmla = new Xmla({
+        async: true,
+        url: this.serverUrl,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
 
-    // XMLA SOAP envelope for executing commands
-    const soapEnvelope = `<?xml version="1.0" encoding="UTF-8"?>
-<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
-  <Body>
-    <Execute xmlns="urn:schemas-microsoft-com:xml-analysis">
-      <Command>
-        ${isDax ? `<Statement>${this.escapeXml(command)}</Statement>` : command}
-      </Command>
-      <Properties>
-        <PropertyList>
-          <Catalog>${this.escapeXml(this.databaseName)}</Catalog>
-          <Format>Tabular</Format>
-        </PropertyList>
-      </Properties>
-    </Execute>
-  </Body>
-</Envelope>`;
-
-    const response = await fetch(httpsEndpoint, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'text/xml',
-        'SOAPAction': 'urn:schemas-microsoft-com:xml-analysis:Execute',
-      },
-      body: soapEnvelope,
+      xmla.request({
+        method: Xmla.METHOD_EXECUTE,
+        statement: command,
+        properties: {
+          Catalog: this.databaseName,
+          Format: 'Tabular',
+        },
+        success: (xmla: any, request: any, response: any) => {
+          try {
+            // xmla4js provides parsed response
+            const result = response.fetchAllAsObject();
+            resolve({ rows: result });
+          } catch (error) {
+            reject(new Error(`Failed to parse XMLA response: ${error}`));
+          }
+        },
+        error: (xmla: any, request: any, exception: any) => {
+          const errorMsg = exception?.message || xmla.responseText || 'Unknown XMLA error';
+          reject(new Error(`XMLA query failed: ${errorMsg}`));
+        },
+      });
     });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`XMLA query failed (${response.status}): ${error}`);
-    }
-
-    const xmlResponse = await response.text();
-
-    // Parse XMLA response
-    return this.parseXmlaResponse(xmlResponse);
-  }
-
-  private escapeXml(text: string): string {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
-  }
-
-  private parseXmlaResponse(xmlText: string): unknown {
-    // Basic XML parsing for XMLA responses
-    // Look for error messages
-    if (xmlText.includes('<faultstring>') || xmlText.includes('<Error>')) {
-      const errorMatch = xmlText.match(/<faultstring>(.*?)<\/faultstring>/) ||
-                        xmlText.match(/<Description>(.*?)<\/Description>/);
-      if (errorMatch) {
-        throw new Error(`XMLA Error: ${errorMatch[1]}`);
-      }
-      throw new Error(`XMLA Error: ${xmlText.substring(0, 500)}`);
-    }
-
-    // For DMV queries, parse the result
-    // This is a simplified parser - production would use a proper XML parser
-    const rows: Record<string, unknown>[] = [];
-
-    // Extract row data from XMLA response
-    const rowMatches = xmlText.matchAll(/<row>(.*?)<\/row>/gs);
-    for (const rowMatch of rowMatches) {
-      const rowXml = rowMatch[1];
-      const row: Record<string, unknown> = {};
-
-      // Extract column values
-      const columnMatches = rowXml.matchAll(/<([^>]+)>(.*?)<\/\1>/g);
-      for (const colMatch of columnMatches) {
-        const columnName = colMatch[1];
-        const value = colMatch[2];
-        row[columnName] = value;
-      }
-
-      if (Object.keys(row).length > 0) {
-        rows.push(row);
-      }
-    }
-
-    return { rows };
   }
 
   async getModelInfo(): Promise<PowerBIModel> {
