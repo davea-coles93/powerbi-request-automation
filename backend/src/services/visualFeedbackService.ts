@@ -32,13 +32,21 @@ export interface FeedbackLoopResult {
 
 export class VisualFeedbackService {
   private reportMcp: ReportMcpService;
-  private automationMcp: AutomationMcpService;
+  private automationMcp: AutomationMcpService | null = null;
   private anthropic: Anthropic | null = null;
   private maxAttempts = 3;
+  private enableValidation: boolean;
 
   constructor() {
     this.reportMcp = new ReportMcpService();
-    this.automationMcp = new AutomationMcpService();
+
+    // Automation MCP only works on Windows (pywinauto)
+    // In Docker (Linux), we skip the validation step
+    this.enableValidation = process.platform === 'win32' && !process.env.REPO_PATH;
+
+    if (this.enableValidation) {
+      this.automationMcp = new AutomationMcpService();
+    }
 
     if (process.env.ANTHROPIC_API_KEY) {
       this.anthropic = new Anthropic({
@@ -48,20 +56,29 @@ export class VisualFeedbackService {
   }
 
   /**
-   * Start both MCP services
+   * Start MCP services
    */
   async start(): Promise<void> {
     await this.reportMcp.start();
-    await this.automationMcp.start();
-    console.log('[VisualFeedback] Services started');
+
+    if (this.automationMcp) {
+      await this.automationMcp.start();
+      console.log('[VisualFeedback] Services started (with validation)');
+    } else {
+      console.log('[VisualFeedback] Report service started (validation disabled - Docker/Linux mode)');
+    }
   }
 
   /**
-   * Stop both MCP services
+   * Stop MCP services
    */
   async stop(): Promise<void> {
     await this.reportMcp.stop();
-    await this.automationMcp.stop();
+
+    if (this.automationMcp) {
+      await this.automationMcp.stop();
+    }
+
     console.log('[VisualFeedback] Services stopped');
   }
 
@@ -90,38 +107,45 @@ export class VisualFeedbackService {
         console.log(`[VisualFeedback] Page may already exist, continuing...`);
       }
 
-      // Iterative feedback loop
-      while (attempts < this.maxAttempts && !success) {
-        attempts++;
-        console.log(`[VisualFeedback] Attempt ${attempts}/${this.maxAttempts}`);
+      // Create visuals
+      await this.createVisuals(reportPath, pageName, visuals);
+      attempts = 1;
 
-        // Create visuals
-        if (attempts === 1) {
-          await this.createVisuals(reportPath, pageName, visuals);
-        }
+      // If validation is enabled (Windows only), run feedback loop
+      if (this.enableValidation && this.automationMcp) {
+        console.log('[VisualFeedback] Running validation feedback loop...');
 
-        // Launch Power BI and validate
-        const validationResult = await this.validateVisuals(
-          pbipPath,
-          pageName,
-          description,
-          visuals
-        );
+        while (attempts < this.maxAttempts && !success) {
+          attempts++;
+          console.log(`[VisualFeedback] Validation attempt ${attempts}/${this.maxAttempts}`);
 
-        screenshot = validationResult.screenshot;
+          // Launch Power BI and validate
+          const validationResult = await this.validateVisuals(
+            pbipPath,
+            pageName,
+            description,
+            visuals
+          );
 
-        if (validationResult.success) {
-          success = true;
-          console.log('[VisualFeedback] Validation successful!');
-        } else {
-          console.log(`[VisualFeedback] Validation failed: ${validationResult.issues.join(', ')}`);
-          issues.push(...validationResult.issues);
+          screenshot = validationResult.screenshot;
 
-          // If not last attempt, try to fix issues
-          if (attempts < this.maxAttempts) {
-            await this.attemptFix(reportPath, pageName, validationResult.issues, visuals);
+          if (validationResult.success) {
+            success = true;
+            console.log('[VisualFeedback] Validation successful!');
+          } else {
+            console.log(`[VisualFeedback] Validation failed: ${validationResult.issues.join(', ')}`);
+            issues.push(...validationResult.issues);
+
+            // If not last attempt, try to fix issues
+            if (attempts < this.maxAttempts) {
+              await this.attemptFix(reportPath, pageName, validationResult.issues, visuals);
+            }
           }
         }
+      } else {
+        // No validation - visuals created successfully
+        success = true;
+        console.log('[VisualFeedback] Visuals created (validation skipped - Docker/Linux mode)');
       }
 
       return {
@@ -200,6 +224,10 @@ export class VisualFeedbackService {
     visuals: VisualCreationRequest[]
   ): Promise<{ success: boolean; issues: string[]; screenshot?: string }> {
     const issues: string[] = [];
+
+    if (!this.automationMcp) {
+      return { success: true, issues: ['Validation skipped - not available in this environment'] };
+    }
 
     try {
       // Launch Power BI

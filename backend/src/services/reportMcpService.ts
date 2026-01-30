@@ -76,21 +76,33 @@ export class ReportMcpService {
     });
 
     // Initialize MCP protocol
-    await this.sendRequest('initialize', {
-      protocolVersion: '2024-11-05',
-      capabilities: {
-        tools: {},
-      },
-      clientInfo: {
-        name: 'powerbi-automation-backend',
-        version: '1.0.0',
-      },
-    });
+    try {
+      await this.sendRequest('initialize', {
+        protocolVersion: '2024-11-05',
+        capabilities: {
+          tools: {},
+        },
+        clientInfo: {
+          name: 'powerbi-automation-backend',
+          version: '1.0.0',
+        },
+      });
 
-    await this.sendRequest('initialized', {});
+      // Send initialized notification (no response expected)
+      if (this.process && this.process.stdin) {
+        const notification = {
+          jsonrpc: '2.0',
+          method: 'notifications/initialized',
+        };
+        this.process.stdin.write(JSON.stringify(notification) + '\n');
+      }
 
-    this.isInitialized = true;
-    console.log('[ReportMCP] Service started');
+      this.isInitialized = true;
+      console.log('[ReportMCP] Service started');
+    } catch (error) {
+      console.error('[ReportMCP] Initialization failed:', error);
+      throw error;
+    }
   }
 
   /**
