@@ -189,9 +189,10 @@ jobs:
         id: start-aas
         run: |
           echo "Starting Azure Analysis Services (billing begins)..."
-          # Use PowerShell Az.AnalysisServices with OIDC authentication already set by azure/login
+          # Use PowerShell Az.AnalysisServices with OIDC authentication
           pwsh -Command "
             Install-Module -Name Az.AnalysisServices -Force -Scope CurrentUser -AllowClobber
+            Set-AzContext -Subscription '${{ secrets.AZURE_SUBSCRIPTION_ID }}'
             Resume-AzAnalysisServicesServer -Name '${{ secrets.AZURE_AAS_SERVER_NAME }}' -ResourceGroupName '${{ secrets.AZURE_RESOURCE_GROUP }}'
           "
           echo "Waiting for server to be ready..."
@@ -260,6 +261,7 @@ jobs:
           echo "Stopping Azure Analysis Services (billing stops)..."
           # Use PowerShell Az.AnalysisServices with OIDC authentication
           pwsh -Command "
+            Set-AzContext -Subscription '${{ secrets.AZURE_SUBSCRIPTION_ID }}' -ErrorAction SilentlyContinue
             Suspend-AzAnalysisServicesServer -Name '${{ secrets.AZURE_AAS_SERVER_NAME }}' -ResourceGroupName '${{ secrets.AZURE_RESOURCE_GROUP }}' -ErrorAction SilentlyContinue
           " || true
 
