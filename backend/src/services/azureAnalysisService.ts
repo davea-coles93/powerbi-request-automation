@@ -335,25 +335,97 @@ export class AzureAnalysisService implements IPowerBIService {
     }
   }
 
-  private async executeXmla(query: string): Promise<unknown> {
+  private async executeXmla(command: string, isDax: boolean = false): Promise<unknown> {
     const token = await this.getAccessToken();
-    const endpoint = `${this.serverUrl}/databases/${this.databaseName}/query`;
 
-    const response = await fetch(endpoint, {
+    // Convert asazure:// URL to HTTPS endpoint
+    // asazure://eastus.asazure.windows.net/servername -> https://eastus.asazure.windows.net
+    const httpsEndpoint = this.serverUrl.replace('asazure://', 'https://');
+
+    // XMLA SOAP envelope for executing commands
+    const soapEnvelope = `<?xml version="1.0" encoding="UTF-8"?>
+<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
+  <Body>
+    <Execute xmlns="urn:schemas-microsoft-com:xml-analysis">
+      <Command>
+        ${isDax ? `<Statement>${this.escapeXml(command)}</Statement>` : command}
+      </Command>
+      <Properties>
+        <PropertyList>
+          <Catalog>${this.escapeXml(this.databaseName)}</Catalog>
+          <Format>Tabular</Format>
+        </PropertyList>
+      </Properties>
+    </Execute>
+  </Body>
+</Envelope>`;
+
+    const response = await fetch(httpsEndpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        'Content-Type': 'text/xml',
+        'SOAPAction': 'urn:schemas-microsoft-com:xml-analysis:Execute',
       },
-      body: JSON.stringify({ query }),
+      body: soapEnvelope,
     });
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`XMLA query failed: ${error}`);
+      throw new Error(`XMLA query failed (${response.status}): ${error}`);
     }
 
-    return response.json();
+    const xmlResponse = await response.text();
+
+    // Parse XMLA response
+    return this.parseXmlaResponse(xmlResponse);
+  }
+
+  private escapeXml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+  }
+
+  private parseXmlaResponse(xmlText: string): unknown {
+    // Basic XML parsing for XMLA responses
+    // Look for error messages
+    if (xmlText.includes('<faultstring>') || xmlText.includes('<Error>')) {
+      const errorMatch = xmlText.match(/<faultstring>(.*?)<\/faultstring>/) ||
+                        xmlText.match(/<Description>(.*?)<\/Description>/);
+      if (errorMatch) {
+        throw new Error(`XMLA Error: ${errorMatch[1]}`);
+      }
+      throw new Error(`XMLA Error: ${xmlText.substring(0, 500)}`);
+    }
+
+    // For DMV queries, parse the result
+    // This is a simplified parser - production would use a proper XML parser
+    const rows: Record<string, unknown>[] = [];
+
+    // Extract row data from XMLA response
+    const rowMatches = xmlText.matchAll(/<row>(.*?)<\/row>/gs);
+    for (const rowMatch of rowMatches) {
+      const rowXml = rowMatch[1];
+      const row: Record<string, unknown> = {};
+
+      // Extract column values
+      const columnMatches = rowXml.matchAll(/<([^>]+)>(.*?)<\/\1>/g);
+      for (const colMatch of columnMatches) {
+        const columnName = colMatch[1];
+        const value = colMatch[2];
+        row[columnName] = value;
+      }
+
+      if (Object.keys(row).length > 0) {
+        rows.push(row);
+      }
+    }
+
+    return { rows };
   }
 
   async getModelInfo(): Promise<PowerBIModel> {
@@ -395,9 +467,9 @@ export class AzureAnalysisService implements IPowerBIService {
 
     try {
       const [tablesResult, measuresResult, relationshipsResult] = await Promise.all([
-        this.executeXmla(tablesQuery),
-        this.executeXmla(measuresQuery),
-        this.executeXmla(relationshipsQuery),
+        this.executeXmla(tablesQuery, true),
+        this.executeXmla(measuresQuery, true),
+        this.executeXmla(relationshipsQuery, true),
       ]);
 
       // Transform results to our model format
@@ -450,7 +522,7 @@ export class AzureAnalysisService implements IPowerBIService {
     const startTime = Date.now();
 
     try {
-      const result = await this.executeXmla(query) as { rows: Record<string, unknown>[] };
+      const result = await this.executeXmla(query, true) as { rows: Record<string, unknown>[] };
 
       return {
         columns: result.rows.length > 0 ? Object.keys(result.rows[0]) : [],
@@ -573,7 +645,9 @@ export class AzureAnalysisService implements IPowerBIService {
     };
 
     try {
-      await this.executeXmla(JSON.stringify(tmsl));
+      // TMSL commands need to be wrapped in a Statement tag
+      const tmslCommand = `<Statement>${this.escapeXml(JSON.stringify(tmsl))}</Statement>`;
+      await this.executeXmla(tmslCommand, false);
       this.modelCache = null; // Invalidate cache
       return { success: true, message: `Measure ${measure.name} created successfully` };
     } catch (error) {
@@ -610,7 +684,8 @@ export class AzureAnalysisService implements IPowerBIService {
     };
 
     try {
-      await this.executeXmla(JSON.stringify(tmsl));
+      const tmslCommand = `<Statement>${this.escapeXml(JSON.stringify(tmsl))}</Statement>`;
+      await this.executeXmla(tmslCommand, false);
       this.modelCache = null;
       return { success: true, message: `Measure ${measureName} updated successfully` };
     } catch (error) {
@@ -633,7 +708,8 @@ export class AzureAnalysisService implements IPowerBIService {
     };
 
     try {
-      await this.executeXmla(JSON.stringify(tmsl));
+      const tmslCommand = `<Statement>${this.escapeXml(JSON.stringify(tmsl))}</Statement>`;
+      await this.executeXmla(tmslCommand, false);
       this.modelCache = null;
       return { success: true, message: `Measure ${measureName} deleted successfully` };
     } catch (error) {
