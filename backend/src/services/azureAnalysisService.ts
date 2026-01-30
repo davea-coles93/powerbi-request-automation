@@ -373,6 +373,15 @@ export class AzureAnalysisService implements IPowerBIService {
     });
   }
 
+  private escapeXml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+  }
+
   async getModelInfo(): Promise<PowerBIModel> {
     if (this.modelCache) {
       return this.modelCache;
