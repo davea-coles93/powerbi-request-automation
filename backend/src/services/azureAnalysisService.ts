@@ -338,9 +338,11 @@ export class AzureAnalysisService implements IPowerBIService {
   private async executeXmla(command: string, isDax: boolean = false): Promise<unknown> {
     const token = await this.getAccessToken();
 
-    // Convert asazure:// URL to HTTPS endpoint
-    // asazure://eastus.asazure.windows.net/servername -> https://eastus.asazure.windows.net
-    const httpsEndpoint = this.serverUrl.replace('asazure://', 'https://');
+    // Convert asazure:// URL to HTTPS XMLA endpoint
+    // asazure://eastus.asazure.windows.net/servername -> https://eastus.asazure.windows.net/servers/servername/
+    const url = new URL(this.serverUrl.replace('asazure://', 'https://'));
+    const serverName = url.pathname.substring(1); // Remove leading slash
+    const httpsEndpoint = `${url.origin}/servers/${serverName}/`;
 
     // XMLA SOAP envelope for executing commands
     const soapEnvelope = `<?xml version="1.0" encoding="UTF-8"?>
