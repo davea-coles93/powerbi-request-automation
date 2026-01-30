@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "jHw8fKVsg7kh+33X1Fyx6sU229ouRuNY29saFijiqTXRqBUWkdrP7YRwe3uFO/6XjRcT+FikNa5VQgvitScdIw==",
+  "success": true,
+  "projectFilePath": "C:\\Users\\Dave\\Documents\\powerBI experiments\\aas-validator\\AasValidator\\AasValidator.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Dave\\.nuget\\packages\\microsoft.analysisservices.adomdclient.netcore.retail.amd64\\19.84.1\\microsoft.analysisservices.adomdclient.netcore.retail.amd64.19.84.1.nupkg.sha512",
+    "C:\\Users\\Dave\\.nuget\\packages\\microsoft.identity.client\\4.56.0\\microsoft.identity.client.4.56.0.nupkg.sha512",
+    "C:\\Users\\Dave\\.nuget\\packages\\microsoft.identitymodel.abstractions\\6.22.0\\microsoft.identitymodel.abstractions.6.22.0.nupkg.sha512"
+  ],
+  "logs": []
+}

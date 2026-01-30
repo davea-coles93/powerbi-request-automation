@@ -165,10 +165,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
-          node-version: '18'
+          dotnet-version: '6.0.x'
 
       # OIDC Login to Azure
       - name: Azure Login (OIDC)
@@ -178,13 +178,9 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Install dependencies
-        working-directory: ./backend
-        run: npm ci
-
-      - name: Build backend
-        working-directory: ./backend
-        run: npm run build
+      - name: Build AAS Validator
+        working-directory: ./aas-validator/AasValidator
+        run: dotnet build -c Release
 
       - name: Start Azure Analysis Services
         id: start-aas
@@ -213,52 +209,34 @@ jobs:
 
       - name: Run DAX validation tests
         id: dax-tests
-        working-directory: ./backend
         env:
           AAS_ACCESS_TOKEN: ${{ env.AAS_ACCESS_TOKEN }}
         run: |
           echo "Running DAX validation against Azure Analysis Services..."
-          node -e "
-            const { AzureAnalysisService } = require('./dist/services/azureAnalysisService');
 
-            async function runTests() {
-              const service = new AzureAnalysisService();
+          cd aas-validator/AasValidator
 
-              // Basic connectivity test
-              console.log('Testing AAS connectivity...');
-              const connected = await service.isConnected();
-              if (!connected) {
-                throw new Error('Cannot connect to Azure Analysis Services');
-              }
-              console.log('✅ Connected to AAS');
+          # Test 1: Get model info
+          echo "Getting model info..."
+          dotnet run -- \
+            --server "${{ secrets.AZURE_AAS_SERVER }}" \
+            --database "${{ secrets.AZURE_AAS_DATABASE }}" \
+            --token "$AAS_ACCESS_TOKEN" \
+            --command getmodel
+          echo "✅ Model info retrieved"
 
-              // Get model info
-              console.log('Getting model info...');
-              const model = await service.getModelInfo();
-              console.log('✅ Model: ' + model.name);
+          # Test 2: Validate simple DAX
+          echo "Validating DAX expression..."
+          dotnet run -- \
+            --server "${{ secrets.AZURE_AAS_SERVER }}" \
+            --database "${{ secrets.AZURE_AAS_DATABASE }}" \
+            --token "$AAS_ACCESS_TOKEN" \
+            --command validate \
+            --query "EVALUATE ROW(\"Test\", 1 + 1)"
+          echo "✅ DAX validation working"
 
-              // List measures
-              console.log('Listing measures...');
-              const measures = await service.getMeasures();
-              console.log('✅ Found ' + measures.length + ' measures');
-
-              // Validate a simple DAX expression
-              console.log('Validating DAX expressions...');
-              const validation = await service.validateDAX('1 + 1');
-              if (!validation.valid) {
-                throw new Error('Basic DAX validation failed: ' + validation.error);
-              }
-              console.log('✅ DAX validation working');
-
-              console.log('');
-              console.log('All DAX validation tests passed!');
-            }
-
-            runTests().catch(err => {
-              console.error('DAX validation failed:', err);
-              process.exit(1);
-            });
-          "
+          echo ""
+          echo "All DAX validation tests passed!"
 
       - name: Stop Azure Analysis Services
         if: always()
