@@ -31,7 +31,11 @@ export class ReportMcpService {
    * Start the MCP server process
    */
   async start(): Promise<void> {
-    const mcpPath = path.join(__dirname, '../../../mcp-servers/powerbi-report/build/index.js');
+    // In Docker, MCP servers are mounted at /app/mcp-servers
+    // Locally, they're at ../../../mcp-servers relative to dist/services/
+    const mcpPath = process.env.NODE_ENV === 'production' || process.env.REPO_PATH
+      ? '/app/mcp-servers/powerbi-report/build/index.js'
+      : path.join(__dirname, '../../../mcp-servers/powerbi-report/build/index.js');
 
     this.process = spawn('node', [mcpPath], {
       stdio: ['pipe', 'pipe', 'pipe'],

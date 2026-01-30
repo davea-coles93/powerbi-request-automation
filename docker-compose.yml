@@ -18,6 +18,8 @@ services:
       - ./backend/dist:/app/dist
       - .:/repo
       - ./models:/models
+      # Mount MCP servers for child process spawning
+      - ./mcp-servers:/app/mcp-servers:ro
     restart: unless-stopped
     networks:
       - powerbi-network

@@ -7,6 +7,7 @@
 import { Router, Request, Response } from 'express';
 import * as path from 'path';
 import * as fs from 'fs';
+import { execSync } from 'child_process';
 import simpleGit, { SimpleGit } from 'simple-git';
 import { RequestStore } from '../services/requestStore';
 import { TriageService } from '../services/triageService';
@@ -95,7 +96,9 @@ export function createTmdlRequestRouter(
 
       // Start async triage and processing
       store.setStatus(request.id, 'triaging');
-      processRequest(request.id, dto, modelPath, store, triageService, tmdlExecutionService, repoPath);
+      console.log('[REQUEST] Starting async processing for:', request.id);
+      processRequest(request.id, dto, modelPath, store, triageService, tmdlExecutionService, repoPath)
+        .catch(err => console.error('[REQUEST] Process failed:', err));
 
       res.status(201).json(request);
     } catch (error) {
@@ -177,9 +180,12 @@ async function processRequest(
   tmdlExecutionService: TmdlExecutionService,
   repoPath: string
 ): Promise<void> {
+  console.log('[PROCESS] processRequest called for:', requestId);
   try {
     // Full triage analysis (with current report state for context)
+    console.log('[PROCESS] Starting triage analysis...');
     const analysis = await triageService.analyzeRequest(dto, repoPath);
+    console.log('[PROCESS] Triage result:', analysis.triageResult);
     store.applyTriageResult(requestId, analysis);
     store.addLog(
       requestId,
@@ -243,11 +249,13 @@ async function executeAndCreatePR(
     }
 
     // Create PR with the changes
+    console.log('[PR] Starting PR creation for request:', requestId);
     const prResult = await createPullRequest(
       request,
       result.changes,
       repoPath
     );
+    console.log('[PR] PR creation result:', prResult);
 
     if (prResult.success && prResult.prUrl) {
       store.setPRUrl(requestId, prResult.prUrl);
@@ -283,9 +291,17 @@ async function createPullRequest(
   const baseBranch = process.env.BASE_BRANCH || 'master';
   const git: SimpleGit = simpleGit(repoPath);
 
+  console.log(`[PR] createPullRequest called - repoPath: ${repoPath}, branch: ${branchName}`);
+
   try {
+    // Configure git to use gh CLI for auth
+    execSync('gh auth setup-git', { cwd: repoPath });
+    console.log('[PR] Configured git to use gh CLI for authentication');
+
     // Check for changes
+    console.log('[PR] Checking git status...');
     const status = await git.status();
+    console.log('[PR] Git status:', status.files.length, 'files changed');
     if (status.files.length === 0) {
       return { success: false, error: 'No changes to commit' };
     }
@@ -349,7 +365,6 @@ Co-Authored-By: Claude <noreply@anthropic.com>`;
     await fs.promises.writeFile(bodyFile, prBody, 'utf-8');
 
     // Use gh CLI with file input (safe from injection)
-    const { execSync } = require('child_process');
     const prUrl = execSync(
       `gh pr create --title "$(cat "${titleFile}")" --body "$(cat "${bodyFile}")" --base "${baseBranch}"`,
       { cwd: repoPath, encoding: 'utf-8' }
@@ -363,6 +378,9 @@ Co-Authored-By: Claude <noreply@anthropic.com>`;
 
     return { success: true, prUrl };
   } catch (error) {
+    // Log the actual error
+    console.error('[PR Creation Error]', error);
+
     // Cleanup
     try {
       await git.checkout(baseBranch);
@@ -370,7 +388,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>`;
 
     return {
       success: false,
-      error: 'PR creation failed',
+      error: `PR creation failed: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }

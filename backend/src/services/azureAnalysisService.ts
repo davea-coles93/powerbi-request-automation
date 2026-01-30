@@ -134,8 +134,22 @@ export class AzureAnalysisService implements IPowerBIService {
    * Get Azure AD access token for Azure Management API (start/stop server)
    */
   private async getManagementToken(): Promise<string> {
+    // Check for pre-acquired management token from OIDC (GitHub Actions)
+    // Note: In GitHub Actions, we get the management token via azure/login@v2 and pass it to PowerShell
+    // This method is a fallback for when we need to call management API from Node.js
+    const oidcToken = process.env.AZURE_MANAGEMENT_TOKEN;
+    if (oidcToken) {
+      return oidcToken;
+    }
+
     if (this.managementToken && this.managementToken.expiresAt > Date.now()) {
       return this.managementToken.accessToken;
+    }
+
+    // Fall back to client credentials flow
+    const clientSecret = process.env.AZURE_CLIENT_SECRET;
+    if (!clientSecret) {
+      throw new Error('No management token available. Set AZURE_MANAGEMENT_TOKEN (OIDC) or AZURE_CLIENT_SECRET (client credentials).');
     }
 
     const tokenUrl = `https://login.microsoftonline.com/${this.tenantId}/oauth2/v2.0/token`;
@@ -146,7 +160,7 @@ export class AzureAnalysisService implements IPowerBIService {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         client_id: this.clientId,
-        client_secret: this.clientSecret,
+        client_secret: clientSecret,
         scope: scope,
         grant_type: 'client_credentials',
       }),
@@ -651,12 +665,16 @@ export class AzureAnalysisService implements IPowerBIService {
   }
 
   private isConfigured(): boolean {
+    // Check if we have OIDC token (GitHub Actions)
+    const hasOIDCToken = !!process.env.AAS_ACCESS_TOKEN;
+
+    // Either need OIDC token OR client credentials
+    const hasAuth = hasOIDCToken || (this.clientId && this.clientSecret && this.tenantId);
+
     return !!(
       this.serverUrl &&
       this.databaseName &&
-      this.clientId &&
-      this.clientSecret &&
-      this.tenantId
+      hasAuth
     );
   }
 
@@ -670,9 +688,14 @@ export class AzureAnalysisService implements IPowerBIService {
     const missing: string[] = [];
     if (!this.serverUrl) missing.push('AZURE_AAS_SERVER');
     if (!this.databaseName) missing.push('AZURE_AAS_DATABASE');
-    if (!this.clientId) missing.push('AZURE_CLIENT_ID');
-    if (!this.clientSecret) missing.push('AZURE_CLIENT_SECRET');
-    if (!this.tenantId) missing.push('AZURE_TENANT_ID');
+
+    // Check for OIDC token OR client credentials
+    const hasOIDCToken = !!process.env.AAS_ACCESS_TOKEN;
+    const hasClientCredentials = this.clientId && this.clientSecret && this.tenantId;
+
+    if (!hasOIDCToken && !hasClientCredentials) {
+      missing.push('AAS_ACCESS_TOKEN (OIDC) or (AZURE_CLIENT_ID + AZURE_CLIENT_SECRET + AZURE_TENANT_ID)');
+    }
 
     const missingManagement: string[] = [];
     if (!this.subscriptionId) missingManagement.push('AZURE_SUBSCRIPTION_ID');
