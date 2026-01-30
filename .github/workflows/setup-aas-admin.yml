@@ -1,0 +1,70 @@
+name: Setup AAS Admin
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  add-sp-admin:
+    runs-on: ubuntu-latest
+    name: Add Service Principal as AAS Admin
+
+    steps:
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Add SP as AAS Administrator
+        run: |
+          echo "Adding service principal to AAS admins..."
+
+          # Construct the admin member string for service principal
+          SP_ADMIN="app:${{ secrets.AZURE_CLIENT_ID }}@${{ secrets.AZURE_TENANT_ID }}"
+
+          echo "SP Admin string: $SP_ADMIN"
+
+          # Get current admins
+          CURRENT_ADMINS=$(az resource show \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --name ${{ secrets.AZURE_AAS_SERVER_NAME }} \
+            --resource-type "Microsoft.AnalysisServices/servers" \
+            --query "properties.asAdministrators.members" -o tsv 2>/dev/null || echo "")
+
+          echo "Current admins: $CURRENT_ADMINS"
+
+          # Build members array
+          MEMBERS='["'"$SP_ADMIN"'"'
+          if [ -n "$CURRENT_ADMINS" ]; then
+            for admin in $CURRENT_ADMINS; do
+              if [ "$admin" != "$SP_ADMIN" ]; then
+                MEMBERS="$MEMBERS"', "'"$admin"'"'
+              fi
+            done
+          fi
+          MEMBERS="$MEMBERS"']'
+
+          echo "New members array: $MEMBERS"
+
+          # Update AAS server configuration
+          az rest \
+            --method PATCH \
+            --uri "https://management.azure.com/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ secrets.AZURE_RESOURCE_GROUP }}/providers/Microsoft.AnalysisServices/servers/${{ secrets.AZURE_AAS_SERVER_NAME }}?api-version=2017-08-01" \
+            --body "{\"properties\":{\"asAdministrators\":{\"members\":$MEMBERS}}}" \
+            --headers "Content-Type=application/json"
+
+          echo "✅ Service principal added as AAS administrator"
+
+      - name: Verify admin added
+        run: |
+          echo "Verifying admin configuration..."
+          az resource show \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --name ${{ secrets.AZURE_AAS_SERVER_NAME }} \
+            --resource-type "Microsoft.AnalysisServices/servers" \
+            --query "properties.asAdministrators.members" -o json
