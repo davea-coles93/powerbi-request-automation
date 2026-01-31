@@ -185,9 +185,10 @@ jobs:
       - name: Install Tabular Editor CLI
         run: |
           echo "Installing Tabular Editor 3 CLI..."
-          wget https://github.com/TabularEditor/TabularEditor3/releases/download/3.17.2/TabularEditor3.Linux-x64.zip -O te3.zip
+          # Download latest Tabular Editor 3
+          wget https://cdn.tabulareditor.com/files/te3/TabularEditor3.Portable.zip -O te3.zip
           unzip -q te3.zip -d tabular-editor
-          chmod +x tabular-editor/TabularEditor3
+          chmod +x tabular-editor/TabularEditor3.Linux-x64
 
       - name: Start Azure Analysis Services
         id: start-aas
@@ -227,7 +228,7 @@ jobs:
           echo "CI_DATABASE_NAME=$DATABASE_NAME" >> $GITHUB_ENV
 
           # Deploy using Tabular Editor CLI
-          ./tabular-editor/TabularEditor3 \
+          ./tabular-editor/TabularEditor3.Linux-x64 \
             "$MODEL_PATH" \
             -D "${{ secrets.AZURE_AAS_SERVER }}" "$DATABASE_NAME" \
             -O \
@@ -281,7 +282,7 @@ jobs:
         run: |
           if [ -n "$CI_DATABASE_NAME" ]; then
             echo "Deleting test database: $CI_DATABASE_NAME"
-            ./tabular-editor/TabularEditor3 \
+            ./tabular-editor/TabularEditor3.Linux-x64 \
               -S "${{ secrets.AZURE_AAS_SERVER }}" \
               -D "$CI_DATABASE_NAME" \
               -X \
