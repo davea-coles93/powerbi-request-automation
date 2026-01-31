@@ -191,6 +191,9 @@ function buildModelFromTmdl(modelPath) {
 
 // Convert to TMSL JSON format
 function buildTmslDatabase(model, databaseName) {
+  // Get list of table names being deployed
+  const tableNames = new Set(model.tables.map(t => t.name));
+
   const tmslTables = model.tables.map(table => {
     const tmslTable = {
       name: table.name,
@@ -222,16 +225,18 @@ function buildTmslDatabase(model, databaseName) {
     return tmslTable;
   });
 
-  // Build TMSL relationships
-  const tmslRelationships = model.relationships.map(rel => ({
-    name: rel.name,
-    fromTable: rel.fromTable,
-    fromColumn: rel.fromColumn,
-    toTable: rel.toTable,
-    toColumn: rel.toColumn,
-    isActive: rel.isActive,
-    crossFilteringBehavior: rel.crossFilteringBehavior
-  }));
+  // Build TMSL relationships - only include relationships where both tables exist
+  const tmslRelationships = model.relationships
+    .filter(rel => tableNames.has(rel.fromTable) && tableNames.has(rel.toTable))
+    .map(rel => ({
+      name: rel.name,
+      fromTable: rel.fromTable,
+      fromColumn: rel.fromColumn,
+      toTable: rel.toTable,
+      toColumn: rel.toColumn,
+      isActive: rel.isActive,
+      crossFilteringBehavior: rel.crossFilteringBehavior
+    }));
 
   return {
     name: databaseName,
