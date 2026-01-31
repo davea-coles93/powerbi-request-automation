@@ -380,60 +380,106 @@ export class TmdlService {
     const tablesPath = path.join(project.semanticModelPath, 'definition', 'tables');
     const filePath = path.join(tablesPath, `${tableName}.tmdl`);
 
-    // Read existing file to preserve non-measure content
-    let existingContent = '';
-    if (fs.existsSync(filePath)) {
-      existingContent = await fs.promises.readFile(filePath, 'utf-8');
+    // Read existing file to preserve structure
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Table file not found: ${filePath}`);
     }
 
-    // Build new content
-    const lines: string[] = [];
-    lines.push(`table '${table.name}'`);
-    lines.push(`\tlineageTag: ${table.lineageTag}`);
-    lines.push('');
+    const existingContent = await fs.promises.readFile(filePath, 'utf-8');
+    const lines = existingContent.split('\n');
 
-    // Add measures
-    for (const measure of table.measures) {
-      // Add description as comment if present
-      if (measure.description) {
-        lines.push(`\t/// ${measure.description}`);
+    // Find where measures section starts and ends
+    let measureStartIdx = -1;
+    let measureEndIdx = -1;
+
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+
+      // First measure definition starts
+      if (measureStartIdx === -1 && trimmed.startsWith('measure ')) {
+        measureStartIdx = i;
       }
 
-      // Check if expression is multiline
-      const isMultiline = measure.expression.includes('\n');
-
-      if (isMultiline) {
-        lines.push(`\tmeasure '${measure.name}' =`);
-        const exprLines = measure.expression.split('\n');
-        for (const exprLine of exprLines) {
-          lines.push(`\t\t${exprLine}`);
-        }
-      } else {
-        lines.push(`\tmeasure '${measure.name}' = ${measure.expression}`);
-      }
-
-      if (measure.formatString) {
-        lines.push(`\t\tformatString: ${measure.formatString}`);
-      }
-      lines.push(`\t\tlineageTag: ${measure.lineageTag}`);
-
-      // Add annotations
-      if (measure.annotations) {
-        for (const [key, value] of Object.entries(measure.annotations)) {
-          lines.push(`\n\t\tannotation ${key} = ${value}`);
+      // Last measure ends when we hit a column, partition, or end of file
+      if (measureStartIdx !== -1 && measureEndIdx === -1) {
+        if (trimmed.startsWith('column ') ||
+            trimmed.startsWith('partition ') ||
+            trimmed.startsWith('hierarchy ')) {
+          measureEndIdx = i;
+          break;
         }
       }
-
-      lines.push('');
     }
 
-    // Preserve partition and other content from original file
-    const partitionMatch = existingContent.match(/(\tpartition[\s\S]*)/);
-    if (partitionMatch) {
-      lines.push(partitionMatch[1]);
+    // If no measures found, insert after lineageTag
+    if (measureStartIdx === -1) {
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].trim().startsWith('lineageTag:')) {
+          measureStartIdx = i + 1;
+          measureEndIdx = i + 1;
+          break;
+        }
+      }
     }
 
-    await fs.promises.writeFile(filePath, lines.join('\n'), 'utf-8');
+    // If still not found, something is wrong
+    if (measureStartIdx === -1) {
+      throw new Error(`Could not find insertion point in ${filePath}`);
+    }
+
+    // If measureEndIdx not set, measures go to end of file
+    if (measureEndIdx === -1) {
+      measureEndIdx = lines.length;
+    }
+
+    // Build measures content
+    const measureLines: string[] = [];
+    if (table.measures.length > 0) {
+      measureLines.push(''); // Blank line before measures
+
+      for (const measure of table.measures) {
+        // Add description as comment if present
+        if (measure.description) {
+          measureLines.push(`\t/// ${measure.description}`);
+        }
+
+        // Check if expression is multiline
+        const isMultiline = measure.expression.includes('\n');
+
+        if (isMultiline) {
+          measureLines.push(`\tmeasure '${measure.name}' =`);
+          const exprLines = measure.expression.split('\n');
+          for (const exprLine of exprLines) {
+            measureLines.push(`\t\t${exprLine}`);
+          }
+        } else {
+          measureLines.push(`\tmeasure '${measure.name}' = ${measure.expression}`);
+        }
+
+        if (measure.formatString) {
+          measureLines.push(`\t\tformatString: ${measure.formatString}`);
+        }
+        measureLines.push(`\t\tlineageTag: ${measure.lineageTag}`);
+
+        // Add annotations
+        if (measure.annotations) {
+          for (const [key, value] of Object.entries(measure.annotations)) {
+            measureLines.push(`\t\tannotation ${key} = ${value}`);
+          }
+        }
+
+        measureLines.push(''); // Blank line after each measure
+      }
+    }
+
+    // Reconstruct file: before measures + new measures + after measures
+    const newLines = [
+      ...lines.slice(0, measureStartIdx),
+      ...measureLines,
+      ...lines.slice(measureEndIdx)
+    ];
+
+    await fs.promises.writeFile(filePath, newLines.join('\n'), 'utf-8');
   }
 
   /**
