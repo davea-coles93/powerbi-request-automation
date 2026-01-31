@@ -218,43 +218,57 @@ namespace AasValidator
                 connection.Open();
 
                 // Create minimal test database using TMSL
-                var tmsl = $@"{{
-                    ""createOrReplace"": {{
-                        ""object"": {{
-                            ""database"": ""{databaseName}""
-                        }},
-                        ""database"": {{
-                            ""name"": ""{databaseName}"",
-                            ""compatibilityLevel"": 1500,
-                            ""model"": {{
-                                ""culture"": ""en-US"",
-                                ""tables"": [
-                                    {{
-                                        ""name"": ""TestTable"",
-                                        ""columns"": [
-                                            {{
-                                                ""name"": ""ID"",
-                                                ""dataType"": ""int64"",
-                                                ""sourceColumn"": ""ID""
-                                            }}
-                                        ],
-                                        ""partitions"": [
-                                            {{
-                                                ""name"": ""Partition"",
-                                                ""mode"": ""import"",
-                                                ""source"": {{
-                                                    ""type"": ""m"",
-                                                    ""expression"": ""let Source = #table({{\\""ID\\""}}  , {{{{1}}}}) in Source""
-                                                }}
-                                            }}
-                                        ]
-                                    }}
-                                ],
-                                ""expressions"": []
-                            }}
-                        }}
-                    }}
-                }}";
+                // Use JsonSerializer to avoid manual escaping issues
+                var database = new
+                {
+                    name = databaseName,
+                    compatibilityLevel = 1500,
+                    model = new
+                    {
+                        culture = "en-US",
+                        tables = new[]
+                        {
+                            new
+                            {
+                                name = "TestTable",
+                                columns = new[]
+                                {
+                                    new
+                                    {
+                                        name = "ID",
+                                        dataType = "int64",
+                                        sourceColumn = "ID"
+                                    }
+                                },
+                                partitions = new[]
+                                {
+                                    new
+                                    {
+                                        name = "Partition",
+                                        mode = "import",
+                                        source = new
+                                        {
+                                            type = "m",
+                                            expression = "let\n    Source = #table({\"ID\"}, {{1}})\nin\n    Source"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        expressions = new object[0]
+                    }
+                };
+
+                var tmslCommand = new
+                {
+                    createOrReplace = new
+                    {
+                        @object = new { database = databaseName },
+                        database = database
+                    }
+                };
+
+                var tmsl = JsonSerializer.Serialize(tmslCommand);
 
                 using (var cmd = connection.CreateCommand())
                 {
