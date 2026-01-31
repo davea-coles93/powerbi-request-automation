@@ -1,5 +1,4 @@
 using System;
-using System.Text.Json;
 using Microsoft.AnalysisServices.AdomdClient;
 
 namespace AasValidator
@@ -13,7 +12,7 @@ namespace AasValidator
                 // Parse command-line arguments
                 var server = GetArg(args, "--server");
                 var accessToken = GetArg(args, "--token");
-                var command = GetArg(args, "--command", "query"); // query, validate, getmodel, listdatabases, createtestdb, deletedb
+                var command = GetArg(args, "--command", "query"); // query, validate, getmodel, listdatabases, createtestdb, deletedb, executetmsl
 
                 // Commands that don't require database parameter
                 if (command == "listdatabases")
@@ -35,6 +34,8 @@ namespace AasValidator
                     DeleteDatabase(server, accessToken, dbName);
                     return 0;
                 }
+
+                // executetmsl command removed - TMSL execution not supported via ADOMD.NET
 
                 var database = GetArg(args, "--database");
                 var daxQuery = GetArg(args, "--query", "EVALUATE ROW(\"Test\", 1)");
@@ -73,7 +74,7 @@ namespace AasValidator
                     error = ex.Message,
                     type = ex.GetType().Name
                 };
-                Console.WriteLine(JsonSerializer.Serialize(error));
+                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(error));
                 return 1;
             }
         }
@@ -94,12 +95,12 @@ namespace AasValidator
                 }
 
                 var result = new { success = true, valid = true };
-                Console.WriteLine(JsonSerializer.Serialize(result));
+                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(result));
             }
             catch (Exception ex)
             {
                 var result = new { success = true, valid = false, error = ex.Message };
-                Console.WriteLine(JsonSerializer.Serialize(result));
+                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(result));
             }
         }
 
@@ -122,7 +123,7 @@ namespace AasValidator
                         rowCount = rowCount,
                         fieldCount = reader.FieldCount
                     };
-                    Console.WriteLine(JsonSerializer.Serialize(result));
+                    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(result));
                 }
             }
         }
@@ -168,7 +169,7 @@ namespace AasValidator
                 tableCount = tableCount,
                 measureCount = measureCount
             };
-            Console.WriteLine(JsonSerializer.Serialize(result));
+            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(result));
         }
 
         static void ListDatabases(string server, string accessToken)
@@ -201,7 +202,7 @@ namespace AasValidator
                             databases = databases.ToArray(),
                             count = databases.Count
                         };
-                        Console.WriteLine(JsonSerializer.Serialize(result));
+                        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(result));
                     }
                 }
             }
@@ -267,16 +268,16 @@ namespace AasValidator
                     }
                 };
 
-                var tmsl = JsonSerializer.Serialize(tmslCommand);
+                var tmsl = System.Text.Json.JsonSerializer.Serialize(tmslCommand);
 
                 using (var cmd = connection.CreateCommand())
                 {
                     cmd.CommandText = tmsl;
-                    cmd.Execute();
+                    cmd.ExecuteNonQuery();
                 }
 
                 var result = new { success = true, database = databaseName, message = "Test database created" };
-                Console.WriteLine(JsonSerializer.Serialize(result));
+                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(result));
             }
         }
 
@@ -301,13 +302,14 @@ namespace AasValidator
                 using (var cmd = connection.CreateCommand())
                 {
                     cmd.CommandText = tmsl;
-                    cmd.Execute();
+                    cmd.ExecuteNonQuery();
                 }
 
                 var result = new { success = true, database = databaseName, message = "Database deleted" };
-                Console.WriteLine(JsonSerializer.Serialize(result));
+                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(result));
             }
         }
+
 
         static string GetArg(string[] args, string flag, string defaultValue = null)
         {
