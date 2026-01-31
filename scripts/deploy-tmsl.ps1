@@ -4,30 +4,23 @@ param(
     [string]$Token
 )
 
-$tmsl = Get-Content $TmslFile -Raw
-
-# Execute TMSL via REST API
+# Execute TMSL using .NET validator
 try {
-    # Extract server region and name from connection string
-    # Format: asazure://region.asazure.windows.net/servername
-    if ($Server -match 'asazure://([^/]+)/(.+)') {
-        $endpoint = $matches[1]
-        $serverName = $matches[2]
+    $validatorPath = Join-Path $PSScriptRoot "..\aas-validator\AasValidator"
+
+    $result = dotnet run --project $validatorPath --no-build --configuration Release -- `
+        --server $Server `
+        --token $Token `
+        --command executetmsl `
+        --file $TmslFile
+
+    # Check if execution was successful
+    $response = $result | ConvertFrom-Json
+    if ($response.success) {
+        Write-Output '✅ TMDL model deployed successfully'
     } else {
-        throw "Invalid server format: $Server"
+        throw $response.error
     }
-
-    # Build REST API endpoint
-    $apiUrl = "https://$endpoint/servers/$serverName/models/`$system/tmsl"
-
-    # Execute TMSL command
-    $headers = @{
-        'Authorization' = "Bearer $Token"
-        'Content-Type' = 'application/json'
-    }
-
-    $response = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $tmsl
-    Write-Output '✅ TMDL model deployed successfully'
 } catch {
     Write-Error "Deployment failed: $_"
     exit 1

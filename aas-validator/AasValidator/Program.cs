@@ -35,7 +35,12 @@ namespace AasValidator
                     return 0;
                 }
 
-                // executetmsl command removed - TMSL execution not supported via ADOMD.NET
+                if (command == "executetmsl")
+                {
+                    var tmslFile = GetArg(args, "--file");
+                    ExecuteTMSL(server, accessToken, tmslFile);
+                    return 0;
+                }
 
                 var database = GetArg(args, "--database");
                 var daxQuery = GetArg(args, "--query", "EVALUATE ROW(\"Test\", 1)");
@@ -310,6 +315,28 @@ namespace AasValidator
             }
         }
 
+        static void ExecuteTMSL(string server, string accessToken, string tmslFile)
+        {
+            var connectionString = $"Data Source={server};";
+
+            using (var connection = new AdomdConnection(connectionString))
+            {
+                connection.AccessToken = new Microsoft.AnalysisServices.AccessToken(accessToken, DateTime.MaxValue);
+                connection.Open();
+
+                // Read TMSL from file
+                var tmsl = System.IO.File.ReadAllText(tmslFile);
+
+                using (var cmd = connection.CreateCommand())
+                {
+                    cmd.CommandText = tmsl;
+                    cmd.ExecuteNonQuery();
+                }
+
+                var result = new { success = true, message = "TMSL executed successfully" };
+                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(result));
+            }
+        }
 
         static string GetArg(string[] args, string flag, string defaultValue = null)
         {

@@ -4,38 +4,23 @@ param(
     [string]$Token
 )
 
-$tmsl = @"
-{
-  "delete": {
-    "object": {
-      "database": "$DatabaseName"
-    }
-  }
-}
-"@
-
-# Execute TMSL via REST API
+# Delete database using .NET validator
 try {
-    # Extract server region and name from connection string
-    # Format: asazure://region.asazure.windows.net/servername
-    if ($Server -match 'asazure://([^/]+)/(.+)') {
-        $endpoint = $matches[1]
-        $serverName = $matches[2]
+    $validatorPath = Join-Path $PSScriptRoot "..\aas-validator\AasValidator"
+
+    $result = dotnet run --project $validatorPath --no-build --configuration Release -- `
+        --server $Server `
+        --token $Token `
+        --command deletedb `
+        --database $DatabaseName
+
+    # Check if deletion was successful
+    $response = $result | ConvertFrom-Json
+    if ($response.success) {
+        Write-Output '✅ TMDL model deleted'
     } else {
-        throw "Invalid server format: $Server"
+        Write-Warning "Database cleanup failed: $($response.error)"
     }
-
-    # Build REST API endpoint
-    $apiUrl = "https://$endpoint/servers/$serverName/models/`$system/tmsl"
-
-    # Execute TMSL command
-    $headers = @{
-        'Authorization' = "Bearer $Token"
-        'Content-Type' = 'application/json'
-    }
-
-    $response = Invoke-RestMethod -Uri $apiUrl -Method Post -Headers $headers -Body $tmsl
-    Write-Output '✅ TMDL model deleted'
 } catch {
     Write-Warning "Database cleanup failed: $_"
 }
