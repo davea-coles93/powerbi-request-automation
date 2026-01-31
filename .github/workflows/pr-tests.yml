@@ -219,6 +219,8 @@ jobs:
       - name: Run TMDL syntax validation
         run: |
           echo "Running TMDL syntax validation (Option 1)..."
+          # Run syntax validation only (no AAS validation yet - we'll do that in Option 2)
+          unset AAS_ACCESS_TOKEN
           node scripts/validate-tmdl.js models/adventure-works/sales-sample.SemanticModel
 
       - name: Deploy TMDL model to AAS for validation
