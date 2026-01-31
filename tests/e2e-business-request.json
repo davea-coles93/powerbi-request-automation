@@ -1,0 +1,7 @@
+{
+  "clientId": "adventure-works",
+  "modelName": "sales-sample",
+  "title": "Year-to-Date Sales Tracking",
+  "description": "We need to track our year-to-date sales performance so we can compare current performance against our annual targets. This would help us understand if we're on track to meet our yearly revenue goals. Can you add a measure that shows cumulative sales from the start of the year to today?",
+  "urgency": "medium"
+}

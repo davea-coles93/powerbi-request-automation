@@ -1,0 +1,12 @@
+{
+  "client": "Adventure Works",
+  "model": "Sales Sample",
+  "requestType": "add_measure",
+  "description": "E2E Test: Add Year-to-Date Sales measure with time intelligence",
+  "measure": {
+    "name": "YTD Sales",
+    "table": "Sales",
+    "dax": "CALCULATE(SUM(Sales[Sales Amount]), DATESYTD('Date'[Date]))",
+    "description": "Calculate year-to-date sales using time intelligence"
+  }
+}
