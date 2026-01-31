@@ -129,11 +129,10 @@ namespace AasValidator
 
         static void GetModelInfo(AdomdConnection connection)
         {
-            // Query model metadata using DMV
+            // Query model metadata using DMV (simplified for compatibility)
             var tablesQuery = @"
-                SELECT [Name], [Description]
+                SELECT [Name]
                 FROM $SYSTEM.TMSCHEMA_TABLES
-                WHERE [IsHidden] = FALSE
             ";
 
             var measuresQuery = @"
