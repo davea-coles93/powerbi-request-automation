@@ -273,7 +273,7 @@ jobs:
             echo "  Validating: $MEASURE_NAME"
 
             cd aas-validator/AasValidator
-            RESULT=$(dotnet run -- \
+            RESULT=$(dotnet run --no-build --configuration Release -- \
               --server "${{ secrets.AZURE_AAS_SERVER }}" \
               --database "$CI_DATABASE_NAME" \
               --token "$AAS_ACCESS_TOKEN" \
