@@ -154,7 +154,8 @@ function buildTmslDatabase(model, databaseName) {
         source: {
           type: 'm',
           // Create empty table with column structure
-          expression: `let\n    Source = #table(${JSON.stringify(table.columns.map(c => c.name))}, {})\nin\n    Source`
+          // M language uses {} for lists, not [] like JSON
+          expression: `let\n    Source = #table({${table.columns.map(c => JSON.stringify(c.name)).join(', ')}}, {})\nin\n    Source`
         }
       }]
     };
