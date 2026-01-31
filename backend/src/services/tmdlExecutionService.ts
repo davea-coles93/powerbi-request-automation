@@ -7,7 +7,8 @@
 
 import * as path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
-import { TmdlService, TmdlProject, TmdlMeasure } from './tmdlService';
+import { PowerBIMcpService } from './powerbiMcpService';
+import { PowerBIModel, PowerBIMeasure } from '../types/powerbi';
 import { ChangeRequest } from '../types/request';
 
 export interface TmdlExecutionResult {
@@ -27,12 +28,12 @@ export interface TmdlChange {
 }
 
 export class TmdlExecutionService {
-  private tmdlService: TmdlService;
+  private mcpService: PowerBIMcpService;
   private anthropic: Anthropic | null = null;
   private modelsPath: string;
 
-  constructor(modelsPath: string) {
-    this.tmdlService = new TmdlService(modelsPath);
+  constructor(modelsPath: string, mcpServerPath: string) {
+    this.mcpService = new PowerBIMcpService(mcpServerPath);
     this.modelsPath = modelsPath;
 
     if (process.env.ANTHROPIC_API_KEY) {
@@ -41,26 +42,30 @@ export class TmdlExecutionService {
   }
 
   /**
-   * Execute a change request against TMDL files
+   * Execute a change request using PowerBI MCPs
    */
   async executeRequest(
     request: ChangeRequest,
     pbipPath: string
   ): Promise<TmdlExecutionResult> {
     try {
-      // Load the project
-      const fullPath = path.join(this.modelsPath, pbipPath);
-      const project = await this.tmdlService.loadProject(fullPath);
+      // Connect to MCP service
+      const connected = await this.mcpService.connect();
+      if (!connected) {
+        throw new Error('Failed to connect to PowerBI MCP service');
+      }
 
-      console.log(`[TMDL] Loaded project: ${project.model.name}`);
-      console.log(`[TMDL] Tables: ${project.model.tables.map(t => t.name).join(', ')}`);
+      // Get model info using MCP
+      const model = await this.mcpService.getModelInfo();
+      console.log(`[MCP] Connected to model: ${model.name}`);
+      console.log(`[MCP] Tables: ${model.tables.map(t => t.name).join(', ')}`);
 
       // Get existing measures for context
-      const existingMeasures = this.tmdlService.getMeasures(project);
-      console.log(`[TMDL] Found ${existingMeasures.length} existing measures`);
+      const existingMeasures = await this.mcpService.getMeasures();
+      console.log(`[MCP] Found ${existingMeasures.length} existing measures`);
 
       // Generate changes using Claude
-      const changes = await this.generateChanges(request, project, existingMeasures);
+      const changes = await this.generateChanges(request, model, existingMeasures);
 
       if (!changes || changes.length === 0) {
         return {
@@ -70,9 +75,9 @@ export class TmdlExecutionService {
         };
       }
 
-      // Apply changes
+      // Apply changes using MCP
       for (const change of changes) {
-        await this.applyChange(project, change);
+        await this.applyChangeMcp(change);
       }
 
       return {
@@ -80,12 +85,15 @@ export class TmdlExecutionService {
         changes,
       };
     } catch (error) {
-      console.error('[TMDL] Execution error:', error);
+      console.error('[MCP] Execution error:', error);
       return {
         success: false,
         changes: [],
         error: error instanceof Error ? error.message : 'Unknown error',
       };
+    } finally {
+      // Disconnect from MCP
+      this.mcpService.disconnect();
     }
   }
 
@@ -112,16 +120,13 @@ export class TmdlExecutionService {
    */
   private async generateChanges(
     request: ChangeRequest,
-    project: TmdlProject,
-    existingMeasures: TmdlMeasure[]
+    model: PowerBIModel,
+    existingMeasures: PowerBIMeasure[]
   ): Promise<TmdlChange[]> {
     if (!this.anthropic) {
       // Fallback to rule-based generation
-      return this.generateRuleBasedChanges(request, project, existingMeasures);
+      return this.generateRuleBasedChanges(request, model, existingMeasures);
     }
-
-    // Load model context documentation
-    const modelContext = await this.loadModelContext(project.projectPath);
 
     // Build context about existing measures
     const measuresContext = existingMeasures
@@ -129,7 +134,8 @@ export class TmdlExecutionService {
       .map(m => `- ${m.name}: ${m.expression}`)
       .join('\n');
 
-    const measureTables = this.tmdlService.getMeasureTables(project);
+    // Get tables that contain measures
+    const measureTables = model.tables.filter(t => t.measures.length > 0).map(t => t.name);
 
     const prompt = `You are a PowerBI DAX expert. Analyze this change request and generate the required measure changes.
 
@@ -137,8 +143,6 @@ export class TmdlExecutionService {
 Title: ${request.title}
 Description: ${request.description}
 Change Type: ${request.changeType}
-
-${modelContext ? `## Model Documentation\n${modelContext}\n` : ''}
 
 ## Existing Model Context
 Tables with measures: ${measureTables.join(', ')}
@@ -199,7 +203,7 @@ Important:
       return result.changes || [];
     } catch (error) {
       console.error('[TMDL] Claude generation failed:', error);
-      return this.generateRuleBasedChanges(request, project, existingMeasures);
+      return this.generateRuleBasedChanges(request, model, existingMeasures);
     }
   }
 
@@ -208,11 +212,12 @@ Important:
    */
   private generateRuleBasedChanges(
     request: ChangeRequest,
-    project: TmdlProject,
-    existingMeasures: TmdlMeasure[]
+    model: PowerBIModel,
+    existingMeasures: PowerBIMeasure[]
   ): TmdlChange[] {
-    const measureTables = this.tmdlService.getMeasureTables(project);
-    const targetTable = measureTables[0] || 'Measures';
+    // Find tables that have measures
+    const measureTables = model.tables.filter(t => t.measures.length > 0).map(t => t.name);
+    const targetTable = measureTables[0] || model.tables[0]?.name || 'Measures';
 
     // Simple pattern matching for common requests
     const description = request.description.toLowerCase();
@@ -252,57 +257,62 @@ Important:
   }
 
   /**
-   * Apply a single change to the project
+   * Apply a single change using PowerBI MCPs
    */
-  private async applyChange(project: TmdlProject, change: TmdlChange): Promise<void> {
-    console.log(`[TMDL] Applying ${change.type}: ${change.measureName} in ${change.tableName}`);
+  private async applyChangeMcp(change: TmdlChange): Promise<void> {
+    console.log(`[MCP] Applying ${change.type}: ${change.measureName} in ${change.tableName}`);
 
     switch (change.type) {
       case 'create':
-        await this.tmdlService.addMeasure(project, change.tableName, {
+        const createResult = await this.mcpService.createMeasure({
           name: change.measureName,
+          tableName: change.tableName,
           expression: change.expression || '',
           formatString: change.formatString,
           description: change.description,
+          isHidden: false,
         });
+        if (!createResult.success) {
+          throw new Error(`Failed to create measure: ${createResult.message}`);
+        }
         break;
 
       case 'update':
-        // Store previous expression for diff
-        const existing = this.tmdlService.findMeasure(project, change.measureName);
+        // Get previous expression for tracking
+        const existingMeasures = await this.mcpService.getMeasures(change.tableName);
+        const existing = existingMeasures.find(m => m.name === change.measureName);
         if (existing) {
-          change.previousExpression = existing.measure.expression;
+          change.previousExpression = existing.expression;
         }
-        await this.tmdlService.updateMeasure(project, change.measureName, {
-          expression: change.expression,
-          formatString: change.formatString,
-          description: change.description,
-        });
+
+        const updateResult = await this.mcpService.updateMeasure(
+          change.tableName,
+          change.measureName,
+          change.expression || ''
+        );
+        if (!updateResult.success) {
+          throw new Error(`Failed to update measure: ${updateResult.message}`);
+        }
         break;
 
       case 'delete':
-        await this.tmdlService.deleteMeasure(project, change.measureName);
+        const deleteResult = await this.mcpService.deleteMeasure(
+          change.tableName,
+          change.measureName
+        );
+        if (!deleteResult.success) {
+          throw new Error(`Failed to delete measure: ${deleteResult.message}`);
+        }
         break;
     }
   }
 
   /**
-   * Get the files changed for git staging
+   * Get the files changed for git staging (deprecated - MCPs handle file changes automatically)
    */
-  getChangedFiles(project: TmdlProject, changes: TmdlChange[]): string[] {
-    const changedTables = new Set(changes.map(c => c.tableName));
-    const files: string[] = [];
-
-    for (const tableName of changedTables) {
-      const relativePath = path.join(
-        path.relative(this.modelsPath, project.semanticModelPath),
-        'definition',
-        'tables',
-        `${tableName}.tmdl`
-      );
-      files.push(relativePath);
-    }
-
-    return files;
+  getChangedFiles(modelPath: string, changes: TmdlChange[]): string[] {
+    // Deprecated: MCPs handle file changes automatically
+    // Git will detect the changes made by the MCP
+    return [];
   }
 }

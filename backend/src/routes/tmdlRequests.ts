@@ -37,7 +37,13 @@ export function createTmdlRequestRouter(
 ): Router {
   const router = Router();
   const modelsPath = path.join(repoPath, 'models');
-  const tmdlExecutionService = new TmdlExecutionService(modelsPath);
+  const mcpServerPath = process.env.POWERBI_MCP_PATH || '';
+
+  if (!mcpServerPath) {
+    throw new Error('POWERBI_MCP_PATH environment variable is required');
+  }
+
+  const tmdlExecutionService = new TmdlExecutionService(modelsPath, mcpServerPath);
 
   // Load client config
   async function loadClientConfig(): Promise<ClientConfig> {
