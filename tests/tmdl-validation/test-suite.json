@@ -1,0 +1,90 @@
+{
+  "description": "TMDL Validation Test Suite",
+  "tests": [
+    {
+      "id": "test-001",
+      "name": "Valid Simple Aggregation",
+      "description": "Test that a valid DAX measure with simple SUM aggregation passes validation",
+      "model": "models/adventure-works/sales-sample.SemanticModel",
+      "measure": {
+        "name": "Total Sales",
+        "table": "Sales",
+        "dax": "SUM(Sales[Sales Amount])"
+      },
+      "expectedResult": "valid",
+      "expectedValidation": {
+        "syntaxValid": true,
+        "semanticValid": true
+      }
+    },
+    {
+      "id": "test-002",
+      "name": "Valid Relationship Navigation",
+      "description": "Test that a DAX measure using USERELATIONSHIP with inactive relationships passes validation",
+      "model": "models/adventure-works/sales-sample.SemanticModel",
+      "measure": {
+        "name": "Sales by Ship Date",
+        "table": "Sales",
+        "dax": "CALCULATE(SUM(Sales[Sales Amount]), USERELATIONSHIP(Sales[ShipDateKey], 'Date'[DateKey]))"
+      },
+      "expectedResult": "valid",
+      "expectedValidation": {
+        "syntaxValid": true,
+        "semanticValid": true,
+        "requiresRelationships": ["Sales[ShipDateKey] -> Date[DateKey]"]
+      }
+    },
+    {
+      "id": "test-003",
+      "name": "Invalid Syntax - Unbalanced Parentheses",
+      "description": "Test that a DAX measure with syntax errors (unbalanced parentheses) is caught during validation",
+      "model": "models/adventure-works/sales-sample.SemanticModel",
+      "measure": {
+        "name": "Invalid Syntax Test",
+        "table": "Sales",
+        "dax": "SUM(Sales[Sales Amount]"
+      },
+      "expectedResult": "invalid",
+      "expectedValidation": {
+        "syntaxValid": false,
+        "errorType": "syntax",
+        "errorMessage": "Unbalanced parentheses"
+      }
+    },
+    {
+      "id": "test-004",
+      "name": "Invalid Reference - Non-Existent Column",
+      "description": "Test that a DAX measure referencing a non-existent column is caught during semantic validation",
+      "model": "models/adventure-works/sales-sample.SemanticModel",
+      "measure": {
+        "name": "Invalid Column Reference",
+        "table": "Sales",
+        "dax": "SUM(Sales[NonExistentColumn])"
+      },
+      "expectedResult": "invalid",
+      "expectedValidation": {
+        "syntaxValid": true,
+        "semanticValid": false,
+        "errorType": "semantic",
+        "errorMessage": "Column 'NonExistentColumn' in table 'Sales' cannot be found"
+      }
+    },
+    {
+      "id": "test-005",
+      "name": "Valid Complex Time Intelligence",
+      "description": "Test that a complex DAX measure with time intelligence functions passes validation",
+      "model": "models/adventure-works/sales-sample.SemanticModel",
+      "measure": {
+        "name": "Year-to-Date Sales",
+        "table": "Sales",
+        "dax": "CALCULATE(SUM(Sales[Sales Amount]), DATESYTD('Date'[Date]))"
+      },
+      "expectedResult": "valid",
+      "expectedValidation": {
+        "syntaxValid": true,
+        "semanticValid": true,
+        "requiresDateTable": true
+      }
+    }
+  ]
+}
