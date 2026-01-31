@@ -153,9 +153,9 @@ function buildTmslDatabase(model, databaseName) {
         mode: 'import',
         source: {
           type: 'm',
-          // Create empty table with column structure
-          // M language uses {} for lists, not [] like JSON
-          expression: `let\n    Source = #table({${table.columns.map(c => JSON.stringify(c.name)).join(', ')}}, {})\nin\n    Source`
+          // Create empty table - columns are defined in table schema, not in M expression
+          // This avoids M syntax issues with complex column names
+          expression: 'let\n    Source = Table.FromRecords({})\nin\n    Source'
         }
       }]
     };
