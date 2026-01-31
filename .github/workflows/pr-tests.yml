@@ -244,22 +244,7 @@ jobs:
           fi
 
           # Deploy using PowerShell SqlServer module
-          pwsh -Command "
-            \$tmsl = Get-Content 'scripts/$TMSL_FILE' -Raw
-            \$token = '$AAS_ACCESS_TOKEN'
-
-            # Import SqlServer module
-            Import-Module SqlServer
-
-            # Execute TMSL
-            try {
-              Invoke-ASCmd -Query \$tmsl -Server '${{ secrets.AZURE_AAS_SERVER }}' -Credential (New-Object PSCredential('app', (ConvertTo-SecureString \$token -AsPlainText -Force)))
-              Write-Output '✅ TMDL model deployed successfully'
-            } catch {
-              Write-Error \"Deployment failed: \$_\"
-              exit 1
-            }
-          "
+          pwsh scripts/deploy-tmsl.ps1 -TmslFile "scripts/$TMSL_FILE" -Server "${{ secrets.AZURE_AAS_SERVER }}" -Token "$AAS_ACCESS_TOKEN"
 
       - name: Validate DAX measures against deployed model
         id: dax-tests
@@ -323,26 +308,7 @@ jobs:
             echo "Deleting temporary TMDL model: $CI_DATABASE_NAME"
 
             # Delete using PowerShell TMSL
-            pwsh -Command "
-              \$token = '$AAS_ACCESS_TOKEN'
-              \$tmsl = @\"
-              {
-                \"\"delete\"\": {
-                  \"\"object\"\": {
-                    \"\"database\"\": \"\"$CI_DATABASE_NAME\"\"
-                  }
-                }
-              }
-\"@
-
-              Import-Module SqlServer
-              try {
-                Invoke-ASCmd -Query \$tmsl -Server '${{ secrets.AZURE_AAS_SERVER }}' -Credential (New-Object PSCredential('app', (ConvertTo-SecureString \$token -AsPlainText -Force)))
-                Write-Output '✅ TMDL model deleted'
-              } catch {
-                Write-Warning \"Database cleanup failed: \$_\"
-              }
-            "
+            pwsh scripts/delete-database.ps1 -DatabaseName "$CI_DATABASE_NAME" -Server "${{ secrets.AZURE_AAS_SERVER }}" -Token "$AAS_ACCESS_TOKEN"
           fi
 
       - name: Stop Azure Analysis Services
