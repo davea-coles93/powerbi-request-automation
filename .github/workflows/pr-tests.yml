@@ -6,6 +6,9 @@ on:
     paths:
       - 'models/**'
       - 'backend/**'
+      - 'scripts/**'
+      - 'aas-validator/**'
+      - '.github/workflows/**'
 
 # OIDC permissions for Azure authentication
 permissions:
