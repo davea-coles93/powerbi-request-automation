@@ -207,14 +207,34 @@ jobs:
           echo "::add-mask::$TOKEN"
           echo "AAS_ACCESS_TOKEN=$TOKEN" >> $GITHUB_ENV
 
+      - name: Create test database on AAS
+        env:
+          AAS_ACCESS_TOKEN: ${{ env.AAS_ACCESS_TOKEN }}
+        run: |
+          echo "Creating temporary test database on AAS..."
+
+          # Generate temporary database name
+          DATABASE_NAME="ci-test-$(date +%s)"
+          echo "CI_DATABASE_NAME=$DATABASE_NAME" >> $GITHUB_ENV
+          echo "Database name: $DATABASE_NAME"
+
+          cd aas-validator/AasValidator
+
+          # Create a minimal test database
+          dotnet run -- \
+            --server "${{ secrets.AZURE_AAS_SERVER }}" \
+            --database "$DATABASE_NAME" \
+            --token "$AAS_ACCESS_TOKEN" \
+            --command createtestdb
+
+          echo "✅ Test database created"
+
       - name: Run DAX validation tests
         id: dax-tests
-        continue-on-error: true
         env:
           AAS_ACCESS_TOKEN: ${{ env.AAS_ACCESS_TOKEN }}
         run: |
           echo "Running DAX validation against Azure Analysis Services..."
-          echo "Note: Requires AZURE_AAS_DATABASE secret to be set to an existing database name"
 
           cd aas-validator/AasValidator
 
@@ -225,18 +245,20 @@ jobs:
             --token "$AAS_ACCESS_TOKEN" \
             --command listdatabases
 
-          # Skip validation if no database configured
-          if [ -z "${{ secrets.AZURE_AAS_DATABASE }}" ]; then
-            echo "⚠️  AZURE_AAS_DATABASE not configured - skipping DAX validation"
-            echo "To enable: deploy a model to AAS and set AZURE_AAS_DATABASE secret"
+          # Use CI database if deployed, otherwise use configured database
+          TEST_DATABASE="${CI_DATABASE_NAME:-${{ secrets.AZURE_AAS_DATABASE }}}"
+
+          if [ -z "$TEST_DATABASE" ]; then
+            echo "⚠️  No database available for testing - skipping DAX validation"
+            echo "Either deploy a model in CI or set AZURE_AAS_DATABASE secret"
             exit 0
           fi
 
           # Test 1: Get model info
-          echo "Getting model info from database: ${{ secrets.AZURE_AAS_DATABASE }}"
+          echo "Getting model info from database: $TEST_DATABASE"
           dotnet run -- \
             --server "${{ secrets.AZURE_AAS_SERVER }}" \
-            --database "${{ secrets.AZURE_AAS_DATABASE }}" \
+            --database "$TEST_DATABASE" \
             --token "$AAS_ACCESS_TOKEN" \
             --command getmodel
           echo "✅ Model info retrieved"
@@ -245,7 +267,7 @@ jobs:
           echo "Validating DAX expression..."
           dotnet run -- \
             --server "${{ secrets.AZURE_AAS_SERVER }}" \
-            --database "${{ secrets.AZURE_AAS_DATABASE }}" \
+            --database "$TEST_DATABASE" \
             --token "$AAS_ACCESS_TOKEN" \
             --command validate \
             --query "EVALUATE ROW(\"Test\", 1 + 1)"
@@ -253,6 +275,25 @@ jobs:
 
           echo ""
           echo "All DAX validation tests passed!"
+
+      - name: Delete test database from AAS
+        if: always() && env.CI_DATABASE_NAME != ''
+        env:
+          AAS_ACCESS_TOKEN: ${{ env.AAS_ACCESS_TOKEN }}
+        run: |
+          if [ -n "$CI_DATABASE_NAME" ]; then
+            echo "Deleting temporary test database: $CI_DATABASE_NAME"
+
+            cd aas-validator/AasValidator
+
+            dotnet run -- \
+              --server "${{ secrets.AZURE_AAS_SERVER }}" \
+              --database "$CI_DATABASE_NAME" \
+              --token "$AAS_ACCESS_TOKEN" \
+              --command deletedb || echo "Database cleanup failed (may not exist)"
+
+            echo "✅ Test database deleted"
+          fi
 
       - name: Stop Azure Analysis Services
         if: always()

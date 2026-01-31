@@ -13,12 +13,26 @@ namespace AasValidator
                 // Parse command-line arguments
                 var server = GetArg(args, "--server");
                 var accessToken = GetArg(args, "--token");
-                var command = GetArg(args, "--command", "query"); // query, validate, getmodel, listdatabases
+                var command = GetArg(args, "--command", "query"); // query, validate, getmodel, listdatabases, createtestdb, deletedb
 
-                // For listdatabases, don't require database parameter
+                // Commands that don't require database parameter
                 if (command == "listdatabases")
                 {
                     ListDatabases(server, accessToken);
+                    return 0;
+                }
+
+                if (command == "createtestdb")
+                {
+                    var dbName = GetArg(args, "--database");
+                    CreateTestDatabase(server, accessToken, dbName);
+                    return 0;
+                }
+
+                if (command == "deletedb")
+                {
+                    var dbName = GetArg(args, "--database");
+                    DeleteDatabase(server, accessToken, dbName);
                     return 0;
                 }
 
@@ -191,6 +205,94 @@ namespace AasValidator
                         Console.WriteLine(JsonSerializer.Serialize(result));
                     }
                 }
+            }
+        }
+
+        static void CreateTestDatabase(string server, string accessToken, string databaseName)
+        {
+            var connectionString = $"Data Source={server};";
+
+            using (var connection = new AdomdConnection(connectionString))
+            {
+                connection.AccessToken = new Microsoft.AnalysisServices.AccessToken(accessToken, DateTime.MaxValue);
+                connection.Open();
+
+                // Create minimal test database using TMSL
+                var tmsl = $@"{{
+                    ""createOrReplace"": {{
+                        ""object"": {{
+                            ""database"": ""{databaseName}""
+                        }},
+                        ""database"": {{
+                            ""name"": ""{databaseName}"",
+                            ""compatibilityLevel"": 1500,
+                            ""model"": {{
+                                ""culture"": ""en-US"",
+                                ""tables"": [
+                                    {{
+                                        ""name"": ""TestTable"",
+                                        ""columns"": [
+                                            {{
+                                                ""name"": ""ID"",
+                                                ""dataType"": ""int64"",
+                                                ""sourceColumn"": ""ID""
+                                            }}
+                                        ],
+                                        ""partitions"": [
+                                            {{
+                                                ""name"": ""Partition"",
+                                                ""mode"": ""import"",
+                                                ""source"": {{
+                                                    ""type"": ""m"",
+                                                    ""expression"": ""let Source = #table({{\\""ID\\""}}  , {{{{1}}}}) in Source""
+                                                }}
+                                            }}
+                                        ]
+                                    }}
+                                ],
+                                ""expressions"": []
+                            }}
+                        }}
+                    }}
+                }}";
+
+                using (var cmd = connection.CreateCommand())
+                {
+                    cmd.CommandText = tmsl;
+                    cmd.Execute();
+                }
+
+                var result = new { success = true, database = databaseName, message = "Test database created" };
+                Console.WriteLine(JsonSerializer.Serialize(result));
+            }
+        }
+
+        static void DeleteDatabase(string server, string accessToken, string databaseName)
+        {
+            var connectionString = $"Data Source={server};";
+
+            using (var connection = new AdomdConnection(connectionString))
+            {
+                connection.AccessToken = new Microsoft.AnalysisServices.AccessToken(accessToken, DateTime.MaxValue);
+                connection.Open();
+
+                // Delete database using TMSL
+                var tmsl = $@"{{
+                    ""delete"": {{
+                        ""object"": {{
+                            ""database"": ""{databaseName}""
+                        }}
+                    }}
+                }}";
+
+                using (var cmd = connection.CreateCommand())
+                {
+                    cmd.CommandText = tmsl;
+                    cmd.Execute();
+                }
+
+                var result = new { success = true, database = databaseName, message = "Database deleted" };
+                Console.WriteLine(JsonSerializer.Serialize(result));
             }
         }
 
