@@ -226,8 +226,17 @@ function buildTmslDatabase(model, databaseName) {
   });
 
   // Build TMSL relationships - only include relationships where both tables exist
+  // and skip system tables like LocalDateTable
   const tmslRelationships = model.relationships
-    .filter(rel => tableNames.has(rel.fromTable) && tableNames.has(rel.toTable))
+    .filter(rel => {
+      // Skip relationships to/from LocalDateTable (auto-generated date tables)
+      if (rel.fromTable && rel.fromTable.startsWith('LocalDateTable_')) return false;
+      if (rel.toTable && rel.toTable.startsWith('LocalDateTable_')) return false;
+      if (rel.fromTable && rel.fromTable.startsWith('DateTableTemplate_')) return false;
+      if (rel.toTable && rel.toTable.startsWith('DateTableTemplate_')) return false;
+      // Only include if both tables exist
+      return tableNames.has(rel.fromTable) && tableNames.has(rel.toTable);
+    })
     .map(rel => ({
       name: rel.name,
       fromTable: rel.fromTable,
