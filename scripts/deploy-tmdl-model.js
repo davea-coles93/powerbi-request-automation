@@ -390,6 +390,7 @@ async function main() {
   console.log('\n📋 Summary:');
   console.log(`   Tables parsed: ${model.tables.length}`);
   console.log(`   Measures extracted: ${totalMeasures}`);
+  console.log(`   Relationships: ${tmslDatabase.model.relationships.length}`);
   console.log(`   TMSL file: ${tmslFile}`);
 }
 
