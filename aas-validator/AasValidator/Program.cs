@@ -12,10 +12,18 @@ namespace AasValidator
             {
                 // Parse command-line arguments
                 var server = GetArg(args, "--server");
-                var database = GetArg(args, "--database");
                 var accessToken = GetArg(args, "--token");
+                var command = GetArg(args, "--command", "query"); // query, validate, getmodel, listdatabases
+
+                // For listdatabases, don't require database parameter
+                if (command == "listdatabases")
+                {
+                    ListDatabases(server, accessToken);
+                    return 0;
+                }
+
+                var database = GetArg(args, "--database");
                 var daxQuery = GetArg(args, "--query", "EVALUATE ROW(\"Test\", 1)");
-                var command = GetArg(args, "--command", "query"); // query, validate, getmodel
 
                 // Build connection string with access token
                 var connectionString = $"Data Source={server};Initial Catalog={database};";
@@ -148,6 +156,42 @@ namespace AasValidator
                 measureCount = measureCount
             };
             Console.WriteLine(JsonSerializer.Serialize(result));
+        }
+
+        static void ListDatabases(string server, string accessToken)
+        {
+            // Connect without Initial Catalog to list databases
+            var connectionString = $"Data Source={server};";
+
+            using (var connection = new AdomdConnection(connectionString))
+            {
+                connection.AccessToken = new Microsoft.AnalysisServices.AccessToken(accessToken, DateTime.MaxValue);
+                connection.Open();
+
+                // Query for databases using DMV
+                var query = "SELECT [CATALOG_NAME] FROM $SYSTEM.DBSCHEMA_CATALOGS";
+
+                using (var cmd = connection.CreateCommand())
+                {
+                    cmd.CommandText = query;
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        var databases = new System.Collections.Generic.List<string>();
+                        while (reader.Read())
+                        {
+                            databases.Add(reader.GetString(0));
+                        }
+
+                        var result = new
+                        {
+                            success = true,
+                            databases = databases.ToArray(),
+                            count = databases.Count
+                        };
+                        Console.WriteLine(JsonSerializer.Serialize(result));
+                    }
+                }
+            }
         }
 
         static string GetArg(string[] args, string flag, string defaultValue = null)

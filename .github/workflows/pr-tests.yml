@@ -216,6 +216,13 @@ jobs:
 
           cd aas-validator/AasValidator
 
+          # Test 0: List available databases
+          echo "Listing available databases..."
+          dotnet run -- \
+            --server "${{ secrets.AZURE_AAS_SERVER }}" \
+            --token "$AAS_ACCESS_TOKEN" \
+            --command listdatabases
+
           # Test 1: Get model info
           echo "Getting model info..."
           dotnet run -- \
