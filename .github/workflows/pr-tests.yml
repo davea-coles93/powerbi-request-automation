@@ -182,6 +182,13 @@ jobs:
         working-directory: ./aas-validator/AasValidator
         run: dotnet build -c Release
 
+      - name: Install Tabular Editor CLI
+        run: |
+          echo "Installing Tabular Editor 3 CLI..."
+          wget https://github.com/TabularEditor/TabularEditor3/releases/download/3.17.2/TabularEditor3.Linux-x64.zip -O te3.zip
+          unzip -q te3.zip -d tabular-editor
+          chmod +x tabular-editor/TabularEditor3
+
       - name: Start Azure Analysis Services
         id: start-aas
         run: |
@@ -207,6 +214,28 @@ jobs:
           echo "::add-mask::$TOKEN"
           echo "AAS_ACCESS_TOKEN=$TOKEN" >> $GITHUB_ENV
 
+      - name: Deploy model to AAS
+        run: |
+          echo "Deploying model to AAS for validation..."
+
+          # Use first model found in models directory
+          MODEL_PATH=$(find models -name "*.SemanticModel" -type d | head -1)
+          DATABASE_NAME="ci-test-$(date +%s)"
+
+          echo "Model path: $MODEL_PATH"
+          echo "Database name: $DATABASE_NAME"
+          echo "CI_DATABASE_NAME=$DATABASE_NAME" >> $GITHUB_ENV
+
+          # Deploy using Tabular Editor CLI
+          ./tabular-editor/TabularEditor3 \
+            "$MODEL_PATH" \
+            -D "${{ secrets.AZURE_AAS_SERVER }}" "$DATABASE_NAME" \
+            -O \
+            -L \
+            -B "$AAS_ACCESS_TOKEN"
+
+          echo "✅ Model deployed to AAS"
+
       - name: Run DAX validation tests
         id: dax-tests
         env:
@@ -224,10 +253,10 @@ jobs:
             --command listdatabases
 
           # Test 1: Get model info
-          echo "Getting model info..."
+          echo "Getting model info from database: $CI_DATABASE_NAME"
           dotnet run -- \
             --server "${{ secrets.AZURE_AAS_SERVER }}" \
-            --database "${{ secrets.AZURE_AAS_DATABASE }}" \
+            --database "$CI_DATABASE_NAME" \
             --token "$AAS_ACCESS_TOKEN" \
             --command getmodel
           echo "✅ Model info retrieved"
@@ -236,7 +265,7 @@ jobs:
           echo "Validating DAX expression..."
           dotnet run -- \
             --server "${{ secrets.AZURE_AAS_SERVER }}" \
-            --database "${{ secrets.AZURE_AAS_DATABASE }}" \
+            --database "$CI_DATABASE_NAME" \
             --token "$AAS_ACCESS_TOKEN" \
             --command validate \
             --query "EVALUATE ROW(\"Test\", 1 + 1)"
@@ -244,6 +273,20 @@ jobs:
 
           echo ""
           echo "All DAX validation tests passed!"
+
+      - name: Delete test database from AAS
+        if: always()
+        env:
+          AAS_ACCESS_TOKEN: ${{ env.AAS_ACCESS_TOKEN }}
+        run: |
+          if [ -n "$CI_DATABASE_NAME" ]; then
+            echo "Deleting test database: $CI_DATABASE_NAME"
+            ./tabular-editor/TabularEditor3 \
+              -S "${{ secrets.AZURE_AAS_SERVER }}" \
+              -D "$CI_DATABASE_NAME" \
+              -X \
+              -B "$AAS_ACCESS_TOKEN" || echo "Database cleanup skipped"
+          fi
 
       - name: Stop Azure Analysis Services
         if: always()
