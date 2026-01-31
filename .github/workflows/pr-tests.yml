@@ -235,10 +235,11 @@ jobs:
           echo "CI_DATABASE_NAME=$DATABASE_NAME" >> $GITHUB_ENV
           echo "Database name: $DATABASE_NAME"
 
-          # Parse TMDL and generate TMSL
+          # Parse TMDL and generate TMSL (export DATABASE_NAME for script to use)
+          export CI_DATABASE_NAME="$DATABASE_NAME"
           node scripts/deploy-tmdl-model.js models/adventure-works/sales-sample.SemanticModel
 
-          # Get the generated TMSL file (script outputs this path)
+          # Get the generated TMSL file (script uses CI_DATABASE_NAME)
           TMSL_FILE="${DATABASE_NAME}.tmsl.json"
           if [ ! -f "scripts/$TMSL_FILE" ]; then
             echo "❌ TMSL file not found: scripts/$TMSL_FILE"
