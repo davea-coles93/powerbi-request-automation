@@ -76,25 +76,34 @@ namespace TmslExecutor
 
         static string FindSemanticModelPath(string modelPath)
         {
+            string semanticModelPath = "";
+
             // Check if it's a .pbip file
             if (File.Exists(modelPath) && Path.GetExtension(modelPath).Equals(".pbip", StringComparison.OrdinalIgnoreCase))
             {
                 string dir = Path.GetDirectoryName(modelPath) ?? "";
                 string nameWithoutExt = Path.GetFileNameWithoutExtension(modelPath);
-                string semanticModelPath = Path.Combine(dir, $"{nameWithoutExt}.SemanticModel");
-                if (Directory.Exists(semanticModelPath))
-                {
-                    return semanticModelPath;
-                }
+                semanticModelPath = Path.Combine(dir, $"{nameWithoutExt}.SemanticModel");
             }
-
-            // Check if it's already a semantic model folder
-            if (Directory.Exists(modelPath) && File.Exists(Path.Combine(modelPath, "model.bim")))
+            else if (Directory.Exists(modelPath))
             {
-                return modelPath;
+                semanticModelPath = modelPath;
             }
 
-            return string.Empty;
+            if (string.IsNullOrEmpty(semanticModelPath) || !Directory.Exists(semanticModelPath))
+            {
+                return string.Empty;
+            }
+
+            // Check for definition subfolder (old format)
+            string definitionPath = Path.Combine(semanticModelPath, "definition");
+            if (Directory.Exists(definitionPath))
+            {
+                return definitionPath;
+            }
+
+            // Return root semantic model folder (new format)
+            return semanticModelPath;
         }
 
         static void CreateMeasure(Database database, JObject data)

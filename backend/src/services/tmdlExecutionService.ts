@@ -83,27 +83,31 @@ export class TmdlExecutionService {
   }
 
   /**
-   * Apply a single change using .NET TmslExecutor tool
+   * Apply a single change using PowerShell text-based TMDL manipulation
    */
   private async applyChangeTom(modelPath: string, change: TmdlChange): Promise<void> {
-    console.log(`[TOM] Applying ${change.type}: ${change.measureName} in ${change.tableName}`);
+    console.log(`[TMDL] Applying ${change.type}: ${change.measureName} in ${change.tableName}`);
 
-    const measureData = JSON.stringify({
-      table: change.tableName,
-      name: change.measureName,
-      expression: change.expression,
-      formatString: change.formatString,
-      description: change.description,
-    });
+    if (change.type !== 'create') {
+      throw new Error(`Operation '${change.type}' not yet implemented`);
+    }
 
-    const command = `dotnet "${this.tmslExecutorPath}" ${change.type}-measure "${modelPath}" '${measureData.replace(/'/g, "\\'")}'`;
+    // Find the semantic model path
+    const semanticModelPath = modelPath.includes('.pbip')
+      ? path.join(path.dirname(modelPath), path.basename(modelPath, '.pbip') + '.SemanticModel')
+      : modelPath;
+
+    const tableFile = path.join(semanticModelPath, 'definition', 'tables', `${change.tableName}.tmdl`);
+    const scriptPath = path.join(path.dirname(this.tmslExecutorPath), '..', '..', '..', 'scripts', 'add-tmdl-measure.ps1');
+
+    const command = `powershell.exe -ExecutionPolicy Bypass -File "${scriptPath}" -TableFile "${tableFile}" -MeasureName "${change.measureName}" -Expression "${change.expression?.replace(/"/g, '\`"')}" -FormatString "${change.formatString || ''}" -Description "${change.description || ''}"`;
 
     try {
       const output = execSync(command, {
         encoding: 'utf-8',
-        cwd: path.dirname(this.tmslExecutorPath),
+        cwd: path.dirname(tableFile),
       });
-      console.log(`[TOM] ${output}`);
+      console.log(`[TMDL] ${output}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       throw new Error(`Failed to ${change.type} measure: ${errorMessage}`);
