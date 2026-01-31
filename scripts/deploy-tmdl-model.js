@@ -272,11 +272,10 @@ async function main() {
   const args = process.argv.slice(2);
   const modelPath = args[0] || 'models/adventure-works/sales-sample.SemanticModel';
 
-  console.log(`\n🚀 Deploying TMDL model for validation: ${modelPath}\n`);
+  console.log(`\n🚀 Parsing TMDL model: ${modelPath}\n`);
 
-  // Get AAS credentials (optional - for deployment mode)
-  const server = process.env.AZURE_AAS_SERVER;
-  const token = process.env.AAS_ACCESS_TOKEN;
+  // Get database name from environment or generate
+  const databaseName = process.env.CI_DATABASE_NAME || `tmdl-test-${Date.now()}`;
 
   // Step 1: Parse TMDL model
   console.log('📖 Parsing TMDL model...');
@@ -293,7 +292,6 @@ async function main() {
 
   // Step 2: Build TMSL database
   console.log('\n🔨 Building TMSL deployment...');
-  const databaseName = `tmdl-test-${Date.now()}`;
   const tmslDatabase = buildTmslDatabase(model, databaseName);
   console.log(`   Database: ${databaseName}`);
   console.log(`   Compatibility: ${tmslDatabase.compatibilityLevel}`);
@@ -310,54 +308,11 @@ async function main() {
   fs.writeFileSync(tmslFile, JSON.stringify(tmslCommand, null, 2), 'utf8');
   console.log(`   ✅ TMSL written to: ${tmslFile}`);
 
-  // If running in CI/CD (server and token provided), attempt deployment
-  if (server && token) {
-    try {
-      console.log('\n☁️  Deploying to Azure Analysis Services...');
-      console.log('   (This creates a schema-only model for validation)');
-
-      const deployResult = deployToAas(tmslDatabase, server, token);
-      console.log(`   ✅ ${deployResult.message}`);
-
-      // Step 4: Validate measures
-      const { validCount, errorCount } = validateMeasures(model.tables, databaseName, server, token);
-
-      // Step 5: Cleanup - delete test database
-      console.log('\n🧹 Cleaning up...');
-      deleteDatabase(databaseName, server, token);
-      console.log('   ✅ Test database deleted');
-
-      console.log('\n📋 Summary:');
-      console.log(`   Tables deployed: ${model.tables.length}`);
-      console.log(`   Measures validated: ${validCount} passed, ${errorCount} failed`);
-
-      if (errorCount > 0) {
-        console.log('\n❌ Some measures failed validation');
-        process.exit(1);
-      } else {
-        console.log('\n✅ All measures validated successfully!');
-      }
-
-    } catch (error) {
-      console.error('\n❌ Error:', error.message);
-
-      // Try to cleanup on error
-      try {
-        deleteDatabase(databaseName, server, token);
-      } catch (e) {
-        // Ignore cleanup errors
-      }
-
-      process.exit(1);
-    }
-  } else {
-    // Local mode - just generate TMSL
-    console.log('\n📋 Summary:');
-    console.log(`   Tables parsed: ${model.tables.length}`);
-    console.log(`   Measures extracted: ${totalMeasures}`);
-    console.log(`   TMSL file: ${tmslFile}`);
-    console.log('\nℹ️  To deploy, run with AZURE_AAS_SERVER and AAS_ACCESS_TOKEN environment variables');
-  }
+  // Summary
+  console.log('\n📋 Summary:');
+  console.log(`   Tables parsed: ${model.tables.length}`);
+  console.log(`   Measures extracted: ${totalMeasures}`);
+  console.log(`   TMSL file: ${tmslFile}`);
 }
 
 main().catch(err => {
