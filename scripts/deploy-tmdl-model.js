@@ -107,6 +107,51 @@ function mapDataType(tmdlType) {
   return typeMap[tmdlType] || 'string';
 }
 
+// Parse relationships from TMDL
+function parseRelationships(content) {
+  const lines = content.split('\n');
+  const relationships = [];
+  let currentRel = null;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // New relationship
+    if (trimmed.startsWith('relationship ')) {
+      if (currentRel) relationships.push(currentRel);
+      currentRel = {
+        name: trimmed.substring(13).trim(),
+        fromTable: null,
+        fromColumn: null,
+        toTable: null,
+        toColumn: null,
+        isActive: true,
+        crossFilteringBehavior: 'oneDirection'
+      };
+      continue;
+    }
+
+    if (!currentRel) continue;
+
+    if (trimmed.startsWith('fromColumn:')) {
+      const [table, column] = trimmed.substring(11).trim().split('.');
+      currentRel.fromTable = table.replace(/'/g, '');
+      currentRel.fromColumn = column.replace(/'/g, '');
+    } else if (trimmed.startsWith('toColumn:')) {
+      const [table, column] = trimmed.substring(9).trim().split('.');
+      currentRel.toTable = table.replace(/'/g, '');
+      currentRel.toColumn = column.replace(/'/g, '');
+    } else if (trimmed.startsWith('isActive:')) {
+      currentRel.isActive = trimmed.substring(9).trim() !== 'false';
+    } else if (trimmed.startsWith('crossFilteringBehavior:')) {
+      currentRel.crossFilteringBehavior = trimmed.substring(23).trim();
+    }
+  }
+
+  if (currentRel) relationships.push(currentRel);
+  return relationships;
+}
+
 // Read all table TMDL files and build model structure
 function buildModelFromTmdl(modelPath) {
   const defPath = path.join(modelPath, 'definition');
@@ -130,12 +175,18 @@ function buildModelFromTmdl(modelPath) {
     }
   }
 
+  // Read relationships
+  const relationshipsFile = path.join(defPath, 'relationships.tmdl');
+  const relationships = fs.existsSync(relationshipsFile)
+    ? parseRelationships(fs.readFileSync(relationshipsFile, 'utf8'))
+    : [];
+
   // Read database metadata
   const dbTmdl = fs.readFileSync(path.join(defPath, 'database.tmdl'), 'utf8');
   const compatMatch = dbTmdl.match(/compatibilityLevel:\s*(\d+)/);
   const compatibilityLevel = compatMatch ? parseInt(compatMatch[1]) : 1600;
 
-  return { tables, compatibilityLevel };
+  return { tables, relationships, compatibilityLevel };
 }
 
 // Convert to TMSL JSON format
@@ -171,12 +222,24 @@ function buildTmslDatabase(model, databaseName) {
     return tmslTable;
   });
 
+  // Build TMSL relationships
+  const tmslRelationships = model.relationships.map(rel => ({
+    name: rel.name,
+    fromTable: rel.fromTable,
+    fromColumn: rel.fromColumn,
+    toTable: rel.toTable,
+    toColumn: rel.toColumn,
+    isActive: rel.isActive,
+    crossFilteringBehavior: rel.crossFilteringBehavior
+  }));
+
   return {
     name: databaseName,
     compatibilityLevel: model.compatibilityLevel,
     model: {
       culture: 'en-US',
-      tables: tmslTables
+      tables: tmslTables,
+      relationships: tmslRelationships
     }
   };
 }
