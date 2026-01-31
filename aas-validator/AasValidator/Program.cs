@@ -88,10 +88,20 @@ namespace AasValidator
         {
             try
             {
+                // Wrap measure expressions in EVALUATE ROW() to make them queryable
+                // If the expression doesn't start with EVALUATE/DEFINE, assume it's a measure
+                var query = dax.TrimStart();
+                if (!query.StartsWith("EVALUATE", StringComparison.OrdinalIgnoreCase) &&
+                    !query.StartsWith("DEFINE", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Wrap measure expression in EVALUATE ROW()
+                    query = $"EVALUATE ROW(\"Result\", {dax})";
+                }
+
                 using (var cmd = connection.CreateCommand())
                 {
-                    cmd.CommandText = dax;
-                    // Just try to prepare the command - this validates syntax
+                    cmd.CommandText = query;
+                    // Execute the query to validate syntax and semantics
                     using (var reader = cmd.ExecuteReader())
                     {
                         // Read schema to validate query structure
