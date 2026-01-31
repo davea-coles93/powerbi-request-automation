@@ -268,61 +268,8 @@ jobs:
         run: |
           echo "Validating DAX measures from TMDL model..."
 
-          # Parse TMDL files to extract measures
-          node -e "
-            const fs = require('fs');
-            const path = require('path');
-
-            function extractMeasures(tmdlContent, filePath) {
-              const measures = [];
-              const lines = tmdlContent.split('\n');
-              let currentMeasure = null;
-              let inDaxBlock = false;
-              let daxLines = [];
-
-              for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                const measureMatch = line.match(/^\s*measure\s+(?:'([^']+)'|(\S+))\s*=\s*\`\`\`/);
-
-                if (measureMatch) {
-                  currentMeasure = measureMatch[1] || measureMatch[2];
-                  inDaxBlock = true;
-                  daxLines = [];
-                  continue;
-                }
-
-                if (inDaxBlock && line.trim() === '\`\`\`') {
-                  measures.push({ name: currentMeasure, dax: daxLines.join('\n').trim(), file: filePath });
-                  currentMeasure = null;
-                  inDaxBlock = false;
-                  daxLines = [];
-                  continue;
-                }
-
-                if (inDaxBlock) {
-                  daxLines.push(line);
-                }
-              }
-
-              return measures;
-            }
-
-            // Find all TMDL files
-            const modelPath = 'models/adventure-works/sales-sample.SemanticModel';
-            const tablesPath = path.join(modelPath, 'definition', 'tables');
-            const files = fs.readdirSync(tablesPath).filter(f => f.endsWith('.tmdl'));
-
-            let allMeasures = [];
-            for (const file of files) {
-              const content = fs.readFileSync(path.join(tablesPath, file), 'utf8');
-              const measures = extractMeasures(content, file);
-              allMeasures = allMeasures.concat(measures);
-            }
-
-            // Write measures to file for validation
-            fs.writeFileSync('measures.json', JSON.stringify(allMeasures, null, 2));
-            console.log(\`Found \${allMeasures.length} measures to validate\`);
-          "
+          # Extract measures from TMDL files
+          node scripts/extract-measures.js models/adventure-works/sales-sample.SemanticModel
 
           # Validate each measure
           MEASURES=$(cat measures.json)
