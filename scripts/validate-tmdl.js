@@ -76,14 +76,20 @@ function extractMeasures(tmdlContent, filePath) {
 function validateDax(dax, server, database, token) {
   try {
     const result = execSync(
-      `dotnet run --project aas-validator/AasValidator -- --server "${server}" --database "${database}" --token "${token}" --command validate --query "${dax.replace(/"/g, '\\"')}"`,
+      `dotnet run --project aas-validator/AasValidator --no-build --configuration Release -- --server "${server}" --database "${database}" --token "${token}" --command validate --query "${dax.replace(/"/g, '\\"')}"`,
       { encoding: 'utf8', stdio: 'pipe' }
     );
 
-    const response = JSON.parse(result.trim());
-    return response;
+    // Extract JSON from output (may have build messages)
+    const jsonMatch = result.match(/\{.*\}/s);
+    if (jsonMatch) {
+      const response = JSON.parse(jsonMatch[0]);
+      return response;
+    }
+
+    return { success: false, valid: false, error: 'No JSON response from validator' };
   } catch (error) {
-    // Parse error from stderr
+    // Parse error from stderr/stdout
     try {
       const output = error.stdout || error.stderr || '';
       const jsonMatch = output.match(/\{.*\}/s);
@@ -91,7 +97,7 @@ function validateDax(dax, server, database, token) {
         return JSON.parse(jsonMatch[0]);
       }
     } catch (e) {
-      // Ignore
+      // Ignore JSON parse errors
     }
     return { success: false, valid: false, error: error.message };
   }
