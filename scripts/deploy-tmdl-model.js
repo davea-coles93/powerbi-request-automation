@@ -36,7 +36,12 @@ function parseTableTmdl(content, tableName) {
 
     // Column definition
     if (trimmed.startsWith('column ')) {
-      const colName = trimmed.substring(7).trim();
+      let colName = trimmed.substring(7).trim();
+      // Remove surrounding quotes if present
+      if ((colName.startsWith("'") && colName.endsWith("'")) ||
+          (colName.startsWith('"') && colName.endsWith('"'))) {
+        colName = colName.substring(1, colName.length - 1);
+      }
       currentColumn = { name: colName, dataType: 'string', sourceColumn: colName };
       table.columns.push(currentColumn);
       indentLevel = currentIndent;
@@ -56,9 +61,10 @@ function parseTableTmdl(content, tableName) {
     }
 
     // Measure definition
-    const measureMatch = trimmed.match(/^measure\s+(?:'([^']+)'|(\S+))\s*=\s*```/);
+    const measureMatch = trimmed.match(/^measure\s+(?:'([^']+)'|"([^"]+)"|(\S+))\s*=\s*```/);
     if (measureMatch) {
-      const measureName = measureMatch[1] || measureMatch[2];
+      // Quotes are already stripped by regex capture groups
+      const measureName = measureMatch[1] || measureMatch[2] || measureMatch[3];
       currentMeasure = { name: measureName, expression: '' };
       inDaxBlock = true;
       daxLines = [];
