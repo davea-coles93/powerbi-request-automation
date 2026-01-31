@@ -207,92 +207,192 @@ jobs:
           echo "::add-mask::$TOKEN"
           echo "AAS_ACCESS_TOKEN=$TOKEN" >> $GITHUB_ENV
 
-      - name: Create test database on AAS
+      - name: Install PowerShell SqlServer module
+        run: |
+          echo "Installing SqlServer PowerShell module for TMSL execution..."
+          pwsh -Command "Install-Module -Name SqlServer -Force -Scope CurrentUser -AllowClobber"
+          echo "✅ SqlServer module installed"
+
+      - name: Run TMDL syntax validation
+        run: |
+          echo "Running TMDL syntax validation (Option 1)..."
+          node scripts/validate-tmdl.js models/adventure-works/sales-sample.SemanticModel
+
+      - name: Deploy TMDL model to AAS for validation
+        id: deploy-tmdl
         env:
           AAS_ACCESS_TOKEN: ${{ env.AAS_ACCESS_TOKEN }}
         run: |
-          echo "Creating temporary test database on AAS..."
+          echo "Deploying TMDL model to AAS (Option 2)..."
 
           # Generate temporary database name
-          DATABASE_NAME="ci-test-$(date +%s)"
+          DATABASE_NAME="tmdl-ci-$(date +%s)"
           echo "CI_DATABASE_NAME=$DATABASE_NAME" >> $GITHUB_ENV
           echo "Database name: $DATABASE_NAME"
 
-          cd aas-validator/AasValidator
+          # Parse TMDL and generate TMSL
+          node scripts/deploy-tmdl-model.js models/adventure-works/sales-sample.SemanticModel
 
-          # Create a minimal test database
-          dotnet run -- \
-            --server "${{ secrets.AZURE_AAS_SERVER }}" \
-            --database "$DATABASE_NAME" \
-            --token "$AAS_ACCESS_TOKEN" \
-            --command createtestdb
+          # Get the generated TMSL file (script outputs this path)
+          TMSL_FILE="${DATABASE_NAME}.tmsl.json"
+          if [ ! -f "scripts/$TMSL_FILE" ]; then
+            echo "❌ TMSL file not found: scripts/$TMSL_FILE"
+            exit 1
+          fi
 
-          echo "✅ Test database created"
+          # Deploy using PowerShell SqlServer module
+          pwsh -Command "
+            \$tmsl = Get-Content 'scripts/$TMSL_FILE' -Raw
+            \$token = '$AAS_ACCESS_TOKEN'
 
-      - name: Run DAX validation tests
+            # Import SqlServer module
+            Import-Module SqlServer
+
+            # Execute TMSL
+            try {
+              Invoke-ASCmd -Query \$tmsl -Server '${{ secrets.AZURE_AAS_SERVER }}' -Credential (New-Object PSCredential('app', (ConvertTo-SecureString \$token -AsPlainText -Force)))
+              Write-Output '✅ TMDL model deployed successfully'
+            } catch {
+              Write-Error \"Deployment failed: \$_\"
+              exit 1
+            }
+          "
+
+      - name: Validate DAX measures against deployed model
         id: dax-tests
         env:
           AAS_ACCESS_TOKEN: ${{ env.AAS_ACCESS_TOKEN }}
         run: |
-          echo "Running DAX validation against Azure Analysis Services..."
+          echo "Validating DAX measures from TMDL model..."
 
-          cd aas-validator/AasValidator
+          # Parse TMDL files to extract measures
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
 
-          # Test 0: List available databases
-          echo "Listing available databases on server..."
-          dotnet run -- \
-            --server "${{ secrets.AZURE_AAS_SERVER }}" \
-            --token "$AAS_ACCESS_TOKEN" \
-            --command listdatabases
+            function extractMeasures(tmdlContent, filePath) {
+              const measures = [];
+              const lines = tmdlContent.split('\n');
+              let currentMeasure = null;
+              let inDaxBlock = false;
+              let daxLines = [];
 
-          # Use CI database if deployed, otherwise use configured database
-          TEST_DATABASE="${CI_DATABASE_NAME:-${{ secrets.AZURE_AAS_DATABASE }}}"
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const measureMatch = line.match(/^\s*measure\s+(?:'([^']+)'|(\S+))\s*=\s*\`\`\`/);
 
-          if [ -z "$TEST_DATABASE" ]; then
-            echo "⚠️  No database available for testing - skipping DAX validation"
-            echo "Either deploy a model in CI or set AZURE_AAS_DATABASE secret"
-            exit 0
+                if (measureMatch) {
+                  currentMeasure = measureMatch[1] || measureMatch[2];
+                  inDaxBlock = true;
+                  daxLines = [];
+                  continue;
+                }
+
+                if (inDaxBlock && line.trim() === '\`\`\`') {
+                  measures.push({ name: currentMeasure, dax: daxLines.join('\n').trim(), file: filePath });
+                  currentMeasure = null;
+                  inDaxBlock = false;
+                  daxLines = [];
+                  continue;
+                }
+
+                if (inDaxBlock) {
+                  daxLines.push(line);
+                }
+              }
+
+              return measures;
+            }
+
+            // Find all TMDL files
+            const modelPath = 'models/adventure-works/sales-sample.SemanticModel';
+            const tablesPath = path.join(modelPath, 'definition', 'tables');
+            const files = fs.readdirSync(tablesPath).filter(f => f.endsWith('.tmdl'));
+
+            let allMeasures = [];
+            for (const file of files) {
+              const content = fs.readFileSync(path.join(tablesPath, file), 'utf8');
+              const measures = extractMeasures(content, file);
+              allMeasures = allMeasures.concat(measures);
+            }
+
+            // Write measures to file for validation
+            fs.writeFileSync('measures.json', JSON.stringify(allMeasures, null, 2));
+            console.log(\`Found \${allMeasures.length} measures to validate\`);
+          "
+
+          # Validate each measure
+          MEASURES=$(cat measures.json)
+          MEASURE_COUNT=$(echo "$MEASURES" | jq length)
+
+          echo "Validating $MEASURE_COUNT measures..."
+
+          FAILED=0
+          for i in $(seq 0 $(($MEASURE_COUNT - 1))); do
+            MEASURE_NAME=$(echo "$MEASURES" | jq -r ".[$i].name")
+            MEASURE_DAX=$(echo "$MEASURES" | jq -r ".[$i].dax")
+
+            echo "  Validating: $MEASURE_NAME"
+
+            cd aas-validator/AasValidator
+            RESULT=$(dotnet run -- \
+              --server "${{ secrets.AZURE_AAS_SERVER }}" \
+              --database "$CI_DATABASE_NAME" \
+              --token "$AAS_ACCESS_TOKEN" \
+              --command validate \
+              --query "$MEASURE_DAX" 2>&1 || true)
+            cd ../..
+
+            VALID=$(echo "$RESULT" | jq -r '.valid' 2>/dev/null || echo "false")
+
+            if [ "$VALID" = "true" ]; then
+              echo "    ✅ Valid"
+            else
+              echo "    ❌ Invalid"
+              ERROR=$(echo "$RESULT" | jq -r '.error' 2>/dev/null || echo "$RESULT")
+              echo "    Error: $ERROR"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+
+          if [ $FAILED -gt 0 ]; then
+            echo ""
+            echo "❌ $FAILED measure(s) failed validation"
+            exit 1
           fi
 
-          # Test 1: Get model info
-          echo "Getting model info from database: $TEST_DATABASE"
-          dotnet run -- \
-            --server "${{ secrets.AZURE_AAS_SERVER }}" \
-            --database "$TEST_DATABASE" \
-            --token "$AAS_ACCESS_TOKEN" \
-            --command getmodel
-          echo "✅ Model info retrieved"
-
-          # Test 2: Validate simple DAX
-          echo "Validating DAX expression..."
-          dotnet run -- \
-            --server "${{ secrets.AZURE_AAS_SERVER }}" \
-            --database "$TEST_DATABASE" \
-            --token "$AAS_ACCESS_TOKEN" \
-            --command validate \
-            --query "EVALUATE ROW(\"Test\", 1 + 1)"
-          echo "✅ DAX validation working"
-
           echo ""
-          echo "All DAX validation tests passed!"
+          echo "✅ All $MEASURE_COUNT measures validated successfully!"
 
-      - name: Delete test database from AAS
+      - name: Delete TMDL model from AAS
         if: always() && env.CI_DATABASE_NAME != ''
         env:
           AAS_ACCESS_TOKEN: ${{ env.AAS_ACCESS_TOKEN }}
         run: |
           if [ -n "$CI_DATABASE_NAME" ]; then
-            echo "Deleting temporary test database: $CI_DATABASE_NAME"
+            echo "Deleting temporary TMDL model: $CI_DATABASE_NAME"
 
-            cd aas-validator/AasValidator
+            # Delete using PowerShell TMSL
+            pwsh -Command "
+              \$token = '$AAS_ACCESS_TOKEN'
+              \$tmsl = @\"
+              {
+                \"\"delete\"\": {
+                  \"\"object\"\": {
+                    \"\"database\"\": \"\"$CI_DATABASE_NAME\"\"
+                  }
+                }
+              }
+\"@
 
-            dotnet run -- \
-              --server "${{ secrets.AZURE_AAS_SERVER }}" \
-              --database "$CI_DATABASE_NAME" \
-              --token "$AAS_ACCESS_TOKEN" \
-              --command deletedb || echo "Database cleanup failed (may not exist)"
-
-            echo "✅ Test database deleted"
+              Import-Module SqlServer
+              try {
+                Invoke-ASCmd -Query \$tmsl -Server '${{ secrets.AZURE_AAS_SERVER }}' -Credential (New-Object PSCredential('app', (ConvertTo-SecureString \$token -AsPlainText -Force)))
+                Write-Output '✅ TMDL model deleted'
+              } catch {
+                Write-Warning \"Database cleanup failed: \$_\"
+              }
+            "
           fi
 
       - name: Stop Azure Analysis Services

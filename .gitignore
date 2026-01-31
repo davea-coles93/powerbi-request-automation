@@ -27,3 +27,7 @@ coverage/
 
 # Vite
 *.local
+pr_body.txt
+test-*.tmsl.json
+scripts/.tmsl-temp.json
+scripts/.deploy-temp.ps1
