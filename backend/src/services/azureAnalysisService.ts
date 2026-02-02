@@ -351,6 +351,10 @@ export class AzureAnalysisService implements IPowerBIService {
       httpsEndpoint = `${baseUrl}/servers/${serverName}`;
     }
 
+    // Debug: log the endpoint (mask server name for security)
+    const endpointForLog = httpsEndpoint.replace(/\/servers\/[^\/]+/, '/servers/***');
+    console.log(`[AAS] XMLA endpoint: ${endpointForLog}`);
+
     // XMLA SOAP envelope for executing commands
     const soapEnvelope = `<?xml version="1.0" encoding="UTF-8"?>
 <Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
