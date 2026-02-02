@@ -6,9 +6,9 @@
  */
 
 import * as path from 'path';
-import { execSync } from 'child_process';
 import Anthropic from '@anthropic-ai/sdk';
 import { ChangeRequest } from '../types/request';
+import { mcpClient } from '../mcp/client';
 
 export interface TmdlExecutionResult {
   success: boolean;
@@ -83,7 +83,7 @@ export class TmdlExecutionService {
   }
 
   /**
-   * Apply a single change using PowerShell text-based TMDL manipulation
+   * Apply a single change using PowerBI MCP manage_measure tool
    */
   private async applyChangeTom(modelPath: string, change: TmdlChange): Promise<void> {
     console.log(`[TMDL] Applying ${change.type}: ${change.measureName} in ${change.tableName}`);
@@ -97,17 +97,19 @@ export class TmdlExecutionService {
       ? path.join(path.dirname(modelPath), path.basename(modelPath, '.pbip') + '.SemanticModel')
       : modelPath;
 
-    const tableFile = path.join(semanticModelPath, 'definition', 'tables', `${change.tableName}.tmdl`);
-    const scriptPath = path.join(path.dirname(this.tmslExecutorPath), '..', '..', '..', 'scripts', 'add-tmdl-measure.ps1');
-
-    const command = `powershell.exe -ExecutionPolicy Bypass -File "${scriptPath}" -TableFile "${tableFile}" -MeasureName "${change.measureName}" -Expression "${change.expression?.replace(/"/g, '\`"')}" -FormatString "${change.formatString || ''}" -Description "${change.description || ''}"`;
-
     try {
-      const output = execSync(command, {
-        encoding: 'utf-8',
-        cwd: path.dirname(tableFile),
+      // Use PowerBI MCP to create the measure
+      const result = await mcpClient.callTool('powerbi-desktop', 'manage_measure', {
+        model_path: semanticModelPath,
+        table_name: change.tableName,
+        measure_name: change.measureName,
+        operation: 'create',
+        expression: change.expression,
+        format_string: change.formatString || undefined,
+        description: change.description || undefined,
       });
-      console.log(`[TMDL] ${output}`);
+
+      console.log(`[TMDL] MCP result:`, result);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       throw new Error(`Failed to ${change.type} measure: ${errorMessage}`);
