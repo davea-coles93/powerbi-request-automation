@@ -41,7 +41,7 @@ export class TmdlExecutionService {
     }
 
     // Initialize MCP client - backend will spawn the server as a child process
-    const mcpServerPath = '/app/mcp-servers/powerbi-semantic/dist/index.js';
+    const mcpServerPath = '/app/mcp-servers/powerbi-semantic/build/index.js';
     this.mcpClient = new MCPClient(mcpServerPath);
   }
 
