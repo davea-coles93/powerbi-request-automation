@@ -5,11 +5,6 @@ table Sales
 			CALCULATE(SUM(Sales[Sales Amount]), USERELATIONSHIP(Sales[DueDateKey],'Date'[DateKey])) 
 			```
 		lineageTag: c2fe3283-9d89-4bee-b219-09de50cc38c5
-	measure 'Sales Amount YTD' = TOTALYTD(SUM(Sales[SalesAmount]), 'Date'[Date])
-		formatString: \0,##0
-		/// Year-to-date sales amount from January 1st through the selected date period
-		lineageTag: 1b873d0b89f3463190b4d897ac7a5b6c
-
 
 	column SalesOrderLineKey
 		dataType: int64
