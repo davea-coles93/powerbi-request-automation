@@ -40,7 +40,7 @@ export class TmdlExecutionService {
       this.anthropic = new Anthropic();
     }
 
-    // Initialize MCP client for powerbi-desktop
+    // Initialize MCP client - backend will spawn the server as a child process
     const mcpServerPath = '/app/mcp-servers/powerbi-semantic/dist/index.js';
     this.mcpClient = new MCPClient(mcpServerPath);
   }

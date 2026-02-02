@@ -46,9 +46,14 @@ export class MCPClient extends EventEmitter {
       try {
         console.log(`[MCP Client] Starting server: ${this.serverPath}`);
 
-        this.process = spawn(this.serverPath, [], {
+        // Spawn node with the MCP server script
+        this.process = spawn('node', [this.serverPath], {
           stdio: ['pipe', 'pipe', 'pipe'],
           shell: false,
+          env: {
+            ...process.env,
+            MODEL_PATH: '/models', // Default model path for MCP servers
+          },
         });
 
         if (!this.process.stdout || !this.process.stdin) {
