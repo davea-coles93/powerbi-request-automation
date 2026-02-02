@@ -8,7 +8,7 @@
 import * as path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 import { ChangeRequest } from '../types/request';
-import { mcpClient } from '../mcp/client';
+import { MCPClient } from './mcpClient';
 
 export interface TmdlExecutionResult {
   success: boolean;
@@ -30,6 +30,7 @@ export class TmdlExecutionService {
   private anthropic: Anthropic | null = null;
   private modelsPath: string;
   private tmslExecutorPath: string;
+  private mcpClient: MCPClient | null = null;
 
   constructor(modelsPath: string, tmslExecutorPath: string) {
     this.modelsPath = modelsPath;
@@ -38,6 +39,10 @@ export class TmdlExecutionService {
     if (process.env.ANTHROPIC_API_KEY) {
       this.anthropic = new Anthropic();
     }
+
+    // Initialize MCP client for powerbi-desktop
+    const mcpServerPath = '/app/mcp-servers/powerbi-semantic/dist/index.js';
+    this.mcpClient = new MCPClient(mcpServerPath);
   }
 
   /**
@@ -98,8 +103,17 @@ export class TmdlExecutionService {
       : modelPath;
 
     try {
+      // Connect MCP client if not already connected
+      if (!this.mcpClient) {
+        throw new Error('MCP client not initialized');
+      }
+
+      if (!this.mcpClient.isConnected()) {
+        await this.mcpClient.connect();
+      }
+
       // Use PowerBI MCP to create the measure
-      const result = await mcpClient.callTool('powerbi-desktop', 'manage_measure', {
+      const result = await this.mcpClient.call('manage_measure', {
         model_path: semanticModelPath,
         table_name: change.tableName,
         measure_name: change.measureName,
@@ -109,7 +123,7 @@ export class TmdlExecutionService {
         description: change.description || undefined,
       });
 
-      console.log(`[TMDL] MCP result:`, result);
+      console.log(`[TMDL] MCP result:`, JSON.stringify(result));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       throw new Error(`Failed to ${change.type} measure: ${errorMessage}`);
