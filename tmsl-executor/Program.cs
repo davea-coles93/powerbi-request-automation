@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using Newtonsoft.Json.Linq;
 using Microsoft.AnalysisServices.Tabular;
 
 namespace TmslExecutor
@@ -9,68 +8,170 @@ namespace TmslExecutor
     {
         static int Main(string[] args)
         {
-            if (args.Length < 3)
+            if (args.Length < 2)
             {
-                Console.Error.WriteLine("Usage: TmslExecutor <command> <model-path> <json-data>");
-                Console.Error.WriteLine("  Commands:");
-                Console.Error.WriteLine("    create-measure <model-path> <measure-json>");
-                Console.Error.WriteLine("    update-measure <model-path> <measure-json>");
-                Console.Error.WriteLine("    delete-measure <model-path> <measure-json>");
+                Console.Error.WriteLine("Usage: TmslExecutor <command> [args...]");
+                Console.Error.WriteLine("");
+                Console.Error.WriteLine("Deployment Commands:");
+                Console.Error.WriteLine("  deploy <model-path> <server> <database> <access-token>");
+                Console.Error.WriteLine("    Deploy TMDL model to Azure Analysis Services");
+                Console.Error.WriteLine("");
+                Console.Error.WriteLine("  delete-database <server> <database> <access-token>");
+                Console.Error.WriteLine("    Delete database from Azure Analysis Services");
+                Console.Error.WriteLine("");
+                Console.Error.WriteLine("Examples:");
+                Console.Error.WriteLine("  deploy ./model.SemanticModel asazure://server.asazure.windows.net/myserver testdb eyJ0eXAi...");
+                Console.Error.WriteLine("  delete-database asazure://server.asazure.windows.net/myserver testdb eyJ0eXAi...");
                 return 1;
             }
 
-            string command = args[0];
-            string modelPath = args[1];
-            string jsonData = args[2];
+            string command = args[0].ToLower();
 
             try
             {
-                // Find the semantic model folder
-                string semanticModelPath = FindSemanticModelPath(modelPath);
-                if (string.IsNullOrEmpty(semanticModelPath))
-                {
-                    Console.Error.WriteLine($"Error: Could not find semantic model at: {modelPath}");
-                    return 1;
-                }
-
-                Console.WriteLine($"Loading model from: {semanticModelPath}");
-
-                // Load the model from TMDL files
-                var database = TmdlSerializer.DeserializeDatabaseFromFolder(semanticModelPath);
-                Console.WriteLine($"Loaded model: {database.Name}");
-
-                // Parse the JSON data
-                var data = JObject.Parse(jsonData);
-
                 // Execute the command
-                switch (command.ToLower())
+                switch (command)
                 {
-                    case "create-measure":
-                        CreateMeasure(database, data);
-                        break;
-                    case "update-measure":
-                        UpdateMeasure(database, data);
-                        break;
-                    case "delete-measure":
-                        DeleteMeasure(database, data);
-                        break;
+                    case "deploy":
+                        if (args.Length != 5)
+                        {
+                            Console.Error.WriteLine("Error: deploy requires 4 arguments: <model-path> <server> <database> <access-token>");
+                            return 1;
+                        }
+                        return DeployToAAS(args[1], args[2], args[3], args[4]);
+
+                    case "delete-database":
+                        if (args.Length != 4)
+                        {
+                            Console.Error.WriteLine("Error: delete-database requires 3 arguments: <server> <database> <access-token>");
+                            return 1;
+                        }
+                        return DeleteDatabase(args[1], args[2], args[3]);
+
                     default:
                         Console.Error.WriteLine($"Error: Unknown command: {command}");
+                        Console.Error.WriteLine("Run without arguments to see usage.");
                         return 1;
                 }
-
-                // Save the model back to TMDL files
-                Console.WriteLine($"Saving model to: {semanticModelPath}");
-                TmdlSerializer.SerializeDatabaseToFolder(database, semanticModelPath);
-
-                Console.WriteLine("SUCCESS");
-                return 0;
             }
             catch (Exception ex)
             {
                 Console.Error.WriteLine($"Error: {ex.Message}");
                 Console.Error.WriteLine($"Stack trace: {ex.StackTrace}");
                 return 1;
+            }
+        }
+
+        static int DeployToAAS(string modelPath, string serverName, string databaseName, string accessToken)
+        {
+            Console.WriteLine($"Deploying TMDL model to Azure Analysis Services");
+            Console.WriteLine($"  Model: {modelPath}");
+            Console.WriteLine($"  Server: {serverName}");
+            Console.WriteLine($"  Database: {databaseName}");
+
+            // Find the semantic model folder
+            string semanticModelPath = FindSemanticModelPath(modelPath);
+            if (string.IsNullOrEmpty(semanticModelPath))
+            {
+                Console.Error.WriteLine($"Error: Could not find semantic model at: {modelPath}");
+                return 1;
+            }
+
+            Console.WriteLine($"Loading TMDL model from: {semanticModelPath}");
+
+            // Load the model from TMDL files
+            var database = TmdlSerializer.DeserializeDatabaseFromFolder(semanticModelPath);
+            Console.WriteLine($"✓ Loaded model: {database.Name}");
+            Console.WriteLine($"  Tables: {database.Model.Tables.Count}");
+            Console.WriteLine($"  Relationships: {database.Model.Relationships.Count}");
+
+            // Set the database name for deployment
+            database.Name = databaseName;
+
+            // Connect to AAS server
+            Console.WriteLine($"Connecting to AAS server...");
+            var server = new Server();
+
+            // Connection string with bearer token
+            string connectionString = $"DataSource={serverName};Password={accessToken};";
+            server.Connect(connectionString);
+            Console.WriteLine($"✓ Connected to: {server.Name}");
+            Console.WriteLine($"  Version: {server.Version}");
+
+            try
+            {
+                // Check if database already exists
+                var existingDb = server.Databases.FindByName(databaseName);
+                if (existingDb != null)
+                {
+                    Console.WriteLine($"Database '{databaseName}' already exists. Dropping it first...");
+                    existingDb.Drop();
+                    Console.WriteLine($"✓ Dropped existing database");
+                }
+
+                // Deploy the database
+                Console.WriteLine($"Deploying database...");
+                server.Databases.Add(database);
+                database.Update(Microsoft.AnalysisServices.UpdateOptions.ExpandFull);
+                Console.WriteLine($"✓ Database deployed successfully");
+
+                // Verify deployment
+                var deployedDb = server.Databases.FindByName(databaseName);
+                if (deployedDb != null)
+                {
+                    Console.WriteLine($"✓ Verified deployment:");
+                    Console.WriteLine($"  Database: {deployedDb.Name}");
+                    Console.WriteLine($"  Last Updated: {deployedDb.LastUpdate}");
+                    Console.WriteLine($"  State: {deployedDb.State}");
+                }
+
+                Console.WriteLine("");
+                Console.WriteLine("SUCCESS: Model deployed to Azure Analysis Services");
+                return 0;
+            }
+            finally
+            {
+                server.Disconnect();
+            }
+        }
+
+        static int DeleteDatabase(string serverName, string databaseName, string accessToken)
+        {
+            Console.WriteLine($"Deleting database from Azure Analysis Services");
+            Console.WriteLine($"  Server: {serverName}");
+            Console.WriteLine($"  Database: {databaseName}");
+
+            // Connect to AAS server
+            Console.WriteLine($"Connecting to AAS server...");
+            var server = new Server();
+
+            // Connection string with bearer token
+            string connectionString = $"DataSource={serverName};Password={accessToken};";
+            server.Connect(connectionString);
+            Console.WriteLine($"✓ Connected to: {server.Name}");
+
+            try
+            {
+                // Check if database exists
+                var existingDb = server.Databases.FindByName(databaseName);
+                if (existingDb == null)
+                {
+                    Console.WriteLine($"Database '{databaseName}' does not exist. Nothing to delete.");
+                    return 0;
+                }
+
+                // Delete the database
+                Console.WriteLine($"Deleting database...");
+                existingDb.Drop();
+                Console.WriteLine($"✓ Database deleted successfully");
+
+                Console.WriteLine("");
+                Console.WriteLine("SUCCESS: Database deleted from Azure Analysis Services");
+                return 0;
+            }
+            finally
+            {
+                server.Disconnect();
             }
         }
 
@@ -106,103 +207,5 @@ namespace TmslExecutor
             return semanticModelPath;
         }
 
-        static void CreateMeasure(Database database, JObject data)
-        {
-            string tableName = data["table"]?.ToString() ?? throw new Exception("Missing 'table' field");
-            string measureName = data["name"]?.ToString() ?? throw new Exception("Missing 'name' field");
-            string expression = data["expression"]?.ToString() ?? throw new Exception("Missing 'expression' field");
-            string? formatString = data["formatString"]?.ToString();
-            string? description = data["description"]?.ToString();
-
-            var table = database.Model.Tables.Find(tableName);
-            if (table == null)
-            {
-                throw new Exception($"Table '{tableName}' not found");
-            }
-
-            // Check if measure already exists
-            if (table.Measures.Find(measureName) != null)
-            {
-                throw new Exception($"Measure '{measureName}' already exists in table '{tableName}'");
-            }
-
-            var measure = new Measure
-            {
-                Name = measureName,
-                Expression = expression
-            };
-
-            if (!string.IsNullOrEmpty(formatString))
-            {
-                measure.FormatString = formatString;
-            }
-
-            if (!string.IsNullOrEmpty(description))
-            {
-                measure.Description = description;
-            }
-
-            table.Measures.Add(measure);
-            Console.WriteLine($"Created measure: {measureName} in table: {tableName}");
-        }
-
-        static void UpdateMeasure(Database database, JObject data)
-        {
-            string tableName = data["table"]?.ToString() ?? throw new Exception("Missing 'table' field");
-            string measureName = data["name"]?.ToString() ?? throw new Exception("Missing 'name' field");
-            string? expression = data["expression"]?.ToString();
-            string? formatString = data["formatString"]?.ToString();
-            string? description = data["description"]?.ToString();
-
-            var table = database.Model.Tables.Find(tableName);
-            if (table == null)
-            {
-                throw new Exception($"Table '{tableName}' not found");
-            }
-
-            var measure = table.Measures.Find(measureName);
-            if (measure == null)
-            {
-                throw new Exception($"Measure '{measureName}' not found in table '{tableName}'");
-            }
-
-            if (!string.IsNullOrEmpty(expression))
-            {
-                measure.Expression = expression;
-            }
-
-            if (!string.IsNullOrEmpty(formatString))
-            {
-                measure.FormatString = formatString;
-            }
-
-            if (!string.IsNullOrEmpty(description))
-            {
-                measure.Description = description;
-            }
-
-            Console.WriteLine($"Updated measure: {measureName} in table: {tableName}");
-        }
-
-        static void DeleteMeasure(Database database, JObject data)
-        {
-            string tableName = data["table"]?.ToString() ?? throw new Exception("Missing 'table' field");
-            string measureName = data["name"]?.ToString() ?? throw new Exception("Missing 'name' field");
-
-            var table = database.Model.Tables.Find(tableName);
-            if (table == null)
-            {
-                throw new Exception($"Table '{tableName}' not found");
-            }
-
-            var measure = table.Measures.Find(measureName);
-            if (measure == null)
-            {
-                throw new Exception($"Measure '{measureName}' not found in table '{tableName}'");
-            }
-
-            table.Measures.Remove(measure);
-            Console.WriteLine($"Deleted measure: {measureName} from table: {tableName}");
-        }
     }
 }
