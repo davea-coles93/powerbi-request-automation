@@ -224,12 +224,26 @@ jobs:
         run: |
           Write-Host "Deploying model to AAS for validation..."
 
-          # Find first semantic model
-          $ModelPath = Get-ChildItem -Path models -Filter "*.SemanticModel" -Directory -Recurse | Select-Object -First 1 -ExpandProperty FullName
+          # Find modified model from PR (or use first as fallback)
+          $ChangedFiles = git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }}
+          $ModelFolder = $ChangedFiles | Where-Object { $_ -like "*.SemanticModel/*" } | ForEach-Object { ($_ -split '/')[0..2] -join '/' } | Select-Object -First 1
+
+          if (-not $ModelFolder) {
+            # Fallback: use adventure-works model
+            $ModelFolder = "models/adventure-works/sales-sample.SemanticModel"
+          }
+
+          $ModelPath = Join-Path $PWD $ModelFolder
           $DatabaseName = "ci-test-$(Get-Date -Format 'yyyyMMddHHmmss')"
 
           Write-Host "Model path: $ModelPath"
           Write-Host "Database name: $DatabaseName"
+
+          if (-not (Test-Path $ModelPath)) {
+            Write-Error "Model path not found: $ModelPath"
+            exit 1
+          }
+
           "CI_DATABASE_NAME=$DatabaseName" | Out-File -FilePath $env:GITHUB_ENV -Append
 
           # Deploy using Tabular Editor 2 CLI
@@ -238,6 +252,11 @@ jobs:
             -O `
             -L `
             -B "$env:AAS_ACCESS_TOKEN"
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Tabular Editor deployment failed with exit code $LASTEXITCODE"
+            exit 1
+          }
 
           Write-Host "✅ Model deployed to AAS"
 
