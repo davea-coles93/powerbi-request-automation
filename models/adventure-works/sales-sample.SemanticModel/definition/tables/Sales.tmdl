@@ -1,6 +1,11 @@
 table Sales
 	lineageTag: 4f6804ef-cf70-4c42-96c1-d1155891935b
 
+	measure 'Sales Amount YTD' = TOTALYTD(SUM(Sales[SalesAmount]), 'Date'[Date])
+		formatString: $#,##0
+		/// Year-to-date sales amount
+		lineageTag: xccpdr98ml564jfr
+
 	measure 'Sales Amount by Due Date' = ```
 			CALCULATE(SUM(Sales[Sales Amount]), USERELATIONSHIP(Sales[DueDateKey],'Date'[DateKey])) 
 			```
