@@ -210,65 +210,15 @@ jobs:
           Write-Host "::add-mask::$Token"
           "AAS_ACCESS_TOKEN=$Token" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - name: Install Tabular Editor 2 CLI
-        shell: pwsh
-        run: |
-          Write-Host "Downloading Tabular Editor 2 Portable..."
-          Invoke-WebRequest -Uri "https://github.com/TabularEditor/TabularEditor/releases/download/2.27.2/TabularEditor.Portable.zip" -OutFile te2.zip
-          Expand-Archive te2.zip -DestinationPath tabular-editor
-          Write-Host "Tabular Editor 2 installed successfully"
-          & .\tabular-editor\TabularEditor.exe /? | Select-Object -First 5
-
-      - name: Deploy model to AAS
-        shell: pwsh
-        run: |
-          Write-Host "Deploying model to AAS for validation..."
-
-          # Find modified model from PR (or use first as fallback)
-          $ChangedFiles = git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }}
-          $ModelFolder = $ChangedFiles | Where-Object { $_ -like "*.SemanticModel/*" } | ForEach-Object { ($_ -split '/')[0..2] -join '/' } | Select-Object -First 1
-
-          if (-not $ModelFolder) {
-            # Fallback: use adventure-works model
-            $ModelFolder = "models/adventure-works/sales-sample.SemanticModel"
-          }
-
-          $ModelPath = Join-Path $PWD $ModelFolder
-          $DatabaseName = "ci-test-$(Get-Date -Format 'yyyyMMddHHmmss')"
-
-          Write-Host "Model path: $ModelPath"
-          Write-Host "Database name: $DatabaseName"
-
-          if (-not (Test-Path $ModelPath)) {
-            Write-Error "Model path not found: $ModelPath"
-            exit 1
-          }
-
-          "CI_DATABASE_NAME=$DatabaseName" | Out-File -FilePath $env:GITHUB_ENV -Append
-
-          # Deploy using Tabular Editor 2 CLI
-          & .\tabular-editor\TabularEditor.exe "$ModelPath" `
-            -D "${{ secrets.AZURE_AAS_SERVER }}" "$DatabaseName" `
-            -O `
-            -L `
-            -B "$env:AAS_ACCESS_TOKEN"
-
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "Tabular Editor deployment failed with exit code $LASTEXITCODE"
-            exit 1
-          }
-
-          Write-Host "✅ Model deployed to AAS"
-
       - name: Run DAX validation tests
         id: dax-tests
         working-directory: ./backend
         env:
           AAS_ACCESS_TOKEN: ${{ env.AAS_ACCESS_TOKEN }}
-          AZURE_AAS_DATABASE: ${{ env.CI_DATABASE_NAME }}
+          AZURE_AAS_DATABASE: ${{ secrets.AZURE_AAS_DATABASE }}
         run: |
           echo "Running DAX validation against Azure Analysis Services..."
-          echo "Testing database: $CI_DATABASE_NAME"
+          echo "Testing database: ${{ secrets.AZURE_AAS_DATABASE }}"
           node -e "
             const { AzureAnalysisService } = require('./dist/services/azureAnalysisService');
 
@@ -310,22 +260,6 @@ jobs:
               process.exit(1);
             });
           "
-
-      - name: Delete test database from AAS
-        if: always()
-        shell: pwsh
-        env:
-          AAS_ACCESS_TOKEN: ${{ env.AAS_ACCESS_TOKEN }}
-        run: |
-          if ($env:CI_DATABASE_NAME) {
-            Write-Host "Deleting test database: $env:CI_DATABASE_NAME"
-            & .\tabular-editor\TabularEditor.exe `
-              -S "${{ secrets.AZURE_AAS_SERVER }}" `
-              -D "$env:CI_DATABASE_NAME" `
-              -X `
-              -B "$env:AAS_ACCESS_TOKEN"
-            if ($LASTEXITCODE -ne 0) { Write-Host "Database cleanup skipped" }
-          }
 
       - name: Stop Azure Analysis Services
         if: always()
