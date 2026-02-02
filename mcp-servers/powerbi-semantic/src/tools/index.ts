@@ -1084,5 +1084,135 @@ export function createTools(): Tool[] {
         };
       },
     },
+
+    // ========== WRITE OPERATIONS ==========
+
+    // Manage measure (create/update/delete)
+    {
+      name: 'manage_measure',
+      description: 'Create, update, or delete a measure in a TMDL table file',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          model_path: {
+            type: 'string',
+            description: 'Path to the semantic model directory (.SemanticModel)',
+          },
+          table_name: {
+            type: 'string',
+            description: 'Name of the table',
+          },
+          measure_name: {
+            type: 'string',
+            description: 'Name of the measure',
+          },
+          operation: {
+            type: 'string',
+            enum: ['create', 'update', 'delete'],
+            description: 'Operation to perform',
+          },
+          expression: {
+            type: 'string',
+            description: 'DAX expression for the measure (required for create/update)',
+          },
+          format_string: {
+            type: 'string',
+            description: 'Optional format string (e.g., "$#,##0", "0.00%")',
+          },
+          description: {
+            type: 'string',
+            description: 'Optional description/documentation',
+          },
+        },
+        required: ['model_path', 'table_name', 'measure_name', 'operation'],
+      },
+      handler: async (args) => {
+        const fs = await import('fs');
+        const path = await import('path');
+
+        const tableFilePath = path.join(
+          args.model_path,
+          'definition',
+          'tables',
+          `${args.table_name}.tmdl`
+        );
+
+        if (!fs.existsSync(tableFilePath)) {
+          throw new Error(`Table file not found: ${tableFilePath}`);
+        }
+
+        let content = await fs.promises.readFile(tableFilePath, 'utf-8');
+        const lines = content.split('\n');
+
+        if (args.operation === 'create') {
+          // Check if measure already exists
+          const escapedName = args.measure_name.replace(/'/g, "\\'");
+          const measurePattern = new RegExp(`^\\s*measure\\s+'${escapedName}'\\s*=`, 'm');
+          if (measurePattern.test(content)) {
+            throw new Error(`Measure '${args.measure_name}' already exists`);
+          }
+
+          // Find the first occurrence of a measure to insert before
+          let insertIndex = -1;
+          for (let i = 0; i < lines.length; i++) {
+            if (lines[i].match(/^\s*measure\s+/)) {
+              insertIndex = i;
+              break;
+            }
+          }
+
+          // If no measures, insert before first column
+          if (insertIndex === -1) {
+            for (let i = 0; i < lines.length; i++) {
+              if (lines[i].match(/^\s*column\s+/)) {
+                insertIndex = i;
+                break;
+              }
+            }
+          }
+
+          // If still not found, insert after table declaration
+          if (insertIndex === -1) {
+            insertIndex = 3; // After lineageTag usually
+          }
+
+          // Generate unique lineageTag
+          const lineageTag = `${Math.random().toString(36).substring(2, 10)}${Date.now().toString(36)}`;
+
+          // Build measure block
+          const measureLines = [
+            `\tmeasure '${args.measure_name}' = ${args.expression}`,
+          ];
+
+          if (args.format_string) {
+            measureLines.push(`\t\tformatString: ${args.format_string}`);
+          }
+
+          if (args.description) {
+            measureLines.push(`\t\t/// ${args.description}`);
+          }
+
+          measureLines.push(`\t\tlineageTag: ${lineageTag}`);
+          measureLines.push(''); // Empty line after measure
+
+          // Insert the measure
+          lines.splice(insertIndex, 0, ...measureLines);
+
+          // Write back
+          content = lines.join('\n');
+          await fs.promises.writeFile(tableFilePath, content, 'utf-8');
+
+          return {
+            success: true,
+            operation: 'create',
+            measure: args.measure_name,
+            table: args.table_name,
+            message: `Created measure '${args.measure_name}' in table '${args.table_name}'`,
+          };
+        } else {
+          throw new Error(`Operation '${args.operation}' not yet implemented`);
+        }
+      },
+    },
   ];
 }
