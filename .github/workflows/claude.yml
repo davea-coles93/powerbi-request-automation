@@ -48,6 +48,128 @@ jobs:
             - backend/src/services/powerbiMockService.ts - PowerBI mock for testing
             - backend/src/types/request.ts - Request type definitions
 
+  # Self-healing: Fix failed DAX validation
+  self-heal:
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.action == 'synchronize' &&
+      !contains(github.event.pull_request.labels.*.name, 'auto-heal-failed')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for failed DAX validation
+        id: check-failure
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Safety: Check current labels for retry count
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+            });
+
+            const labels = pr.labels.map(l => l.name);
+            const healAttempts = labels.filter(l => l.startsWith('heal-attempt-')).length;
+            const MAX_HEAL_ATTEMPTS = 2;
+
+            if (healAttempts >= MAX_HEAL_ATTEMPTS) {
+              console.log(`Already attempted ${healAttempts} heal(s). Max ${MAX_HEAL_ATTEMPTS} reached. Stopping.`);
+              core.setOutput('should_heal', 'false');
+
+              // Add label indicating giving up
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                labels: ['auto-heal-failed']
+              });
+
+              // Comment on PR
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: '⚠️ **Auto-heal limit reached**\n\nAttempted to fix this PR ' + healAttempts + ' times but tests still failing. Manual review needed.\n\nPlease check the test logs and fix the issue manually.'
+              });
+
+              return;
+            }
+
+            // Check for test failure
+            const { data: checks } = await github.rest.checks.listForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.payload.pull_request.head.sha,
+            });
+
+            const daxCheck = checks.check_runs.find(c => c.name === 'DAX Validation (Azure Analysis Services)');
+
+            if (daxCheck && daxCheck.conclusion === 'failure') {
+              console.log('DAX validation failed - triggering self-heal');
+              core.setOutput('should_heal', 'true');
+              core.setOutput('check_url', daxCheck.html_url);
+              core.setOutput('attempt_number', healAttempts + 1);
+
+              // Add label to track this attempt
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                labels: [`heal-attempt-${healAttempts + 1}`]
+              });
+            } else {
+              console.log('No DAX validation failure detected');
+              core.setOutput('should_heal', 'false');
+            }
+
+      - name: Notify healing attempt
+        if: steps.check-failure.outputs.should_heal == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: '🔧 **Auto-heal attempt ${{ steps.check-failure.outputs.attempt_number }}/2**\n\nDAX validation failed. Claude is analyzing the error and attempting to fix...'
+            });
+
+      - name: Self-heal with Claude
+        if: steps.check-failure.outputs.should_heal == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          custom_instructions: |
+            A DAX validation test just failed on this PR (Attempt ${{ steps.check-failure.outputs.attempt_number }}/2).
+
+            Your task is to fix the issue:
+
+            1. Read the PR description to understand what measure was created
+            2. Check the GitHub Actions test logs to see the actual error
+            3. Identify the root cause (syntax error, wrong table, invalid DAX, etc.)
+            4. Fix ONLY the TMDL file that was changed in this PR
+            5. Commit with a clear message like "Fix: Correct [specific issue]"
+            6. Push to this branch - tests will re-run automatically
+
+            IMPORTANT CONSTRAINTS:
+            - This is attempt ${{ steps.check-failure.outputs.attempt_number }} of 2 max attempts
+            - Only modify the TMDL file that was already changed in this PR
+            - Do NOT modify any other files (workflows, backend code, etc.)
+            - Maintain proper TMDL syntax and lineageTag formatting
+            - Keep the measure's business purpose as described in PR
+            - If the error is infrastructure-related (server down, auth issues), comment explaining it but don't retry
+
   # Auto-triage new issues
   auto-triage:
     if: github.event_name == 'issues' && github.event.action == 'opened'
