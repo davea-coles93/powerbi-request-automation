@@ -156,7 +156,7 @@ jobs:
 
   # Azure Analysis Services DAX validation (runs if AAS is configured)
   dax-validation:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     name: DAX Validation (Azure Analysis Services)
     if: vars.ENABLE_AAS_VALIDATION == 'true'
 
@@ -187,58 +187,59 @@ jobs:
 
       - name: Start Azure Analysis Services
         id: start-aas
+        shell: pwsh
         run: |
-          echo "Starting Azure Analysis Services (billing begins)..."
+          Write-Host "Starting Azure Analysis Services (billing begins)..."
           # Get access token from Azure CLI (already authenticated via OIDC)
-          ACCESS_TOKEN=$(az account get-access-token --resource https://management.azure.com/ --query accessToken -o tsv)
+          $AccessToken = az account get-access-token --resource https://management.azure.com/ --query accessToken -o tsv
 
-          # Use PowerShell Az.AnalysisServices
-          pwsh -Command "
-            \$Token = '$ACCESS_TOKEN'
-            Install-Module -Name Az.AnalysisServices, Az.Accounts -Force -Scope CurrentUser -AllowClobber
-            Connect-AzAccount -AccessToken \$Token -AccountId '${{ secrets.AZURE_CLIENT_ID }}' -Subscription '${{ secrets.AZURE_SUBSCRIPTION_ID }}'
-            Resume-AzAnalysisServicesServer -Name '${{ secrets.AZURE_AAS_SERVER_NAME }}' -ResourceGroupName '${{ secrets.AZURE_RESOURCE_GROUP }}'
-          "
-          echo "Waiting for server to be ready..."
-          sleep 30
+          # Install and use PowerShell Az.AnalysisServices
+          Install-Module -Name Az.AnalysisServices, Az.Accounts -Force -Scope CurrentUser -AllowClobber
+          Connect-AzAccount -AccessToken $AccessToken -AccountId '${{ secrets.AZURE_CLIENT_ID }}' -Subscription '${{ secrets.AZURE_SUBSCRIPTION_ID }}'
+          Resume-AzAnalysisServicesServer -Name '${{ secrets.AZURE_AAS_SERVER_NAME }}' -ResourceGroupName '${{ secrets.AZURE_RESOURCE_GROUP }}'
+
+          Write-Host "Waiting for server to be ready..."
+          Start-Sleep -Seconds 30
 
       - name: Get Azure access token for AAS
         id: get-token
+        shell: pwsh
         run: |
           # Get token for Analysis Services
-          TOKEN=$(az account get-access-token --resource "https://*.asazure.windows.net" --query accessToken -o tsv)
-          echo "::add-mask::$TOKEN"
-          echo "AAS_ACCESS_TOKEN=$TOKEN" >> $GITHUB_ENV
+          $Token = az account get-access-token --resource "https://*.asazure.windows.net" --query accessToken -o tsv
+          Write-Host "::add-mask::$Token"
+          "AAS_ACCESS_TOKEN=$Token" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-      - name: Install Tabular Editor CLI
+      - name: Install Tabular Editor 2 CLI
+        shell: pwsh
         run: |
-          echo "Downloading Tabular Editor 3 CLI..."
-          wget https://cdn.tabulareditor.com/files/te3/TabularEditor3.Linux-x64.zip -O te3.zip
-          unzip -q te3.zip -d tabular-editor
-          chmod +x tabular-editor/TabularEditor3.Linux-x64
-          ./tabular-editor/TabularEditor3.Linux-x64 --version
+          Write-Host "Downloading Tabular Editor 2 Portable..."
+          Invoke-WebRequest -Uri "https://github.com/TabularEditor/TabularEditor/releases/download/2.27.2/TabularEditor.Portable.zip" -OutFile te2.zip
+          Expand-Archive te2.zip -DestinationPath tabular-editor
+          Write-Host "Tabular Editor 2 installed successfully"
+          & .\tabular-editor\TabularEditor.exe /? | Select-Object -First 5
 
       - name: Deploy model to AAS
+        shell: pwsh
         run: |
-          echo "Deploying model to AAS for validation..."
+          Write-Host "Deploying model to AAS for validation..."
 
-          # Use first model found in models directory
-          MODEL_PATH=$(find models -name "*.SemanticModel" -type d | head -1)
-          DATABASE_NAME="ci-test-$(date +%s)"
+          # Find first semantic model
+          $ModelPath = Get-ChildItem -Path models -Filter "*.SemanticModel" -Directory -Recurse | Select-Object -First 1 -ExpandProperty FullName
+          $DatabaseName = "ci-test-$(Get-Date -Format 'yyyyMMddHHmmss')"
 
-          echo "Model path: $MODEL_PATH"
-          echo "Database name: $DATABASE_NAME"
-          echo "CI_DATABASE_NAME=$DATABASE_NAME" >> $GITHUB_ENV
+          Write-Host "Model path: $ModelPath"
+          Write-Host "Database name: $DatabaseName"
+          "CI_DATABASE_NAME=$DatabaseName" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-          # Deploy using Tabular Editor CLI
-          ./tabular-editor/TabularEditor3.Linux-x64 \
-            "$MODEL_PATH" \
-            -D "${{ secrets.AZURE_AAS_SERVER }}" "$DATABASE_NAME" \
-            -O \
-            -L \
-            -B "$AAS_ACCESS_TOKEN"
+          # Deploy using Tabular Editor 2 CLI
+          & .\tabular-editor\TabularEditor.exe "$ModelPath" `
+            -D "${{ secrets.AZURE_AAS_SERVER }}" "$DatabaseName" `
+            -O `
+            -L `
+            -B "$env:AAS_ACCESS_TOKEN"
 
-          echo "✅ Model deployed to AAS"
+          Write-Host "✅ Model deployed to AAS"
 
       - name: Run DAX validation tests
         id: dax-tests
@@ -293,34 +294,39 @@ jobs:
 
       - name: Delete test database from AAS
         if: always()
+        shell: pwsh
         env:
           AAS_ACCESS_TOKEN: ${{ env.AAS_ACCESS_TOKEN }}
         run: |
-          if [ -n "$CI_DATABASE_NAME" ]; then
-            echo "Deleting test database: $CI_DATABASE_NAME"
-            ./tabular-editor/TabularEditor3.Linux-x64 \
-              -S "${{ secrets.AZURE_AAS_SERVER }}" \
-              -D "$CI_DATABASE_NAME" \
-              -X \
-              -B "$AAS_ACCESS_TOKEN" || echo "Database cleanup skipped"
-          fi
+          if ($env:CI_DATABASE_NAME) {
+            Write-Host "Deleting test database: $env:CI_DATABASE_NAME"
+            & .\tabular-editor\TabularEditor.exe `
+              -S "${{ secrets.AZURE_AAS_SERVER }}" `
+              -D "$env:CI_DATABASE_NAME" `
+              -X `
+              -B "$env:AAS_ACCESS_TOKEN"
+            if ($LASTEXITCODE -ne 0) { Write-Host "Database cleanup skipped" }
+          }
 
       - name: Stop Azure Analysis Services
         if: always()
+        shell: pwsh
         run: |
-          echo "Stopping Azure Analysis Services (billing stops)..."
-          # Get access token and suspend AAS
-          ACCESS_TOKEN=$(az account get-access-token --resource https://management.azure.com/ --query accessToken -o tsv) || true
-
-          pwsh -Command "
-            \$Token = '$ACCESS_TOKEN'
-            Connect-AzAccount -AccessToken \$Token -AccountId '${{ secrets.AZURE_CLIENT_ID }}' -Subscription '${{ secrets.AZURE_SUBSCRIPTION_ID }}' -ErrorAction SilentlyContinue
+          Write-Host "Stopping Azure Analysis Services (billing stops)..."
+          try {
+            # Get access token and suspend AAS
+            $AccessToken = az account get-access-token --resource https://management.azure.com/ --query accessToken -o tsv
+            Connect-AzAccount -AccessToken $AccessToken -AccountId '${{ secrets.AZURE_CLIENT_ID }}' -Subscription '${{ secrets.AZURE_SUBSCRIPTION_ID }}' -ErrorAction SilentlyContinue
             Suspend-AzAnalysisServicesServer -Name '${{ secrets.AZURE_AAS_SERVER_NAME }}' -ResourceGroupName '${{ secrets.AZURE_RESOURCE_GROUP }}' -ErrorAction SilentlyContinue
-          " || true
+          } catch {
+            Write-Host "Failed to suspend AAS: $_"
+          }
 
       - name: Azure Logout
         if: always()
-        run: az logout || true
+        shell: pwsh
+        run: |
+          try { az logout } catch { Write-Host "Logout skipped" }
 
       - name: Post DAX validation results
         if: always()
