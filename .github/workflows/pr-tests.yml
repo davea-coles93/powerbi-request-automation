@@ -210,13 +210,45 @@ jobs:
           echo "::add-mask::$TOKEN"
           echo "AAS_ACCESS_TOKEN=$TOKEN" >> $GITHUB_ENV
 
+      - name: Install Tabular Editor CLI
+        run: |
+          echo "Downloading Tabular Editor 3 CLI..."
+          wget https://cdn.tabulareditor.com/files/te3/TabularEditor3.Linux-x64.zip -O te3.zip
+          unzip -q te3.zip -d tabular-editor
+          chmod +x tabular-editor/TabularEditor3.Linux-x64
+          ./tabular-editor/TabularEditor3.Linux-x64 --version
+
+      - name: Deploy model to AAS
+        run: |
+          echo "Deploying model to AAS for validation..."
+
+          # Use first model found in models directory
+          MODEL_PATH=$(find models -name "*.SemanticModel" -type d | head -1)
+          DATABASE_NAME="ci-test-$(date +%s)"
+
+          echo "Model path: $MODEL_PATH"
+          echo "Database name: $DATABASE_NAME"
+          echo "CI_DATABASE_NAME=$DATABASE_NAME" >> $GITHUB_ENV
+
+          # Deploy using Tabular Editor CLI
+          ./tabular-editor/TabularEditor3.Linux-x64 \
+            "$MODEL_PATH" \
+            -D "${{ secrets.AZURE_AAS_SERVER }}" "$DATABASE_NAME" \
+            -O \
+            -L \
+            -B "$AAS_ACCESS_TOKEN"
+
+          echo "✅ Model deployed to AAS"
+
       - name: Run DAX validation tests
         id: dax-tests
         working-directory: ./backend
         env:
           AAS_ACCESS_TOKEN: ${{ env.AAS_ACCESS_TOKEN }}
+          AZURE_AAS_DATABASE: ${{ env.CI_DATABASE_NAME }}
         run: |
           echo "Running DAX validation against Azure Analysis Services..."
+          echo "Testing database: $CI_DATABASE_NAME"
           node -e "
             const { AzureAnalysisService } = require('./dist/services/azureAnalysisService');
 
@@ -258,6 +290,20 @@ jobs:
               process.exit(1);
             });
           "
+
+      - name: Delete test database from AAS
+        if: always()
+        env:
+          AAS_ACCESS_TOKEN: ${{ env.AAS_ACCESS_TOKEN }}
+        run: |
+          if [ -n "$CI_DATABASE_NAME" ]; then
+            echo "Deleting test database: $CI_DATABASE_NAME"
+            ./tabular-editor/TabularEditor3.Linux-x64 \
+              -S "${{ secrets.AZURE_AAS_SERVER }}" \
+              -D "$CI_DATABASE_NAME" \
+              -X \
+              -B "$AAS_ACCESS_TOKEN" || echo "Database cleanup skipped"
+          fi
 
       - name: Stop Azure Analysis Services
         if: always()
