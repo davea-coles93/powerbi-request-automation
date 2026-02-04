@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "system.schema.json",
+  "title": "System",
+  "description": "A system where observations are captured/stored",
+  "type": "object",
+  "required": ["id", "name", "type"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier"
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["ERP", "MES", "WMS", "Spreadsheet", "Manual", "BI", "Other"],
+      "description": "Category of system"
+    },
+    "vendor": {
+      "type": "string",
+      "enum": ["SAP", "Microsoft", "Oracle", "Custom", "N/A", "Other"],
+      "description": "System vendor"
+    },
+    "reliability_default": {
+      "type": "string",
+      "enum": ["High", "Medium", "Low"],
+      "description": "Default reliability level for observations from this system"
+    },
+    "integration_status": {
+      "type": "string",
+      "enum": ["Connected", "Planned", "Manual Extract", "None"],
+      "description": "Current integration status"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes"
+    }
+  }
+}

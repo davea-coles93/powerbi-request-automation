@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "measure.schema.json",
+  "title": "Measure",
+  "description": "A calculation applied to observations and other measures to derive insight",
+  "type": "object",
+  "required": ["id", "name"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier"
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name"
+    },
+    "description": {
+      "type": "string",
+      "description": "What this measure calculates"
+    },
+    "logic": {
+      "type": "string",
+      "description": "Description of the calculation logic"
+    },
+    "formula": {
+      "type": "string",
+      "description": "Optional formula representation"
+    },
+    "input_observation_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Observations that feed into this measure"
+    },
+    "input_measure_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Other measures that feed into this measure"
+    },
+    "perspective_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Perspectives this measure is relevant to"
+    }
+  }
+}

@@ -1,0 +1,1927 @@
+{
+  "notes": {
+    "material_classification": "This seed data demonstrates how material classification (Metal vs Non-Metal) affects the entire business ontology. Materials are classified via a Core Attribute 'Material Type', which each Perspective interprets differently. Metals use spot pricing and have scrap recovery value. Non-metals use standard costing and incur disposal costs. This split creates different observations, measures, metrics, and even different process steps in month-end close."
+  },
+
+  "perspectives": [
+    {
+      "id": "operational",
+      "name": "Operational",
+      "purpose": "Execute and record business activities",
+      "primary_concern": "What work is being done? What happened?",
+      "typical_actors": ["Production Operator", "Warehouse Operative", "Receiving Clerk", "Shop Floor Supervisor"],
+      "consumes_from": [],
+      "feeds": ["management", "financial"]
+    },
+    {
+      "id": "management",
+      "name": "Management",
+      "purpose": "Monitor performance against targets and plans",
+      "primary_concern": "How are we performing? Are we on track?",
+      "typical_actors": ["Production Manager", "Warehouse Manager", "Inventory Controller", "Plant Manager"],
+      "consumes_from": ["operational"],
+      "feeds": ["financial"]
+    },
+    {
+      "id": "financial",
+      "name": "Financial",
+      "purpose": "Understand business value and state",
+      "primary_concern": "What is the financial position? What does it mean?",
+      "typical_actors": ["Cost Accountant", "AP/AR Accountant", "Finance Manager", "CFO"],
+      "consumes_from": ["operational", "management"],
+      "feeds": []
+    }
+  ],
+
+  "systems": [
+    {
+      "id": "erp",
+      "name": "ERP System",
+      "type": "ERP",
+      "vendor": "SAP",
+      "reliability_default": "High",
+      "integration_status": "Connected",
+      "notes": "Core transactional system"
+    },
+    {
+      "id": "mes",
+      "name": "Manufacturing Execution System",
+      "type": "MES",
+      "vendor": "Custom",
+      "reliability_default": "High",
+      "integration_status": "Connected",
+      "notes": "Shop floor control and data collection"
+    },
+    {
+      "id": "wms",
+      "name": "Warehouse Management System",
+      "type": "WMS",
+      "vendor": "Custom",
+      "reliability_default": "High",
+      "integration_status": "Connected",
+      "notes": "Inventory and warehouse operations"
+    },
+    {
+      "id": "time_system",
+      "name": "Time & Attendance",
+      "type": "Other",
+      "vendor": "Other",
+      "reliability_default": "Medium",
+      "integration_status": "Manual Extract",
+      "notes": "Labor time tracking - manual entry by operators"
+    },
+    {
+      "id": "excel",
+      "name": "Excel Spreadsheets",
+      "type": "Spreadsheet",
+      "vendor": "Microsoft",
+      "reliability_default": "Low",
+      "integration_status": "Manual Extract",
+      "notes": "Various manual tracking sheets"
+    },
+    {
+      "id": "commodity_exchange",
+      "name": "Metal Commodity Exchange Feed",
+      "type": "Other",
+      "vendor": "Other",
+      "reliability_default": "High",
+      "integration_status": "Connected",
+      "notes": "Daily spot prices for copper, aluminum, steel (LME/COMEX API)"
+    }
+  ],
+
+  "entities": [
+    {
+      "id": "production_order",
+      "name": "Production Order",
+      "description": "An order to manufacture products",
+      "core_attributes": [
+        {"name": "Order ID", "data_type": "string", "description": "Unique order identifier"},
+        {"name": "Created Date", "data_type": "datetime", "description": "When order was created"},
+        {"name": "Product", "data_type": "string", "description": "Material/product being produced"},
+        {"name": "Planned Quantity", "data_type": "number", "description": "Target quantity"},
+        {"name": "Status", "data_type": "string", "description": "Order status"}
+      ],
+      "lenses": [
+        {
+          "perspective_id": "operational",
+          "interpretation": "Work instruction to be executed",
+          "derived_attributes": [
+            {"name": "BOM", "description": "Bill of Materials - components needed"},
+            {"name": "Routing", "description": "Sequence of work centers/operations"},
+            {"name": "Actual Quantity", "data_type": "number", "description": "Quantity produced"}
+          ]
+        },
+        {
+          "perspective_id": "management",
+          "interpretation": "Unit of performance measurement",
+          "derived_attributes": [
+            {"name": "Yield %", "data_type": "number", "derivation": "Actual / (Actual + Scrap) × 100"},
+            {"name": "On-Time Status", "data_type": "boolean", "description": "Completed by due date"},
+            {"name": "Cycle Time vs Standard", "data_type": "number", "derivation": "Actual time / Standard time"}
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Cost collector",
+          "derived_attributes": [
+            {"name": "Planned Cost", "data_type": "number", "description": "Expected cost"},
+            {"name": "Actual Cost", "data_type": "number", "description": "Materials + Labor + Overhead"},
+            {"name": "Variance", "data_type": "number", "derivation": "Planned Cost - Actual Cost"},
+            {"name": "Settlement Target", "data_type": "string", "description": "Where costs settle to"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "material",
+      "name": "Material",
+      "description": "A physical item (raw material, component, or finished good)",
+      "core_attributes": [
+        {"name": "Material ID", "data_type": "string"},
+        {"name": "Description", "data_type": "string"},
+        {"name": "Unit of Measure", "data_type": "string"},
+        {"name": "Material Type", "data_type": "string"}
+      ],
+      "lenses": [
+        {
+          "perspective_id": "operational",
+          "interpretation": "Physical item to handle",
+          "derived_attributes": [
+            {"name": "Storage Location", "data_type": "string"},
+            {"name": "Batch/Lot", "data_type": "string"},
+            {"name": "Handling Requirements", "data_type": "string", "derivation": "Metal → Heavy Equipment, Non-Metal → Standard"},
+            {"name": "Storage Requirements", "data_type": "string", "derivation": "Metal → Climate Control, Non-Metal → Standard"}
+          ]
+        },
+        {
+          "perspective_id": "management",
+          "interpretation": "Item to track consumption of",
+          "derived_attributes": [
+            {"name": "Consumption Rate", "data_type": "number"},
+            {"name": "Reorder Point", "data_type": "number"},
+            {"name": "Reorder Strategy", "data_type": "string", "derivation": "Metals use Min/Max due to price volatility, Non-Metals use Kanban"},
+            {"name": "Lead Time Class", "data_type": "string", "derivation": "Metals may have longer lead times"}
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Valued inventory item",
+          "derived_attributes": [
+            {"name": "Standard Cost", "data_type": "number"},
+            {"name": "Inventory Value", "data_type": "number", "derivation": "Quantity × Standard Cost"},
+            {"name": "Valuation Method", "data_type": "string", "derivation": "Metals use Moving Average (spot price-based), Non-Metals use Standard Cost"},
+            {"name": "Price Volatility Class", "data_type": "string", "derivation": "Metals = High, Non-Metals = Low/Medium"},
+            {"name": "Scrap Recovery Value Method", "data_type": "string", "derivation": "Metals have positive recovery value, Non-Metals have disposal cost"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "material_document",
+      "name": "Material Document",
+      "description": "Record of a goods movement",
+      "core_attributes": [
+        {"name": "Document ID", "data_type": "string"},
+        {"name": "Movement Type", "data_type": "string", "description": "Receipt, Issue, Transfer, etc."},
+        {"name": "Quantity", "data_type": "number"},
+        {"name": "Posting Date", "data_type": "datetime"}
+      ],
+      "lenses": [
+        {
+          "perspective_id": "operational",
+          "interpretation": "Movement record for tracking",
+          "derived_attributes": []
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Valuation posting trigger",
+          "derived_attributes": [
+            {"name": "Value", "data_type": "number", "derivation": "Quantity × Price"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "time_entry",
+      "name": "Time Entry",
+      "description": "Labor time recorded against an activity",
+      "core_attributes": [
+        {"name": "Entry ID", "data_type": "string"},
+        {"name": "Employee", "data_type": "string"},
+        {"name": "Hours", "data_type": "number"},
+        {"name": "Date", "data_type": "date"}
+      ],
+      "lenses": [
+        {
+          "perspective_id": "operational",
+          "interpretation": "Work time record",
+          "derived_attributes": [
+            {"name": "Activity", "data_type": "string"},
+            {"name": "Work Center", "data_type": "string"}
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Labor cost driver",
+          "derived_attributes": [
+            {"name": "Labor Cost", "data_type": "number", "derivation": "Hours × Labor Rate"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "invoice",
+      "name": "Invoice",
+      "description": "Vendor invoice for goods or services",
+      "core_attributes": [
+        {"name": "Invoice ID", "data_type": "string"},
+        {"name": "Vendor", "data_type": "string"},
+        {"name": "Invoice Date", "data_type": "date"},
+        {"name": "Total Amount", "data_type": "number"}
+      ],
+      "lenses": [
+        {
+          "perspective_id": "operational",
+          "interpretation": "Document to process",
+          "derived_attributes": [
+            {"name": "Line Items", "description": "Invoice line details"},
+            {"name": "PO Reference", "data_type": "string"}
+          ]
+        },
+        {
+          "perspective_id": "management",
+          "interpretation": "Item in processing queue",
+          "derived_attributes": [
+            {"name": "Days Since Receipt", "data_type": "number"},
+            {"name": "Approval Status", "data_type": "string"}
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Liability to record/pay",
+          "derived_attributes": [
+            {"name": "Due Date", "data_type": "date"},
+            {"name": "GL Account", "data_type": "string"},
+            {"name": "Accrual Status", "data_type": "string"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "count_document",
+      "name": "Count Document",
+      "description": "Physical inventory count record",
+      "core_attributes": [
+        {"name": "Count ID", "data_type": "string"},
+        {"name": "Count Date", "data_type": "date"},
+        {"name": "Location", "data_type": "string"}
+      ],
+      "lenses": [
+        {
+          "perspective_id": "operational",
+          "interpretation": "Physical count record",
+          "derived_attributes": [
+            {"name": "Counted Quantity", "data_type": "number"},
+            {"name": "System Quantity", "data_type": "number"}
+          ]
+        },
+        {
+          "perspective_id": "management",
+          "interpretation": "Accuracy measurement",
+          "derived_attributes": [
+            {"name": "Variance Quantity", "data_type": "number", "derivation": "Counted - System"},
+            {"name": "Variance %", "data_type": "number"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "goods_receipt",
+      "name": "Goods Receipt",
+      "description": "Record of goods received from vendor",
+      "core_attributes": [
+        {"name": "GR ID", "data_type": "string"},
+        {"name": "PO Reference", "data_type": "string"},
+        {"name": "Receipt Date", "data_type": "date"},
+        {"name": "Quantity", "data_type": "number"}
+      ],
+      "lenses": [
+        {
+          "perspective_id": "operational",
+          "interpretation": "Receiving record",
+          "derived_attributes": []
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Liability trigger (GR/IR)",
+          "derived_attributes": [
+            {"name": "GR Value", "data_type": "number"},
+            {"name": "Matched to Invoice", "data_type": "boolean"}
+          ]
+        }
+      ]
+    }
+  ],
+
+  "observations": [
+    {
+      "id": "production_confirmations",
+      "name": "Production Confirmations",
+      "description": "Records of completed production quantities",
+      "entity_id": "production_order",
+      "system_id": "mes",
+      "source_actor": "Floor Operator / Automated",
+      "reliability": "High",
+      "volatility": "Accumulating"
+    },
+    {
+      "id": "goods_issues",
+      "name": "Goods Issues (Materials)",
+      "description": "Materials issued to production orders",
+      "entity_id": "material_document",
+      "system_id": "erp",
+      "source_actor": "System (backflush)",
+      "reliability": "High",
+      "volatility": "Accumulating"
+    },
+    {
+      "id": "labor_time_recordings",
+      "name": "Labor Time Recordings",
+      "description": "Hours worked recorded by operators",
+      "entity_id": "time_entry",
+      "system_id": "time_system",
+      "source_actor": "Operator (manual)",
+      "reliability": "Medium",
+      "volatility": "Accumulating"
+    },
+    {
+      "id": "scrap_postings",
+      "name": "Scrap Postings",
+      "description": "Records of scrapped materials",
+      "entity_id": "material_document",
+      "system_id": "mes",
+      "source_actor": "Floor Operator",
+      "reliability": "Medium",
+      "volatility": "Accumulating"
+    },
+    {
+      "id": "inventory_counts",
+      "name": "Inventory Count Results",
+      "description": "Physical count quantities",
+      "entity_id": "count_document",
+      "system_id": "wms",
+      "source_actor": "Warehouse (manual)",
+      "reliability": "Medium",
+      "volatility": "Point-in-time"
+    },
+    {
+      "id": "system_stock",
+      "name": "System Stock Snapshot",
+      "description": "System inventory quantities at a point in time",
+      "entity_id": "material",
+      "system_id": "erp",
+      "source_actor": "System",
+      "reliability": "High",
+      "volatility": "Point-in-time"
+    },
+    {
+      "id": "goods_receipts",
+      "name": "Goods Receipts (Inbound)",
+      "description": "Records of goods received from vendors",
+      "entity_id": "goods_receipt",
+      "system_id": "erp",
+      "source_actor": "Receiving Clerk",
+      "reliability": "High",
+      "volatility": "Accumulating"
+    },
+    {
+      "id": "invoice_receipts",
+      "name": "Invoice Receipts",
+      "description": "Vendor invoices received and logged",
+      "entity_id": "invoice",
+      "system_id": "erp",
+      "source_actor": "AP Clerk",
+      "reliability": "High",
+      "volatility": "Accumulating"
+    },
+    {
+      "id": "standard_costs",
+      "name": "Standard Costs",
+      "description": "Standard cost master data for materials",
+      "entity_id": "material",
+      "system_id": "erp",
+      "source_actor": "Cost Accountant",
+      "reliability": "High",
+      "volatility": "Point-in-time",
+      "notes": "Updated periodically, stable within period"
+    },
+    {
+      "id": "labor_rates",
+      "name": "Labor Rates",
+      "description": "Hourly labor rates by work center or activity",
+      "entity_id": "time_entry",
+      "system_id": "erp",
+      "source_actor": "Cost Accountant",
+      "reliability": "High",
+      "volatility": "Point-in-time"
+    },
+    {
+      "id": "overhead_rates",
+      "name": "Overhead Rates",
+      "description": "Overhead absorption rates",
+      "entity_id": "production_order",
+      "system_id": "erp",
+      "source_actor": "Cost Accountant",
+      "reliability": "High",
+      "volatility": "Point-in-time"
+    },
+    {
+      "id": "production_goods_movements",
+      "name": "Production Goods Movements",
+      "description": "All goods movements related to production",
+      "entity_id": "material_document",
+      "system_id": "erp",
+      "source_actor": "System",
+      "reliability": "High",
+      "volatility": "Accumulating"
+    },
+    {
+      "id": "metal_spot_prices",
+      "name": "Metal Spot Prices",
+      "description": "Daily spot prices for metal materials (only for materials where Material_Type = 'Metal')",
+      "entity_id": "material",
+      "system_id": "commodity_exchange",
+      "source_actor": "LME/COMEX API",
+      "reliability": "High",
+      "volatility": "Point-in-time",
+      "notes": "Daily market prices for copper, aluminum, steel; only applies to metal materials"
+    },
+    {
+      "id": "metal_scrap_recovery",
+      "name": "Metal Scrap Recovery",
+      "description": "Metal scrap sold to recycling vendors with positive value",
+      "entity_id": "material_document",
+      "system_id": "erp",
+      "source_actor": "Warehouse Operative",
+      "reliability": "High",
+      "volatility": "Accumulating",
+      "notes": "Sales of metal scrap generate positive cash flow"
+    },
+    {
+      "id": "plastic_resin_cost_index",
+      "name": "Plastic Resin Cost Index",
+      "description": "Monthly cost index for plastic materials",
+      "entity_id": "material",
+      "system_id": "excel",
+      "source_actor": "Purchasing Manager",
+      "reliability": "Medium",
+      "volatility": "Point-in-time",
+      "notes": "Industry cost indices for non-metal materials"
+    },
+    {
+      "id": "disposal_cost_postings",
+      "name": "Disposal Cost Postings",
+      "description": "Disposal costs for non-metal scrap (negative value)",
+      "entity_id": "material_document",
+      "system_id": "erp",
+      "source_actor": "AP Clerk",
+      "reliability": "High",
+      "volatility": "Accumulating",
+      "notes": "Non-metal waste disposal incurs costs"
+    }
+  ],
+
+  "measures": [
+    {
+      "id": "material_cost_consumed",
+      "name": "Material Cost Consumed",
+      "description": "Total material cost issued to production",
+      "logic": "Sum of material quantities issued multiplied by standard cost",
+      "formula": "SUM(issue_qty × std_cost)",
+      "input_observation_ids": ["goods_issues", "standard_costs"],
+      "input_measure_ids": [],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "labor_cost_applied",
+      "name": "Labor Cost Applied",
+      "description": "Total labor cost applied to production",
+      "logic": "Sum of labor hours multiplied by labor rates",
+      "formula": "SUM(hours × labor_rate)",
+      "input_observation_ids": ["labor_time_recordings", "labor_rates"],
+      "input_measure_ids": [],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "overhead_absorbed",
+      "name": "Overhead Absorbed",
+      "description": "Overhead costs absorbed into production",
+      "logic": "Machine hours or labor hours multiplied by overhead rate",
+      "formula": "SUM(activity_hours × overhead_rate)",
+      "input_observation_ids": ["labor_time_recordings", "overhead_rates"],
+      "input_measure_ids": [],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "actual_production_qty",
+      "name": "Actual Production Quantity",
+      "description": "Total quantity confirmed as produced",
+      "logic": "Sum of confirmed quantities",
+      "formula": "SUM(confirmed_qty)",
+      "input_observation_ids": ["production_confirmations"],
+      "input_measure_ids": [],
+      "perspective_ids": ["operational", "management"]
+    },
+    {
+      "id": "scrap_qty",
+      "name": "Scrap Quantity",
+      "description": "Total quantity scrapped",
+      "logic": "Sum of scrap postings",
+      "formula": "SUM(scrap_qty)",
+      "input_observation_ids": ["scrap_postings"],
+      "input_measure_ids": [],
+      "perspective_ids": ["management"]
+    },
+    {
+      "id": "inventory_variance_qty",
+      "name": "Inventory Variance Quantity",
+      "description": "Difference between counted and system stock",
+      "logic": "Counted quantity minus system quantity",
+      "formula": "counted_qty - system_qty",
+      "input_observation_ids": ["inventory_counts", "system_stock"],
+      "input_measure_ids": [],
+      "perspective_ids": ["management"]
+    },
+    {
+      "id": "gr_ir_balance",
+      "name": "GR/IR Balance",
+      "description": "Value of goods received without matching invoice",
+      "logic": "GR value minus matched IR value",
+      "formula": "SUM(gr_value) - SUM(matched_ir_value)",
+      "input_observation_ids": ["goods_receipts", "invoice_receipts"],
+      "input_measure_ids": [],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "total_inventory_value",
+      "name": "Total Inventory Value",
+      "description": "Total value of inventory on hand",
+      "logic": "Sum of quantity multiplied by standard cost",
+      "formula": "SUM(qty × std_cost)",
+      "input_observation_ids": ["system_stock", "standard_costs"],
+      "input_measure_ids": [],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "metal_inventory_value",
+      "name": "Metal Inventory Value",
+      "description": "Quantity × Current Spot Price (only for metals)",
+      "logic": "Sum of metal material quantities multiplied by current spot price",
+      "formula": "SUM(qty × spot_price) WHERE Material_Type = 'Metal'",
+      "input_observation_ids": ["system_stock", "metal_spot_prices"],
+      "input_measure_ids": [],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "non_metal_inventory_value",
+      "name": "Non-Metal Inventory Value",
+      "description": "Quantity × Standard Cost (only for non-metals)",
+      "logic": "Sum of non-metal material quantities multiplied by standard cost",
+      "formula": "SUM(qty × std_cost) WHERE Material_Type <> 'Metal'",
+      "input_observation_ids": ["system_stock", "standard_costs"],
+      "input_measure_ids": [],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "metal_scrap_recovery_value",
+      "name": "Metal Scrap Recovery Value",
+      "description": "Metal scrap quantity × Scrap metal price (positive)",
+      "logic": "Revenue from selling metal scrap to recyclers",
+      "formula": "SUM(scrap_qty × scrap_metal_price) WHERE Material_Type = 'Metal'",
+      "input_observation_ids": ["metal_scrap_recovery", "metal_spot_prices"],
+      "input_measure_ids": [],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "non_metal_disposal_cost",
+      "name": "Non-Metal Disposal Cost",
+      "description": "Non-metal scrap quantity × Disposal rate (negative)",
+      "logic": "Cost of disposing of non-metal waste",
+      "formula": "SUM(scrap_qty × disposal_rate) WHERE Material_Type <> 'Metal'",
+      "input_observation_ids": ["disposal_cost_postings"],
+      "input_measure_ids": [],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "metal_price_variance",
+      "name": "Metal Price Variance",
+      "description": "(Current Spot - Standard Cost) × Quantity",
+      "logic": "Difference between current market value and standard cost for metals",
+      "formula": "SUM((spot_price - std_cost) × qty) WHERE Material_Type = 'Metal'",
+      "input_observation_ids": ["system_stock", "metal_spot_prices", "standard_costs"],
+      "input_measure_ids": [],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "total_inventory_value_by_type",
+      "name": "Total Inventory Value by Type",
+      "description": "Combines metal and non-metal values using different methods",
+      "logic": "Sum of metal inventory at spot prices plus non-metal inventory at standard cost",
+      "formula": "metal_inventory_value + non_metal_inventory_value",
+      "input_observation_ids": [],
+      "input_measure_ids": ["metal_inventory_value", "non_metal_inventory_value"],
+      "perspective_ids": ["financial"]
+    }
+  ],
+
+  "metrics": [
+    {
+      "id": "cogs",
+      "name": "Cost of Goods Sold",
+      "description": "Total cost incurred to produce goods that were sold",
+      "business_question": "What did it cost to produce what we sold?",
+      "calculated_by_measure_ids": ["material_cost_consumed", "labor_cost_applied", "overhead_absorbed"],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "inventory_valuation",
+      "name": "Inventory Valuation",
+      "description": "Total value of inventory held",
+      "business_question": "What inventory do we hold and at what value?",
+      "calculated_by_measure_ids": ["total_inventory_value"],
+      "perspective_ids": ["financial", "management"]
+    },
+    {
+      "id": "production_vs_plan",
+      "name": "Production vs Plan",
+      "description": "Actual production compared to planned",
+      "business_question": "Did we hit our production targets?",
+      "calculated_by_measure_ids": ["actual_production_qty"],
+      "perspective_ids": ["management"]
+    },
+    {
+      "id": "yield_rate",
+      "name": "Yield Rate",
+      "description": "Percentage of good output vs total input",
+      "business_question": "How efficient was our material usage?",
+      "calculated_by_measure_ids": ["actual_production_qty", "scrap_qty"],
+      "perspective_ids": ["management", "financial"]
+    },
+    {
+      "id": "scrap_rate",
+      "name": "Scrap Rate",
+      "description": "Percentage of production scrapped",
+      "business_question": "How much waste did we generate?",
+      "calculated_by_measure_ids": ["scrap_qty", "actual_production_qty"],
+      "perspective_ids": ["management"]
+    },
+    {
+      "id": "inventory_accuracy",
+      "name": "Inventory Accuracy",
+      "description": "How well system stock matches physical stock",
+      "business_question": "Does system stock match physical stock?",
+      "calculated_by_measure_ids": ["inventory_variance_qty"],
+      "perspective_ids": ["management", "financial"]
+    },
+    {
+      "id": "gr_ir_accrual",
+      "name": "GR/IR Accrual",
+      "description": "Goods received but not yet invoiced",
+      "business_question": "Have we captured all liabilities?",
+      "calculated_by_measure_ids": ["gr_ir_balance"],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "metal_inventory_valuation",
+      "name": "Metal Inventory Valuation",
+      "description": "Metal inventory value at current market prices",
+      "business_question": "What is our metal inventory worth at current market prices?",
+      "calculated_by_measure_ids": ["metal_inventory_value"],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "non_metal_inventory_valuation",
+      "name": "Non-Metal Inventory Valuation",
+      "description": "Non-metal inventory value at standard cost",
+      "business_question": "What is our non-metal inventory worth?",
+      "calculated_by_measure_ids": ["non_metal_inventory_value"],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "metal_exposure",
+      "name": "Metal Price Exposure",
+      "description": "Financial exposure to metal price changes",
+      "business_question": "What is our financial exposure to metal price changes?",
+      "calculated_by_measure_ids": ["metal_price_variance"],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "scrap_net_value",
+      "name": "Scrap Net Value",
+      "description": "Net value/cost of scrap (metals positive, non-metals negative)",
+      "business_question": "Net value/cost of scrap (metals positive, non-metals negative)",
+      "calculated_by_measure_ids": ["metal_scrap_recovery_value", "non_metal_disposal_cost"],
+      "perspective_ids": ["financial"]
+    }
+  ],
+
+  "processes": [
+    {
+      "id": "month_end_close",
+      "name": "Month-End Close",
+      "description": "Close financial period and report accurate position",
+      "steps": [
+        {
+          "id": "production_cutoff",
+          "sequence": 1,
+          "name": "Production Cutoff",
+          "description": "Confirm all completed production orders, no further confirmations for prior period",
+          "perspective_id": "operational",
+          "actor": "Production Manager",
+          "consumes_observation_ids": ["production_confirmations"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": ["production_confirmations", "production_goods_movements"],
+          "depends_on_step_ids": [],
+          "has_sub_steps": true,
+          "perspective_level": "financial"
+        },
+        {
+          "id": "inventory_cutoff",
+          "sequence": 2,
+          "name": "Inventory Cutoff",
+          "description": "Complete all goods movements, freeze stock for counting",
+          "perspective_id": "operational",
+          "actor": "Warehouse Manager",
+          "consumes_observation_ids": ["production_goods_movements"],
+          "produces_observation_ids": ["system_stock"],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": ["goods_issues", "production_goods_movements"],
+          "depends_on_step_ids": ["production_cutoff"],
+          "has_sub_steps": true,
+          "perspective_level": "financial"
+        },
+        {
+          "id": "physical_count",
+          "sequence": 3,
+          "name": "Physical Count",
+          "description": "Count physical inventory",
+          "perspective_id": "operational",
+          "actor": "Warehouse Team",
+          "consumes_observation_ids": ["system_stock"],
+          "produces_observation_ids": ["inventory_counts"],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["inventory_cutoff"],
+          "has_sub_steps": true,
+          "perspective_level": "financial"
+        },
+        {
+          "id": "metal_price_revaluation",
+          "sequence": 4,
+          "name": "Metal Inventory Revaluation",
+          "description": "Update metal inventory values to current spot prices, calculate price variances",
+          "perspective_id": "financial",
+          "actor": "Cost Accountant",
+          "consumes_observation_ids": ["metal_spot_prices", "system_stock", "standard_costs"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": ["metal_inventory_valuation", "metal_exposure"],
+          "crystallizes_observation_ids": ["metal_spot_prices"],
+          "depends_on_step_ids": ["physical_count"],
+          "perspective_level": "financial"
+        },
+        {
+          "id": "count_reconciliation",
+          "sequence": 5,
+          "name": "Count Reconciliation",
+          "description": "Compare counts to system, investigate variances, post adjustments",
+          "perspective_id": "management",
+          "actor": "Inventory Controller",
+          "consumes_observation_ids": ["inventory_counts", "system_stock"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": ["inventory_accuracy"],
+          "crystallizes_observation_ids": ["inventory_counts"],
+          "depends_on_step_ids": ["metal_price_revaluation"],
+          "perspective_level": "financial"
+        },
+        {
+          "id": "gr_ir_reconciliation",
+          "sequence": 6,
+          "name": "GR/IR Reconciliation",
+          "description": "Match goods receipts to invoices, identify unmatched, post accruals",
+          "perspective_id": "financial",
+          "actor": "AP Accountant",
+          "consumes_observation_ids": ["goods_receipts", "invoice_receipts"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": ["gr_ir_accrual"],
+          "crystallizes_observation_ids": ["goods_receipts", "invoice_receipts"],
+          "depends_on_step_ids": ["inventory_cutoff"],
+          "perspective_level": "financial"
+        },
+        {
+          "id": "scrap_reconciliation",
+          "sequence": 7,
+          "name": "Scrap Material Reconciliation",
+          "description": "Reconcile metal scrap sales and non-metal disposal costs, post to GL",
+          "perspective_id": "financial",
+          "actor": "Cost Accountant",
+          "consumes_observation_ids": ["metal_scrap_recovery", "disposal_cost_postings"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": ["scrap_net_value"],
+          "crystallizes_observation_ids": ["metal_scrap_recovery", "disposal_cost_postings"],
+          "depends_on_step_ids": ["gr_ir_reconciliation"],
+          "perspective_level": "financial"
+        },
+        {
+          "id": "wip_valuation",
+          "sequence": 8,
+          "name": "WIP Valuation",
+          "description": "Value work in progress orders, post variances",
+          "perspective_id": "financial",
+          "actor": "Cost Accountant",
+          "consumes_observation_ids": ["production_confirmations", "goods_issues", "labor_time_recordings"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["production_cutoff", "count_reconciliation"],
+          "perspective_level": "financial"
+        },
+        {
+          "id": "inventory_valuation",
+          "sequence": 9,
+          "name": "Inventory Valuation",
+          "description": "Run inventory valuation, post to GL",
+          "perspective_id": "financial",
+          "actor": "Cost Accountant",
+          "consumes_observation_ids": ["system_stock", "standard_costs"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": ["inventory_valuation", "cogs"],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["count_reconciliation", "wip_valuation"],
+          "has_sub_steps": true,
+          "perspective_level": "financial"
+        },
+        {
+          "id": "production_settlement",
+          "sequence": 10,
+          "name": "Production Order Settlement",
+          "description": "Settle completed production orders to receivers",
+          "perspective_id": "financial",
+          "actor": "Cost Accountant",
+          "consumes_observation_ids": ["production_confirmations"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["inventory_valuation"],
+          "has_sub_steps": true,
+          "perspective_level": "financial"
+        },
+        {
+          "id": "close_review",
+          "sequence": 11,
+          "name": "Close Review",
+          "description": "Review all metrics, approve period close",
+          "perspective_id": "financial",
+          "actor": "Finance Manager",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": ["cogs", "inventory_valuation", "gr_ir_accrual", "yield_rate", "inventory_accuracy"],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["gr_ir_reconciliation", "inventory_valuation", "production_settlement"],
+          "has_sub_steps": true,
+          "perspective_level": "financial"
+        },
+        {
+          "id": "production_cutoff_mgmt_1",
+          "sequence": 1,
+          "name": "Review Production Status",
+          "description": "Assess completion status of all active production orders and identify any open issues",
+          "perspective_id": "management",
+          "actor": "Production Manager",
+          "consumes_observation_ids": ["production_confirmations"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": ["yield_rate"],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": [],
+          "parent_step_id": "production_cutoff",
+          "has_sub_steps": true,
+          "perspective_level": "management"
+        },
+        {
+          "id": "production_cutoff_mgmt_2",
+          "sequence": 2,
+          "name": "Execute Cutoff Procedure",
+          "description": "Lock production posting and freeze the period for month-end processing",
+          "perspective_id": "management",
+          "actor": "Production Manager",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": ["production_confirmations", "production_goods_movements"],
+          "depends_on_step_ids": ["production_cutoff_mgmt_1"],
+          "parent_step_id": "production_cutoff",
+          "has_sub_steps": true,
+          "perspective_level": "management"
+        },
+        {
+          "id": "production_cutoff_op_1",
+          "sequence": 1,
+          "name": "Query Open Orders in MES",
+          "description": "Run MES report for all orders with status 'In Progress' or 'Released'",
+          "perspective_id": "operational",
+          "actor": "Production Supervisor",
+          "consumes_observation_ids": ["production_confirmations"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": [],
+          "parent_step_id": "production_cutoff_mgmt_1",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "production_cutoff_op_2",
+          "sequence": 2,
+          "name": "Verify Final Confirmations",
+          "description": "For each completed order: check final confirmation timestamp, verify all operations complete",
+          "perspective_id": "operational",
+          "actor": "Production Operator",
+          "consumes_observation_ids": ["production_confirmations"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["production_cutoff_op_1"],
+          "parent_step_id": "production_cutoff_mgmt_1",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "production_cutoff_op_3",
+          "sequence": 3,
+          "name": "Process Pending Goods Movements",
+          "description": "Post all pending goods movements from production to warehouse in ERP",
+          "perspective_id": "operational",
+          "actor": "Production Clerk",
+          "consumes_observation_ids": ["production_confirmations"],
+          "produces_observation_ids": ["production_goods_movements"],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": [],
+          "parent_step_id": "production_cutoff_mgmt_2",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "production_cutoff_op_4",
+          "sequence": 4,
+          "name": "Lock MES Period",
+          "description": "Execute period lock transaction in MES to prevent backdated confirmations",
+          "perspective_id": "operational",
+          "actor": "Production Manager",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": ["production_confirmations"],
+          "depends_on_step_ids": ["production_cutoff_op_3"],
+          "parent_step_id": "production_cutoff_mgmt_2",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "production_cutoff_op_5",
+          "sequence": 5,
+          "name": "Test and Document Lock",
+          "description": "Attempt test posting to verify period lock, document cutoff date and time",
+          "perspective_id": "operational",
+          "actor": "Production Supervisor",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["production_cutoff_op_4"],
+          "parent_step_id": "production_cutoff_mgmt_2",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "inventory_cutoff_mgmt_1",
+          "sequence": 1,
+          "name": "Complete All Warehouse Transactions",
+          "description": "Process all pending receipts, issues, and transfers in WMS",
+          "perspective_id": "management",
+          "actor": "Warehouse Manager",
+          "consumes_observation_ids": ["production_goods_movements", "goods_issues"],
+          "produces_observation_ids": ["system_stock"],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": [],
+          "parent_step_id": "inventory_cutoff",
+          "has_sub_steps": true,
+          "perspective_level": "management"
+        },
+        {
+          "id": "inventory_cutoff_mgmt_2",
+          "sequence": 2,
+          "name": "Freeze Stock for Count",
+          "description": "Lock inventory posting and generate count sheets",
+          "perspective_id": "management",
+          "actor": "Warehouse Manager",
+          "consumes_observation_ids": ["system_stock"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": ["goods_issues", "production_goods_movements"],
+          "depends_on_step_ids": ["inventory_cutoff_mgmt_1"],
+          "parent_step_id": "inventory_cutoff",
+          "has_sub_steps": true,
+          "perspective_level": "management"
+        },
+        {
+          "id": "inventory_cutoff_op_1",
+          "sequence": 1,
+          "name": "Process Pending Receipts",
+          "description": "Post all goods receipts from production and suppliers in WMS",
+          "perspective_id": "operational",
+          "actor": "Warehouse Clerk",
+          "consumes_observation_ids": ["production_goods_movements"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": [],
+          "parent_step_id": "inventory_cutoff_mgmt_1",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "inventory_cutoff_op_2",
+          "sequence": 2,
+          "name": "Process Pending Issues",
+          "description": "Post all material withdrawals and consumption in WMS",
+          "perspective_id": "operational",
+          "actor": "Warehouse Clerk",
+          "consumes_observation_ids": ["goods_issues"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["inventory_cutoff_op_1"],
+          "parent_step_id": "inventory_cutoff_mgmt_1",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "inventory_cutoff_op_3",
+          "sequence": 3,
+          "name": "Generate Stock Snapshot",
+          "description": "Run WMS stock report to capture current on-hand quantities by location",
+          "perspective_id": "operational",
+          "actor": "Inventory Controller",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": ["system_stock"],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["inventory_cutoff_op_2"],
+          "parent_step_id": "inventory_cutoff_mgmt_1",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "inventory_cutoff_op_4",
+          "sequence": 4,
+          "name": "Lock WMS Period",
+          "description": "Execute period lock in WMS to prevent backdated inventory transactions",
+          "perspective_id": "operational",
+          "actor": "Warehouse Manager",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": ["goods_issues", "production_goods_movements"],
+          "depends_on_step_ids": [],
+          "parent_step_id": "inventory_cutoff_mgmt_2",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "inventory_cutoff_op_5",
+          "sequence": 5,
+          "name": "Print Count Sheets",
+          "description": "Generate and print physical count sheets organized by warehouse zone",
+          "perspective_id": "operational",
+          "actor": "Inventory Controller",
+          "consumes_observation_ids": ["system_stock"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["inventory_cutoff_op_4"],
+          "parent_step_id": "inventory_cutoff_mgmt_2",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "physical_count_mgmt_1",
+          "sequence": 1,
+          "name": "Execute Physical Count",
+          "description": "Deploy count teams to perform wall-to-wall inventory count",
+          "perspective_id": "management",
+          "actor": "Warehouse Manager",
+          "consumes_observation_ids": ["system_stock"],
+          "produces_observation_ids": ["inventory_counts"],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": [],
+          "parent_step_id": "physical_count",
+          "has_sub_steps": true,
+          "perspective_level": "management"
+        },
+        {
+          "id": "physical_count_mgmt_2",
+          "sequence": 2,
+          "name": "Review and Validate Counts",
+          "description": "Verify count quality, identify variances, perform recounts where needed",
+          "perspective_id": "management",
+          "actor": "Inventory Controller",
+          "consumes_observation_ids": ["inventory_counts", "system_stock"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": ["inventory_accuracy"],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["physical_count_mgmt_1"],
+          "parent_step_id": "physical_count",
+          "has_sub_steps": true,
+          "perspective_level": "management"
+        },
+        {
+          "id": "physical_count_op_1",
+          "sequence": 1,
+          "name": "Brief Count Teams",
+          "description": "Conduct briefing session with count teams on procedures and quality requirements",
+          "perspective_id": "operational",
+          "actor": "Warehouse Manager",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": [],
+          "parent_step_id": "physical_count_mgmt_1",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "physical_count_op_2",
+          "sequence": 2,
+          "name": "Perform Zone Counts",
+          "description": "Count teams physically count all materials in assigned zones and record on count sheets",
+          "perspective_id": "operational",
+          "actor": "Warehouse Team",
+          "consumes_observation_ids": ["system_stock"],
+          "produces_observation_ids": ["inventory_counts"],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["physical_count_op_1"],
+          "parent_step_id": "physical_count_mgmt_1",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "physical_count_op_3",
+          "sequence": 3,
+          "name": "Enter Counts into System",
+          "description": "Input physical count results from count sheets into WMS count module",
+          "perspective_id": "operational",
+          "actor": "Inventory Clerk",
+          "consumes_observation_ids": ["inventory_counts"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["physical_count_op_2"],
+          "parent_step_id": "physical_count_mgmt_1",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "physical_count_op_4",
+          "sequence": 4,
+          "name": "Run Variance Report",
+          "description": "Generate system vs. physical variance report highlighting discrepancies > 5%",
+          "perspective_id": "operational",
+          "actor": "Inventory Controller",
+          "consumes_observation_ids": ["inventory_counts", "system_stock"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": ["inventory_accuracy"],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": [],
+          "parent_step_id": "physical_count_mgmt_2",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "physical_count_op_5",
+          "sequence": 5,
+          "name": "Execute Recounts",
+          "description": "Re-count all items with variances > 5% to verify accuracy",
+          "perspective_id": "operational",
+          "actor": "Warehouse Team",
+          "consumes_observation_ids": ["inventory_counts", "system_stock"],
+          "produces_observation_ids": ["inventory_counts"],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["physical_count_op_4"],
+          "parent_step_id": "physical_count_mgmt_2",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "physical_count_op_6",
+          "sequence": 6,
+          "name": "Approve Final Counts",
+          "description": "Review recount results and approve final physical inventory values",
+          "perspective_id": "operational",
+          "actor": "Inventory Controller",
+          "consumes_observation_ids": ["inventory_counts"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["physical_count_op_5"],
+          "parent_step_id": "physical_count_mgmt_2",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "inventory_valuation_mgmt_1",
+          "sequence": 1,
+          "name": "Calculate Inventory Values",
+          "description": "Run ERP valuation program to calculate inventory value at standard cost",
+          "perspective_id": "management",
+          "actor": "Cost Accountant",
+          "consumes_observation_ids": ["system_stock", "standard_costs"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": ["inventory_valuation"],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": [],
+          "parent_step_id": "inventory_valuation",
+          "has_sub_steps": true,
+          "perspective_level": "management"
+        },
+        {
+          "id": "inventory_valuation_mgmt_2",
+          "sequence": 2,
+          "name": "Post Valuation to GL",
+          "description": "Review valuation results and post inventory GL entries",
+          "perspective_id": "management",
+          "actor": "Cost Accountant",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": ["cogs"],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["inventory_valuation_mgmt_1"],
+          "parent_step_id": "inventory_valuation",
+          "has_sub_steps": true,
+          "perspective_level": "management"
+        },
+        {
+          "id": "inventory_valuation_op_1",
+          "sequence": 1,
+          "name": "Run Standard Cost Valuation",
+          "description": "Execute ERP inventory valuation transaction using current standard costs",
+          "perspective_id": "operational",
+          "actor": "Cost Accountant",
+          "consumes_observation_ids": ["system_stock", "standard_costs"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": [],
+          "parent_step_id": "inventory_valuation_mgmt_1",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "inventory_valuation_op_2",
+          "sequence": 2,
+          "name": "Review Valuation Report",
+          "description": "Analyze inventory valuation report for unusual values or significant changes",
+          "perspective_id": "operational",
+          "actor": "Cost Accountant",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": ["inventory_valuation"],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["inventory_valuation_op_1"],
+          "parent_step_id": "inventory_valuation_mgmt_1",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "inventory_valuation_op_3",
+          "sequence": 3,
+          "name": "Generate GL Posting Document",
+          "description": "Create GL document from valuation results showing inventory and COGS accounts",
+          "perspective_id": "operational",
+          "actor": "Cost Accountant",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": ["cogs"],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": [],
+          "parent_step_id": "inventory_valuation_mgmt_2",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "inventory_valuation_op_4",
+          "sequence": 4,
+          "name": "Post to General Ledger",
+          "description": "Execute GL posting transaction and verify balances updated correctly",
+          "perspective_id": "operational",
+          "actor": "Cost Accountant",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["inventory_valuation_op_3"],
+          "parent_step_id": "inventory_valuation_mgmt_2",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "production_settlement_mgmt_1",
+          "sequence": 1,
+          "name": "Identify Orders for Settlement",
+          "description": "Query all completed production orders ready for settlement",
+          "perspective_id": "management",
+          "actor": "Cost Accountant",
+          "consumes_observation_ids": ["production_confirmations"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": [],
+          "parent_step_id": "production_settlement",
+          "has_sub_steps": true,
+          "perspective_level": "management"
+        },
+        {
+          "id": "production_settlement_mgmt_2",
+          "sequence": 2,
+          "name": "Execute Settlement Run",
+          "description": "Run settlement program to allocate order costs to receivers",
+          "perspective_id": "management",
+          "actor": "Cost Accountant",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["production_settlement_mgmt_1"],
+          "parent_step_id": "production_settlement",
+          "has_sub_steps": true,
+          "perspective_level": "management"
+        },
+        {
+          "id": "production_settlement_op_1",
+          "sequence": 1,
+          "name": "Run Order Selection Report",
+          "description": "Generate list of completed orders with status TECO (technically complete)",
+          "perspective_id": "operational",
+          "actor": "Cost Accountant",
+          "consumes_observation_ids": ["production_confirmations"],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": [],
+          "parent_step_id": "production_settlement_mgmt_1",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "production_settlement_op_2",
+          "sequence": 2,
+          "name": "Verify Settlement Rules",
+          "description": "Check each order has correct settlement receiver and allocation rules configured",
+          "perspective_id": "operational",
+          "actor": "Cost Accountant",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["production_settlement_op_1"],
+          "parent_step_id": "production_settlement_mgmt_1",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "production_settlement_op_3",
+          "sequence": 3,
+          "name": "Execute Settlement Transaction",
+          "description": "Run SAP CO88 settlement transaction to allocate WIP to finished goods",
+          "perspective_id": "operational",
+          "actor": "Cost Accountant",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": [],
+          "parent_step_id": "production_settlement_mgmt_2",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "production_settlement_op_4",
+          "sequence": 4,
+          "name": "Review Settlement Results",
+          "description": "Analyze settlement report for variances and verify all orders settled successfully",
+          "perspective_id": "operational",
+          "actor": "Cost Accountant",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["production_settlement_op_3"],
+          "parent_step_id": "production_settlement_mgmt_2",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "close_review_mgmt_1",
+          "sequence": 1,
+          "name": "Review Financial Metrics",
+          "description": "Analyze all key financial metrics and KPIs for reasonableness",
+          "perspective_id": "management",
+          "actor": "Finance Manager",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": ["cogs", "inventory_valuation", "gr_ir_accrual"],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": [],
+          "parent_step_id": "close_review",
+          "has_sub_steps": true,
+          "perspective_level": "management"
+        },
+        {
+          "id": "close_review_mgmt_2",
+          "sequence": 2,
+          "name": "Review Operational Metrics",
+          "description": "Analyze operational performance metrics and identify issues",
+          "perspective_id": "management",
+          "actor": "Finance Manager",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": ["yield_rate", "inventory_accuracy"],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["close_review_mgmt_1"],
+          "parent_step_id": "close_review",
+          "has_sub_steps": true,
+          "perspective_level": "management"
+        },
+        {
+          "id": "close_review_mgmt_3",
+          "sequence": 3,
+          "name": "Approve Period Close",
+          "description": "Final approval to close the financial period",
+          "perspective_id": "management",
+          "actor": "CFO",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["close_review_mgmt_2"],
+          "parent_step_id": "close_review",
+          "has_sub_steps": true,
+          "perspective_level": "management"
+        },
+        {
+          "id": "close_review_op_1",
+          "sequence": 1,
+          "name": "Review COGS vs Budget",
+          "description": "Compare actual COGS to budget and prior period, explain major variances",
+          "perspective_id": "operational",
+          "actor": "Cost Accountant",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": ["cogs"],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": [],
+          "parent_step_id": "close_review_mgmt_1",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "close_review_op_2",
+          "sequence": 2,
+          "name": "Review Inventory Balance",
+          "description": "Validate inventory value vs prior month and investigate significant changes",
+          "perspective_id": "operational",
+          "actor": "Cost Accountant",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": ["inventory_valuation"],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["close_review_op_1"],
+          "parent_step_id": "close_review_mgmt_1",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "close_review_op_3",
+          "sequence": 3,
+          "name": "Review GR/IR Accrual",
+          "description": "Analyze GR/IR balance for aged items requiring investigation",
+          "perspective_id": "operational",
+          "actor": "AP Accountant",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": ["gr_ir_accrual"],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["close_review_op_2"],
+          "parent_step_id": "close_review_mgmt_1",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "close_review_op_4",
+          "sequence": 4,
+          "name": "Review Production Yield",
+          "description": "Analyze yield rate trends and investigate poor performing orders",
+          "perspective_id": "operational",
+          "actor": "Production Controller",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": ["yield_rate"],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": [],
+          "parent_step_id": "close_review_mgmt_2",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "close_review_op_5",
+          "sequence": 5,
+          "name": "Review Count Accuracy",
+          "description": "Analyze inventory accuracy metric and identify problem areas for improvement",
+          "perspective_id": "operational",
+          "actor": "Inventory Controller",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": ["inventory_accuracy"],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["close_review_op_4"],
+          "parent_step_id": "close_review_mgmt_2",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "close_review_op_6",
+          "sequence": 6,
+          "name": "Prepare Executive Summary",
+          "description": "Create month-end summary report with key metrics and commentary",
+          "perspective_id": "operational",
+          "actor": "Finance Manager",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": [],
+          "parent_step_id": "close_review_mgmt_3",
+          "perspective_level": "operational"
+        },
+        {
+          "id": "close_review_op_7",
+          "sequence": 7,
+          "name": "CFO Sign-Off",
+          "description": "CFO reviews summary and formally approves period close",
+          "perspective_id": "operational",
+          "actor": "CFO",
+          "consumes_observation_ids": [],
+          "produces_observation_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_observation_ids": [],
+          "depends_on_step_ids": ["close_review_op_6"],
+          "parent_step_id": "close_review_mgmt_3",
+          "perspective_level": "operational"
+        }
+      ]
+    }
+  ],
+
+  "semantic_tables": [
+    {
+      "id": "fact_production",
+      "name": "Fact_Production",
+      "table_type": "Fact",
+      "mapped_entity_id": "production_order",
+      "source_system_id": "mes",
+      "description": "Production confirmation facts with material, labor, and overhead costs",
+      "columns": [
+        {
+          "id": "prod_id",
+          "name": "ProductionID",
+          "data_type": "Integer",
+          "is_key": true,
+          "is_foreign_key": false
+        },
+        {
+          "id": "date_key",
+          "name": "DateKey",
+          "data_type": "Integer",
+          "is_foreign_key": true
+        },
+        {
+          "id": "material_id",
+          "name": "MaterialID",
+          "data_type": "String",
+          "is_foreign_key": true
+        },
+        {
+          "id": "quantity",
+          "name": "Quantity",
+          "data_type": "Decimal",
+          "mapped_observation_id": "production_confirmations",
+          "source_field": "ConfirmedQuantity"
+        },
+        {
+          "id": "scrap_qty",
+          "name": "ScrapQuantity",
+          "data_type": "Decimal",
+          "mapped_observation_id": "scrap_postings",
+          "source_field": "ScrapQty"
+        },
+        {
+          "id": "material_cost",
+          "name": "MaterialCost",
+          "data_type": "Decimal",
+          "mapped_observation_id": "goods_issues",
+          "source_field": "Value"
+        },
+        {
+          "id": "labor_hours",
+          "name": "LaborHours",
+          "data_type": "Decimal",
+          "mapped_observation_id": "labor_time_recordings",
+          "source_field": "Hours"
+        },
+        {
+          "id": "labor_cost",
+          "name": "LaborCost",
+          "data_type": "Decimal",
+          "mapped_observation_id": "labor_time_recordings",
+          "source_field": "CostAmount"
+        },
+        {
+          "id": "overhead_cost",
+          "name": "OverheadCost",
+          "data_type": "Decimal",
+          "mapped_observation_id": "overhead_rates"
+        }
+      ],
+      "measures": [
+        {
+          "id": "dax_material_cost_consumed",
+          "name": "Total Material Cost Consumed",
+          "expression": "SUM(Fact_Production[MaterialCost])",
+          "format_string": "$#,0.00",
+          "description": "Total material cost issued to production",
+          "mapped_measure_id": "material_cost_consumed"
+        },
+        {
+          "id": "dax_labor_cost_applied",
+          "name": "Total Labor Cost Applied",
+          "expression": "SUM(Fact_Production[LaborCost])",
+          "format_string": "$#,0.00",
+          "description": "Total labor cost applied to production",
+          "mapped_measure_id": "labor_cost_applied"
+        },
+        {
+          "id": "dax_overhead_absorbed",
+          "name": "Total Overhead Absorbed",
+          "expression": "SUM(Fact_Production[OverheadCost])",
+          "format_string": "$#,0.00",
+          "description": "Total overhead costs absorbed into production",
+          "mapped_measure_id": "overhead_absorbed"
+        },
+        {
+          "id": "dax_actual_production_qty",
+          "name": "Total Production Quantity",
+          "expression": "SUM(Fact_Production[Quantity])",
+          "format_string": "#,0",
+          "description": "Total quantity confirmed as produced",
+          "mapped_measure_id": "actual_production_qty"
+        },
+        {
+          "id": "dax_scrap_qty",
+          "name": "Total Scrap Quantity",
+          "expression": "SUM(Fact_Production[ScrapQuantity])",
+          "format_string": "#,0",
+          "description": "Total quantity scrapped",
+          "mapped_measure_id": "scrap_qty"
+        },
+        {
+          "id": "dax_cogs",
+          "name": "Cost of Goods Sold",
+          "expression": "[Total Material Cost Consumed] + [Total Labor Cost Applied] + [Total Overhead Absorbed]",
+          "format_string": "$#,0.00",
+          "description": "Total cost of goods sold - COGS metric",
+          "mapped_measure_id": null
+        },
+        {
+          "id": "dax_yield_rate",
+          "name": "Yield Rate %",
+          "expression": "DIVIDE([Total Production Quantity], [Total Production Quantity] + [Total Scrap Quantity], 0) * 100",
+          "format_string": "0.00%",
+          "description": "Percentage of good output vs total input"
+        },
+        {
+          "id": "dax_scrap_rate",
+          "name": "Scrap Rate %",
+          "expression": "DIVIDE([Total Scrap Quantity], [Total Production Quantity] + [Total Scrap Quantity], 0) * 100",
+          "format_string": "0.00%",
+          "description": "Percentage of production scrapped"
+        }
+      ]
+    },
+    {
+      "id": "fact_inventory",
+      "name": "Fact_Inventory",
+      "table_type": "Fact",
+      "mapped_entity_id": "material",
+      "source_system_id": "wms",
+      "description": "Inventory stock levels and valuations",
+      "columns": [
+        {
+          "id": "inv_id",
+          "name": "InventoryID",
+          "data_type": "Integer",
+          "is_key": true
+        },
+        {
+          "id": "date_key",
+          "name": "DateKey",
+          "data_type": "Integer",
+          "is_foreign_key": true
+        },
+        {
+          "id": "material_id",
+          "name": "MaterialID",
+          "data_type": "String",
+          "is_foreign_key": true
+        },
+        {
+          "id": "system_qty",
+          "name": "SystemQuantity",
+          "data_type": "Decimal",
+          "mapped_observation_id": "system_stock",
+          "source_field": "Quantity"
+        },
+        {
+          "id": "counted_qty",
+          "name": "CountedQuantity",
+          "data_type": "Decimal",
+          "mapped_observation_id": "inventory_counts",
+          "source_field": "CountedQty"
+        },
+        {
+          "id": "unit_cost",
+          "name": "UnitCost",
+          "data_type": "Decimal",
+          "mapped_observation_id": "standard_costs",
+          "source_field": "Cost"
+        },
+        {
+          "id": "inventory_value",
+          "name": "InventoryValue",
+          "data_type": "Decimal",
+          "description": "Calculated: Quantity × Unit Cost"
+        }
+      ],
+      "measures": [
+        {
+          "id": "dax_total_inventory_value",
+          "name": "Total Inventory Value",
+          "expression": "SUMX(Fact_Inventory, [SystemQuantity] * [UnitCost])",
+          "format_string": "$#,0.00",
+          "description": "Total value of inventory held",
+          "mapped_measure_id": "total_inventory_value"
+        },
+        {
+          "id": "dax_inventory_variance_qty",
+          "name": "Inventory Variance Quantity",
+          "expression": "SUM(Fact_Inventory[CountedQuantity]) - SUM(Fact_Inventory[SystemQuantity])",
+          "format_string": "#,0",
+          "description": "Difference between counted and system stock",
+          "mapped_measure_id": "inventory_variance_qty"
+        },
+        {
+          "id": "dax_inventory_variance_value",
+          "name": "Inventory Variance Value",
+          "expression": "SUMX(Fact_Inventory, ([CountedQuantity] - [SystemQuantity]) * [UnitCost])",
+          "format_string": "$#,0.00",
+          "description": "Value of inventory variance",
+          "mapped_measure_id": "inventory_variance_value"
+        },
+        {
+          "id": "dax_inventory_accuracy",
+          "name": "Inventory Accuracy %",
+          "expression": "1 - ABS(DIVIDE([Inventory Variance Quantity], SUM(Fact_Inventory[SystemQuantity]), 0))",
+          "format_string": "0.00%",
+          "description": "Percentage accuracy of inventory"
+        }
+      ]
+    },
+    {
+      "id": "fact_gr_ir",
+      "name": "Fact_GR_IR",
+      "table_type": "Fact",
+      "mapped_entity_id": "goods_receipt",
+      "source_system_id": "erp",
+      "description": "Goods receipt and invoice receipt clearing account",
+      "columns": [
+        {
+          "id": "gr_ir_id",
+          "name": "GR_IR_ID",
+          "data_type": "Integer",
+          "is_key": true
+        },
+        {
+          "id": "date_key",
+          "name": "DateKey",
+          "data_type": "Integer",
+          "is_foreign_key": true
+        },
+        {
+          "id": "gr_value",
+          "name": "GR_Value",
+          "data_type": "Decimal",
+          "mapped_observation_id": "goods_receipts",
+          "source_field": "Value"
+        },
+        {
+          "id": "ir_value",
+          "name": "IR_Value",
+          "data_type": "Decimal",
+          "mapped_observation_id": "invoice_receipts",
+          "source_field": "Value"
+        }
+      ],
+      "measures": [
+        {
+          "id": "dax_gr_ir_balance",
+          "name": "GR/IR Balance",
+          "expression": "SUM(Fact_GR_IR[GR_Value]) - SUM(Fact_GR_IR[IR_Value])",
+          "format_string": "$#,0.00",
+          "description": "Goods received but not yet invoiced",
+          "mapped_measure_id": "gr_ir_balance"
+        }
+      ]
+    },
+    {
+      "id": "dim_date",
+      "name": "Dim_Date",
+      "table_type": "Dimension",
+      "source_system_id": "erp",
+      "description": "Date dimension for time-based analysis",
+      "columns": [
+        {
+          "id": "date_key",
+          "name": "DateKey",
+          "data_type": "Integer",
+          "is_key": true
+        },
+        {
+          "id": "date",
+          "name": "Date",
+          "data_type": "Date"
+        },
+        {
+          "id": "month",
+          "name": "Month",
+          "data_type": "Integer"
+        },
+        {
+          "id": "month_name",
+          "name": "MonthName",
+          "data_type": "String"
+        },
+        {
+          "id": "quarter",
+          "name": "Quarter",
+          "data_type": "Integer"
+        },
+        {
+          "id": "year",
+          "name": "Year",
+          "data_type": "Integer"
+        },
+        {
+          "id": "fiscal_period",
+          "name": "FiscalPeriod",
+          "data_type": "String"
+        }
+      ],
+      "measures": []
+    },
+    {
+      "id": "dim_material",
+      "name": "Dim_Material",
+      "table_type": "Dimension",
+      "mapped_entity_id": "material",
+      "source_system_id": "erp",
+      "description": "Material master dimension with metal/non-metal classification",
+      "columns": [
+        {
+          "id": "material_id",
+          "name": "MaterialID",
+          "data_type": "String",
+          "is_key": true
+        },
+        {
+          "id": "material_description",
+          "name": "MaterialDescription",
+          "data_type": "String"
+        },
+        {
+          "id": "material_type",
+          "name": "MaterialType",
+          "data_type": "String",
+          "description": "Metal, Non-Metal"
+        },
+        {
+          "id": "uom",
+          "name": "UnitOfMeasure",
+          "data_type": "String"
+        },
+        {
+          "id": "valuation_class",
+          "name": "ValuationClass",
+          "data_type": "String",
+          "description": "Metals: Moving Average, Non-Metals: Standard Cost"
+        }
+      ],
+      "measures": []
+    }
+  ]
+}
