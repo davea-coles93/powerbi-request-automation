@@ -13,7 +13,7 @@ table Sales
 
 	measure 'Total Order Quantity' = SUM(Sales[Order Quantity])
 		formatString: #,##0
-		/// E2E test measure - Total quantity of all orders
+		/// E2E test measure - Total quantity of all orders (testing deployment)
 		lineageTag: e2etest1234567890
 
 	column SalesOrderLineKey
