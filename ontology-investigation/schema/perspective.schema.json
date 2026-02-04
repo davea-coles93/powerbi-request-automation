@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "perspective.schema.json",
+  "title": "Perspective",
+  "description": "A mode of thinking about business operations - Operational, Management, or Financial",
+  "type": "object",
+  "required": ["id", "name", "purpose", "primary_concern"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier (e.g., 'operational', 'management', 'financial')"
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name"
+    },
+    "purpose": {
+      "type": "string",
+      "description": "Why this perspective exists"
+    },
+    "primary_concern": {
+      "type": "string",
+      "description": "The key question this perspective answers"
+    },
+    "typical_actors": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Roles typically operating in this perspective"
+    },
+    "consumes_from": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Perspective IDs this perspective receives data from"
+    },
+    "feeds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Perspective IDs this perspective provides data to"
+    }
+  }
+}

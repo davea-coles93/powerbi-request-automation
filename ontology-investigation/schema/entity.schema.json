@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "entity.schema.json",
+  "title": "Entity",
+  "description": "A business object that can be viewed through different perspective lenses",
+  "type": "object",
+  "required": ["id", "name"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier"
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name"
+    },
+    "description": {
+      "type": "string",
+      "description": "General description of the entity"
+    },
+    "core_attributes": {
+      "type": "array",
+      "description": "Attributes shared across all perspectives",
+      "items": {
+        "type": "object",
+        "required": ["name", "data_type"],
+        "properties": {
+          "name": { "type": "string" },
+          "data_type": {
+            "type": "string",
+            "enum": ["string", "number", "date", "datetime", "boolean"]
+          },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "lenses": {
+      "type": "array",
+      "description": "Perspective-specific interpretations of this entity",
+      "items": {
+        "type": "object",
+        "required": ["perspective_id", "interpretation"],
+        "properties": {
+          "perspective_id": {
+            "type": "string",
+            "description": "Reference to perspective"
+          },
+          "interpretation": {
+            "type": "string",
+            "description": "What this entity means in this perspective"
+          },
+          "derived_attributes": {
+            "type": "array",
+            "description": "Attributes relevant to this perspective",
+            "items": {
+              "type": "object",
+              "required": ["name"],
+              "properties": {
+                "name": { "type": "string" },
+                "data_type": { "type": "string" },
+                "description": { "type": "string" },
+                "derivation": {
+                  "type": "string",
+                  "description": "How this attribute is calculated/derived"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

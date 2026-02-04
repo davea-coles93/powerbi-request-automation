@@ -1,0 +1,357 @@
+{
+  "semantic_tables": [
+    {
+      "id": "fact_production",
+      "name": "Fact_Production",
+      "table_type": "Fact",
+      "mapped_entity_id": "production_order",
+      "source_system_id": "mes",
+      "description": "Production confirmation facts with material, labor, and overhead costs",
+      "columns": [
+        {
+          "id": "prod_id",
+          "name": "ProductionID",
+          "data_type": "Integer",
+          "is_key": true,
+          "is_foreign_key": false
+        },
+        {
+          "id": "date_key",
+          "name": "DateKey",
+          "data_type": "Integer",
+          "is_foreign_key": true
+        },
+        {
+          "id": "material_id",
+          "name": "MaterialID",
+          "data_type": "String",
+          "is_foreign_key": true
+        },
+        {
+          "id": "quantity",
+          "name": "Quantity",
+          "data_type": "Decimal",
+          "mapped_observation_id": "production_confirmations",
+          "source_field": "ConfirmedQuantity"
+        },
+        {
+          "id": "scrap_qty",
+          "name": "ScrapQuantity",
+          "data_type": "Decimal",
+          "mapped_observation_id": "scrap_postings",
+          "source_field": "ScrapQty"
+        },
+        {
+          "id": "material_cost",
+          "name": "MaterialCost",
+          "data_type": "Decimal",
+          "mapped_observation_id": "goods_issues",
+          "source_field": "Value"
+        },
+        {
+          "id": "labor_hours",
+          "name": "LaborHours",
+          "data_type": "Decimal",
+          "mapped_observation_id": "labor_time_recordings",
+          "source_field": "Hours"
+        },
+        {
+          "id": "labor_cost",
+          "name": "LaborCost",
+          "data_type": "Decimal",
+          "mapped_observation_id": "labor_time_recordings",
+          "source_field": "CostAmount"
+        },
+        {
+          "id": "overhead_cost",
+          "name": "OverheadCost",
+          "data_type": "Decimal",
+          "mapped_observation_id": "overhead_rates"
+        }
+      ],
+      "measures": [
+        {
+          "id": "dax_material_cost_consumed",
+          "name": "Total Material Cost Consumed",
+          "expression": "SUM(Fact_Production[MaterialCost])",
+          "format_string": "$#,0.00",
+          "description": "Total material cost issued to production",
+          "mapped_measure_id": "material_cost_consumed"
+        },
+        {
+          "id": "dax_labor_cost_applied",
+          "name": "Total Labor Cost Applied",
+          "expression": "SUM(Fact_Production[LaborCost])",
+          "format_string": "$#,0.00",
+          "description": "Total labor cost applied to production",
+          "mapped_measure_id": "labor_cost_applied"
+        },
+        {
+          "id": "dax_overhead_absorbed",
+          "name": "Total Overhead Absorbed",
+          "expression": "SUM(Fact_Production[OverheadCost])",
+          "format_string": "$#,0.00",
+          "description": "Total overhead costs absorbed into production",
+          "mapped_measure_id": "overhead_absorbed"
+        },
+        {
+          "id": "dax_actual_production_qty",
+          "name": "Total Production Quantity",
+          "expression": "SUM(Fact_Production[Quantity])",
+          "format_string": "#,0",
+          "description": "Total quantity confirmed as produced",
+          "mapped_measure_id": "actual_production_qty"
+        },
+        {
+          "id": "dax_scrap_qty",
+          "name": "Total Scrap Quantity",
+          "expression": "SUM(Fact_Production[ScrapQuantity])",
+          "format_string": "#,0",
+          "description": "Total quantity scrapped",
+          "mapped_measure_id": "scrap_qty"
+        },
+        {
+          "id": "dax_cogs",
+          "name": "Cost of Goods Sold",
+          "expression": "[Total Material Cost Consumed] + [Total Labor Cost Applied] + [Total Overhead Absorbed]",
+          "format_string": "$#,0.00",
+          "description": "Total cost of goods sold - COGS metric",
+          "mapped_measure_id": null
+        },
+        {
+          "id": "dax_yield_rate",
+          "name": "Yield Rate %",
+          "expression": "DIVIDE([Total Production Quantity], [Total Production Quantity] + [Total Scrap Quantity], 0) * 100",
+          "format_string": "0.00%",
+          "description": "Percentage of good output vs total input"
+        },
+        {
+          "id": "dax_scrap_rate",
+          "name": "Scrap Rate %",
+          "expression": "DIVIDE([Total Scrap Quantity], [Total Production Quantity] + [Total Scrap Quantity], 0) * 100",
+          "format_string": "0.00%",
+          "description": "Percentage of production scrapped"
+        }
+      ]
+    },
+    {
+      "id": "fact_inventory",
+      "name": "Fact_Inventory",
+      "table_type": "Fact",
+      "mapped_entity_id": "material",
+      "source_system_id": "wms",
+      "description": "Inventory stock levels and valuations",
+      "columns": [
+        {
+          "id": "inv_id",
+          "name": "InventoryID",
+          "data_type": "Integer",
+          "is_key": true
+        },
+        {
+          "id": "date_key",
+          "name": "DateKey",
+          "data_type": "Integer",
+          "is_foreign_key": true
+        },
+        {
+          "id": "material_id",
+          "name": "MaterialID",
+          "data_type": "String",
+          "is_foreign_key": true
+        },
+        {
+          "id": "system_qty",
+          "name": "SystemQuantity",
+          "data_type": "Decimal",
+          "mapped_observation_id": "system_stock",
+          "source_field": "Quantity"
+        },
+        {
+          "id": "counted_qty",
+          "name": "CountedQuantity",
+          "data_type": "Decimal",
+          "mapped_observation_id": "inventory_counts",
+          "source_field": "CountedQty"
+        },
+        {
+          "id": "unit_cost",
+          "name": "UnitCost",
+          "data_type": "Decimal",
+          "mapped_observation_id": "standard_costs",
+          "source_field": "Cost"
+        },
+        {
+          "id": "inventory_value",
+          "name": "InventoryValue",
+          "data_type": "Decimal",
+          "description": "Calculated: Quantity × Unit Cost"
+        }
+      ],
+      "measures": [
+        {
+          "id": "dax_total_inventory_value",
+          "name": "Total Inventory Value",
+          "expression": "SUMX(Fact_Inventory, [SystemQuantity] * [UnitCost])",
+          "format_string": "$#,0.00",
+          "description": "Total value of inventory held",
+          "mapped_measure_id": "total_inventory_value"
+        },
+        {
+          "id": "dax_inventory_variance_qty",
+          "name": "Inventory Variance Quantity",
+          "expression": "SUM(Fact_Inventory[CountedQuantity]) - SUM(Fact_Inventory[SystemQuantity])",
+          "format_string": "#,0",
+          "description": "Difference between counted and system stock",
+          "mapped_measure_id": "inventory_variance_qty"
+        },
+        {
+          "id": "dax_inventory_variance_value",
+          "name": "Inventory Variance Value",
+          "expression": "SUMX(Fact_Inventory, ([CountedQuantity] - [SystemQuantity]) * [UnitCost])",
+          "format_string": "$#,0.00",
+          "description": "Value of inventory variance",
+          "mapped_measure_id": "inventory_variance_value"
+        },
+        {
+          "id": "dax_inventory_accuracy",
+          "name": "Inventory Accuracy %",
+          "expression": "1 - ABS(DIVIDE([Inventory Variance Quantity], SUM(Fact_Inventory[SystemQuantity]), 0))",
+          "format_string": "0.00%",
+          "description": "Percentage accuracy of inventory"
+        }
+      ]
+    },
+    {
+      "id": "fact_gr_ir",
+      "name": "Fact_GR_IR",
+      "table_type": "Fact",
+      "mapped_entity_id": "goods_receipt",
+      "source_system_id": "erp",
+      "description": "Goods receipt and invoice receipt clearing account",
+      "columns": [
+        {
+          "id": "gr_ir_id",
+          "name": "GR_IR_ID",
+          "data_type": "Integer",
+          "is_key": true
+        },
+        {
+          "id": "date_key",
+          "name": "DateKey",
+          "data_type": "Integer",
+          "is_foreign_key": true
+        },
+        {
+          "id": "gr_value",
+          "name": "GR_Value",
+          "data_type": "Decimal",
+          "mapped_observation_id": "goods_receipts",
+          "source_field": "Value"
+        },
+        {
+          "id": "ir_value",
+          "name": "IR_Value",
+          "data_type": "Decimal",
+          "mapped_observation_id": "invoice_receipts",
+          "source_field": "Value"
+        }
+      ],
+      "measures": [
+        {
+          "id": "dax_gr_ir_balance",
+          "name": "GR/IR Balance",
+          "expression": "SUM(Fact_GR_IR[GR_Value]) - SUM(Fact_GR_IR[IR_Value])",
+          "format_string": "$#,0.00",
+          "description": "Goods received but not yet invoiced",
+          "mapped_measure_id": "gr_ir_balance"
+        }
+      ]
+    },
+    {
+      "id": "dim_date",
+      "name": "Dim_Date",
+      "table_type": "Dimension",
+      "source_system_id": "erp",
+      "description": "Date dimension for time-based analysis",
+      "columns": [
+        {
+          "id": "date_key",
+          "name": "DateKey",
+          "data_type": "Integer",
+          "is_key": true
+        },
+        {
+          "id": "date",
+          "name": "Date",
+          "data_type": "Date"
+        },
+        {
+          "id": "month",
+          "name": "Month",
+          "data_type": "Integer"
+        },
+        {
+          "id": "month_name",
+          "name": "MonthName",
+          "data_type": "String"
+        },
+        {
+          "id": "quarter",
+          "name": "Quarter",
+          "data_type": "Integer"
+        },
+        {
+          "id": "year",
+          "name": "Year",
+          "data_type": "Integer"
+        },
+        {
+          "id": "fiscal_period",
+          "name": "FiscalPeriod",
+          "data_type": "String"
+        }
+      ],
+      "measures": []
+    },
+    {
+      "id": "dim_material",
+      "name": "Dim_Material",
+      "table_type": "Dimension",
+      "mapped_entity_id": "material",
+      "source_system_id": "erp",
+      "description": "Material master dimension with metal/non-metal classification",
+      "columns": [
+        {
+          "id": "material_id",
+          "name": "MaterialID",
+          "data_type": "String",
+          "is_key": true
+        },
+        {
+          "id": "material_description",
+          "name": "MaterialDescription",
+          "data_type": "String"
+        },
+        {
+          "id": "material_type",
+          "name": "MaterialType",
+          "data_type": "String",
+          "description": "Metal, Non-Metal"
+        },
+        {
+          "id": "uom",
+          "name": "UnitOfMeasure",
+          "data_type": "String"
+        },
+        {
+          "id": "valuation_class",
+          "name": "ValuationClass",
+          "data_type": "String",
+          "description": "Metals: Moving Average, Non-Metals: Standard Cost"
+        }
+      ],
+      "measures": []
+    }
+  ]
+}

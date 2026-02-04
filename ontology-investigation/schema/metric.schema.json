@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "metric.schema.json",
+  "title": "Metric",
+  "description": "A business KPI that answers a business question - the anchor point for requirements",
+  "type": "object",
+  "required": ["id", "name", "business_question"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier"
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed description of the metric"
+    },
+    "business_question": {
+      "type": "string",
+      "description": "The business question this metric answers"
+    },
+    "calculated_by_measure_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Measures that calculate this metric"
+    },
+    "perspective_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Perspectives this metric is relevant to"
+    }
+  }
+}

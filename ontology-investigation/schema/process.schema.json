@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "process.schema.json",
+  "title": "Process",
+  "description": "A cross-perspective business process with sequential steps",
+  "type": "object",
+  "required": ["id", "name", "steps"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier"
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name"
+    },
+    "description": {
+      "type": "string",
+      "description": "What this process accomplishes"
+    },
+    "steps": {
+      "type": "array",
+      "description": "Ordered steps in the process",
+      "items": {
+        "type": "object",
+        "required": ["id", "sequence", "name", "perspective_id"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique step identifier"
+          },
+          "sequence": {
+            "type": "integer",
+            "description": "Order in the process"
+          },
+          "name": {
+            "type": "string",
+            "description": "Step name"
+          },
+          "description": {
+            "type": "string",
+            "description": "What happens in this step"
+          },
+          "perspective_id": {
+            "type": "string",
+            "description": "Which perspective this step executes in"
+          },
+          "actor": {
+            "type": "string",
+            "description": "Who or what performs this step"
+          },
+          "consumes_observation_ids": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Observations read/used by this step"
+          },
+          "produces_observation_ids": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Observations created by this step"
+          },
+          "uses_metric_ids": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Metrics reviewed/used in this step"
+          },
+          "crystallizes_observation_ids": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Observations that become frozen after this step"
+          },
+          "depends_on_step_ids": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Steps that must complete before this one"
+          }
+        }
+      }
+    }
+  }
+}
