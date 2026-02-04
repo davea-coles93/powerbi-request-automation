@@ -1209,8 +1209,147 @@ export function createTools(): Tool[] {
             table: args.table_name,
             message: `Created measure '${args.measure_name}' in table '${args.table_name}'`,
           };
+        } else if (args.operation === 'update') {
+          // Find the measure block
+          const escapedName = args.measure_name.replace(/'/g, "\\'");
+          const measureStartPattern = new RegExp(`^\\s*measure\\s+'${escapedName}'\\s*=`, 'm');
+
+          if (!measureStartPattern.test(content)) {
+            throw new Error(`Measure '${args.measure_name}' not found`);
+          }
+
+          // Find start and end of measure block
+          let measureStart = -1;
+          let measureEnd = -1;
+          let inMeasure = false;
+          let baseIndent = '';
+
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            if (line.match(new RegExp(`^\\s*measure\\s+'${escapedName}'\\s*=`))) {
+              measureStart = i;
+              inMeasure = true;
+              baseIndent = line.match(/^\s*/)?.[0] || '';
+              continue;
+            }
+
+            if (inMeasure) {
+              // Check if we've reached the next measure, column, or dedented line
+              if (line.match(/^\s*(measure|column|partition|hierarchy)\s+/) ||
+                  (line.trim() && !line.startsWith(baseIndent + '\t'))) {
+                measureEnd = i;
+                break;
+              }
+            }
+          }
+
+          if (measureStart === -1) {
+            throw new Error(`Measure '${args.measure_name}' not found`);
+          }
+
+          // If no end found, measure goes to end of relevant section
+          if (measureEnd === -1) {
+            measureEnd = lines.length;
+          }
+
+          // Build updated measure block
+          const measureLines = [
+            `${baseIndent}measure '${args.measure_name}' = ${args.expression}`,
+          ];
+
+          if (args.format_string) {
+            measureLines.push(`${baseIndent}\t\tformatString: ${args.format_string}`);
+          }
+
+          if (args.description) {
+            measureLines.push(`${baseIndent}\t\t/// ${args.description}`);
+          }
+
+          // Preserve existing lineageTag if found
+          const oldContent = lines.slice(measureStart, measureEnd).join('\n');
+          const lineageMatch = oldContent.match(/lineageTag:\s*([a-zA-Z0-9]+)/);
+          const lineageTag = lineageMatch ? lineageMatch[1] : `${Math.random().toString(36).substring(2, 10)}${Date.now().toString(36)}`;
+          measureLines.push(`${baseIndent}\t\tlineageTag: ${lineageTag}`);
+          measureLines.push(''); // Empty line after measure
+
+          // Replace the measure block
+          lines.splice(measureStart, measureEnd - measureStart, ...measureLines);
+
+          // Write back
+          content = lines.join('\n');
+          await fs.promises.writeFile(tableFilePath, content, 'utf-8');
+
+          return {
+            success: true,
+            operation: 'update',
+            measure: args.measure_name,
+            table: args.table_name,
+            message: `Updated measure '${args.measure_name}' in table '${args.table_name}'`,
+          };
+        } else if (args.operation === 'delete') {
+          // Find and delete the measure block
+          const escapedName = args.measure_name.replace(/'/g, "\\'");
+          const measureStartPattern = new RegExp(`^\\s*measure\\s+'${escapedName}'\\s*=`, 'm');
+
+          if (!measureStartPattern.test(content)) {
+            throw new Error(`Measure '${args.measure_name}' not found`);
+          }
+
+          // Find start and end of measure block
+          let measureStart = -1;
+          let measureEnd = -1;
+          let inMeasure = false;
+          let baseIndent = '';
+
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            if (line.match(new RegExp(`^\\s*measure\\s+'${escapedName}'\\s*=`))) {
+              measureStart = i;
+              inMeasure = true;
+              baseIndent = line.match(/^\s*/)?.[0] || '';
+              continue;
+            }
+
+            if (inMeasure) {
+              // Check if we've reached the next measure, column, or dedented line
+              if (line.match(/^\s*(measure|column|partition|hierarchy)\s+/) ||
+                  (line.trim() && !line.startsWith(baseIndent + '\t'))) {
+                measureEnd = i;
+                break;
+              }
+            }
+          }
+
+          if (measureStart === -1) {
+            throw new Error(`Measure '${args.measure_name}' not found`);
+          }
+
+          // If no end found, measure goes to end of relevant section
+          if (measureEnd === -1) {
+            measureEnd = lines.length;
+          }
+
+          // Remove the measure block (including trailing empty line if present)
+          if (measureEnd < lines.length && lines[measureEnd].trim() === '') {
+            measureEnd++;
+          }
+          lines.splice(measureStart, measureEnd - measureStart);
+
+          // Write back
+          content = lines.join('\n');
+          await fs.promises.writeFile(tableFilePath, content, 'utf-8');
+
+          return {
+            success: true,
+            operation: 'delete',
+            measure: args.measure_name,
+            table: args.table_name,
+            message: `Deleted measure '${args.measure_name}' from table '${args.table_name}'`,
+          };
         } else {
-          throw new Error(`Operation '${args.operation}' not yet implemented`);
+          throw new Error(`Unknown operation '${args.operation}'`);
         }
       },
     },

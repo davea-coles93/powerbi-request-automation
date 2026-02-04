@@ -185,6 +185,15 @@ jobs:
         working-directory: ./backend
         run: npm run build
 
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '3.1.x'
+
+      - name: Build tmsl-executor
+        working-directory: ./tmsl-executor
+        run: dotnet build --configuration Release
+
       - name: Start Azure Analysis Services
         id: start-aas
         shell: pwsh
@@ -209,6 +218,49 @@ jobs:
           $Token = az account get-access-token --resource "https://*.asazure.windows.net" --query accessToken -o tsv
           Write-Host "::add-mask::$Token"
           "AAS_ACCESS_TOKEN=$Token" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Detect changed model
+        id: detect-model
+        shell: pwsh
+        run: |
+          # Find which .SemanticModel folder was modified in this PR
+          $ChangedFiles = git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }}
+          $ModelFolder = $ChangedFiles | Where-Object { $_ -like "*.SemanticModel/*" } | ForEach-Object {
+            if ($_ -match "(.*\.SemanticModel)") { $matches[1] }
+          } | Select-Object -First 1 -Unique
+
+          if (-not $ModelFolder) {
+            # Fallback to first model if no changes detected
+            $ModelFolder = Get-ChildItem -Path models -Filter "*.SemanticModel" -Directory -Recurse |
+                          Select-Object -First 1 -ExpandProperty FullName
+          }
+
+          Write-Host "Model to deploy: $ModelFolder"
+          "MODEL_PATH=$ModelFolder" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Deploy model to AAS using tmsl-executor
+        shell: pwsh
+        run: |
+          Write-Host "Deploying TMDL model to AAS for validation..."
+
+          $DatabaseName = "ci-test-pr${{ github.event.pull_request.number }}-$(Get-Date -Format 'yyyyMMddHHmmss')"
+          Write-Host "Database name: $DatabaseName"
+          "CI_DATABASE_NAME=$DatabaseName" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+          # Deploy using tmsl-executor
+          & dotnet run --project ./tmsl-executor --configuration Release -- `
+            deploy `
+            "$env:MODEL_PATH" `
+            "${{ secrets.AZURE_AAS_SERVER }}" `
+            "$DatabaseName" `
+            "$env:AAS_ACCESS_TOKEN"
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Failed to deploy model to AAS"
+            exit 1
+          }
+
+          Write-Host "✅ Model deployed to AAS"
 
       - name: Run DAX validation tests
         id: dax-tests
@@ -260,6 +312,22 @@ jobs:
               process.exit(1);
             });
           "
+
+      - name: Delete test database from AAS
+        if: always()
+        shell: pwsh
+        env:
+          AAS_ACCESS_TOKEN: ${{ env.AAS_ACCESS_TOKEN }}
+        run: |
+          if ($env:CI_DATABASE_NAME) {
+            Write-Host "Deleting test database: $env:CI_DATABASE_NAME"
+            & dotnet run --project ./tmsl-executor --configuration Release -- `
+              delete-database `
+              "${{ secrets.AZURE_AAS_SERVER }}" `
+              "$env:CI_DATABASE_NAME" `
+              "$env:AAS_ACCESS_TOKEN"
+            if ($LASTEXITCODE -ne 0) { Write-Host "Database cleanup skipped (may not exist)" }
+          }
 
       - name: Stop Azure Analysis Services
         if: always()
