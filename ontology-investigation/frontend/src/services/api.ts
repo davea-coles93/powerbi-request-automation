@@ -71,6 +71,13 @@ export const getProcesses = () =>
 export const getProcess = (id: string) =>
   api.get<Process>(`/processes/${id}`).then((res) => res.data);
 
+// Process Steps
+export const updateProcessStep = (processId: string, stepId: string, data: any) =>
+  api.put(`/processes/${processId}/steps/${stepId}`, data).then((res) => res.data);
+
+export const createProcessStep = (processId: string, data: any) =>
+  api.post(`/processes/${processId}/steps`, data).then((res) => res.data);
+
 // Graph queries
 export const traceMetric = (metricId: string) =>
   api.get<MetricTrace>(`/graph/trace-metric/${metricId}`).then((res) => res.data);

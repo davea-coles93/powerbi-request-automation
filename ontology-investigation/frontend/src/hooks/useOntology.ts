@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as api from '../services/api';
 
 export const usePerspectives = () =>
@@ -129,3 +129,31 @@ export const useMappingStatus = () =>
     queryKey: ['mappingStatus'],
     queryFn: api.getMappingStatus,
   });
+
+// Mutations
+export const useUpdateProcessStep = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ processId, stepId, data }: { processId: string; stepId: string; data: any }) =>
+      api.updateProcessStep(processId, stepId, data),
+    onSuccess: (_, variables) => {
+      // Invalidate process flow queries to refetch updated data
+      queryClient.invalidateQueries({ queryKey: ['processFlow', variables.processId] });
+      queryClient.invalidateQueries({ queryKey: ['processes'] });
+    },
+  });
+};
+
+export const useCreateProcessStep = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ processId, data }: { processId: string; data: any }) =>
+      api.createProcessStep(processId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['processFlow', variables.processId] });
+      queryClient.invalidateQueries({ queryKey: ['processes'] });
+    },
+  });
+};
