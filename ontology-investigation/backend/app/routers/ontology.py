@@ -386,6 +386,47 @@ def delete_process(id: str, db: Session = Depends(get_db)):
     return {"message": f"Process {id} deleted successfully"}
 
 
+@router.put("/processes/{process_id}/steps/{step_id}", response_model=Process)
+def update_process_step(
+    process_id: str,
+    step_id: str,
+    step_data: dict,
+    db: Session = Depends(get_db)
+):
+    """
+    Update a specific step within a process.
+
+    This allows updating individual step properties without replacing the entire process.
+    Useful for the Process Map Editor to update step metadata, automation info, and links.
+    """
+    repo = ProcessRepository(db)
+    result = repo.update_step(process_id, step_id, step_data)
+    if not result:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Process {process_id} or step {step_id} not found"
+        )
+    return result
+
+
+@router.post("/processes/{process_id}/steps", response_model=Process)
+def create_process_step(
+    process_id: str,
+    step_data: dict,
+    db: Session = Depends(get_db)
+):
+    """
+    Add a new step to an existing process.
+
+    This allows creating new steps in the Process Map Editor.
+    """
+    repo = ProcessRepository(db)
+    result = repo.create_step(process_id, step_data)
+    if not result:
+        raise HTTPException(status_code=404, detail=f"Process {process_id} not found")
+    return result
+
+
 # ============ Semantic Mappings ============
 @router.get("/mappings", response_model=list[SemanticMapping])
 def get_mappings(
