@@ -85,6 +85,18 @@ namespace TmslExecutor
             Console.WriteLine($"  Tables: {database.Model.Tables.Count}");
             Console.WriteLine($"  Relationships: {database.Model.Relationships.Count}");
 
+            // Remove partitions to avoid M-based data source issues with AAS
+            // AAS doesn't support Power Query (M) data sources, only SQL-based sources
+            // We only need the metadata (measures, columns, relationships) for DAX validation
+            Console.WriteLine($"Removing partitions (data sources) for AAS compatibility...");
+            int partitionCount = 0;
+            foreach (var table in database.Model.Tables)
+            {
+                partitionCount += table.Partitions.Count;
+                table.Partitions.Clear();
+            }
+            Console.WriteLine($"✓ Removed {partitionCount} partitions (deploying metadata only)");
+
             // Set the database name for deployment
             database.Name = databaseName;
 
