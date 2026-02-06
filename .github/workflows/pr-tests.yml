@@ -224,13 +224,19 @@ jobs:
         shell: pwsh
         run: |
           # Find which .SemanticModel folder was modified in this PR
-          $ChangedFiles = git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }}
+          # Fetch base branch for comparison
+          git fetch origin ${{ github.event.pull_request.base.ref }} --depth=50
+
+          $ChangedFiles = git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD
+          Write-Host "Changed files:"
+          $ChangedFiles | ForEach-Object { Write-Host "  $_" }
+
           $ModelFolder = $ChangedFiles | Where-Object { $_ -like "*.SemanticModel/*" } | ForEach-Object {
             if ($_ -match "(.*\.SemanticModel)") { $matches[1] }
           } | Select-Object -First 1 -Unique
 
           if (-not $ModelFolder) {
-            # Fallback to first model if no changes detected
+            Write-Host "No .SemanticModel changes detected, using first model as fallback"
             $ModelFolder = Get-ChildItem -Path models -Filter "*.SemanticModel" -Directory -Recurse |
                           Select-Object -First 1 -ExpandProperty FullName
           }
@@ -267,10 +273,10 @@ jobs:
         working-directory: ./backend
         env:
           AAS_ACCESS_TOKEN: ${{ env.AAS_ACCESS_TOKEN }}
-          AZURE_AAS_DATABASE: ${{ env.CI_DATABASE_NAME }}
+          AZURE_AAS_DATABASE: ${{ secrets.AZURE_AAS_DATABASE }}
         run: |
           echo "Running DAX validation against Azure Analysis Services..."
-          echo "Testing database: $CI_DATABASE_NAME"
+          echo "Testing database: ${{ secrets.AZURE_AAS_DATABASE }}"
           node -e "
             const { AzureAnalysisService } = require('./dist/services/azureAnalysisService');
 

@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "mapping.schema.json",
+  "title": "Semantic Mapping",
+  "description": "Maps ontology elements to Power BI semantic model objects",
+  "type": "object",
+  "required": ["id", "ontology_type", "ontology_id"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier"
+    },
+    "ontology_type": {
+      "type": "string",
+      "enum": ["entity", "observation", "measure"],
+      "description": "Type of ontology element being mapped"
+    },
+    "ontology_id": {
+      "type": "string",
+      "description": "ID of the ontology element"
+    },
+    "semantic_object": {
+      "type": "string",
+      "description": "Name of the semantic model object (table, column, or measure name)"
+    },
+    "semantic_type": {
+      "type": "string",
+      "enum": ["table", "column", "measure"],
+      "description": "Type of semantic model object"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["mapped", "partial", "gap"],
+      "description": "Mapping status"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes about the mapping"
+    }
+  }
+}
