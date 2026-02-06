@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { useObservations, useSystems } from '../hooks/useOntology';
+import { useObservations, useSystems, useEntities } from '../hooks/useOntology';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
+import * as api from '../services/api';
 
 interface ProcessStepEditModalProps {
   step: StepFormData;
@@ -30,8 +32,26 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
   const [showCreateObservation, setShowCreateObservation] = useState(false);
   const [showCreateSystem, setShowCreateSystem] = useState(false);
 
+  const queryClient = useQueryClient();
   const { data: observations = [] } = useObservations();
   const { data: systems = [] } = useSystems();
+  const { data: entities = [] } = useEntities();
+
+  // Observation creation mutation
+  const createObservationMutation = useMutation({
+    mutationFn: (data: any) => api.createObservation(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['observations'] });
+    },
+  });
+
+  // System creation mutation
+  const createSystemMutation = useMutation({
+    mutationFn: (data: any) => api.createSystem(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['systems'] });
+    },
+  });
 
   const wasteCategories = [
     'Manual Data Entry',
@@ -378,38 +398,207 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
         </div>
       </div>
 
-      {/* Create Observation Modal - Placeholder */}
+      {/* Create Observation Modal */}
       {showCreateObservation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg p-6 w-[500px] max-h-[80vh] overflow-y-auto">
             <h3 className="text-lg font-bold mb-4">Create New Observation</h3>
-            <p className="text-gray-600 mb-4">
-              Full observation creation form coming soon!
-            </p>
-            <button
-              onClick={() => setShowCreateObservation(false)}
-              className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const newObservation = {
+                  id: `obs_${Date.now()}`,
+                  name: formData.get('name') as string,
+                  description: formData.get('description') as string,
+                  entity_id: formData.get('entity_id') as string,
+                  system_id: formData.get('system_id') as string,
+                };
+
+                createObservationMutation.mutate(newObservation, {
+                  onSuccess: () => {
+                    setShowCreateObservation(false);
+                    alert('✅ Observation created successfully!');
+                  },
+                  onError: (error) => {
+                    console.error('Error creating observation:', error);
+                    alert('❌ Error creating observation.');
+                  },
+                });
+              }}
+              className="space-y-4"
             >
-              Close
-            </button>
+              <div>
+                <label className="block text-sm font-semibold mb-1">Name *</label>
+                <input
+                  type="text"
+                  name="name"
+                  required
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                  placeholder="e.g., Production Confirmation"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-1">Description</label>
+                <textarea
+                  name="description"
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                  rows={2}
+                  placeholder="What this observation represents"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-1">Entity *</label>
+                <select
+                  name="entity_id"
+                  required
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">Select entity...</option>
+                  {entities.map((entity) => (
+                    <option key={entity.id} value={entity.id}>
+                      {entity.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-1">System *</label>
+                <select
+                  name="system_id"
+                  required
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">Select system...</option>
+                  {systems.map((system) => (
+                    <option key={system.id} value={system.id}>
+                      {system.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateObservation(false)}
+                  className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  disabled={createObservationMutation.isPending}
+                >
+                  {createObservationMutation.isPending ? 'Creating...' : 'Create Observation'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
-      {/* Create System Modal - Placeholder */}
+      {/* Create System Modal */}
       {showCreateSystem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg p-6 w-[500px] max-h-[80vh] overflow-y-auto">
             <h3 className="text-lg font-bold mb-4">Create New System</h3>
-            <p className="text-gray-600 mb-4">
-              Full system creation form coming soon!
-            </p>
-            <button
-              onClick={() => setShowCreateSystem(false)}
-              className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const newSystem = {
+                  id: `sys_${Date.now()}`,
+                  name: formData.get('name') as string,
+                  type: formData.get('type') as any,
+                  vendor: formData.get('vendor') as string,
+                  reliability_default: 'Medium' as any,
+                  integration_status: 'None' as any,
+                  notes: formData.get('notes') as string,
+                };
+
+                createSystemMutation.mutate(newSystem, {
+                  onSuccess: () => {
+                    setShowCreateSystem(false);
+                    alert('✅ System created successfully!');
+                  },
+                  onError: (error) => {
+                    console.error('Error creating system:', error);
+                    alert('❌ Error creating system.');
+                  },
+                });
+              }}
+              className="space-y-4"
             >
-              Close
-            </button>
+              <div>
+                <label className="block text-sm font-semibold mb-1">Name *</label>
+                <input
+                  type="text"
+                  name="name"
+                  required
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                  placeholder="e.g., SAP ERP"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-1">Type *</label>
+                <select
+                  name="type"
+                  required
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="ERP">ERP</option>
+                  <option value="MES">MES</option>
+                  <option value="WMS">WMS</option>
+                  <option value="Spreadsheet">Spreadsheet</option>
+                  <option value="Manual">Manual</option>
+                  <option value="BI">BI</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-1">Vendor</label>
+                <input
+                  type="text"
+                  name="vendor"
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                  placeholder="e.g., SAP, Microsoft"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-1">Notes</label>
+                <textarea
+                  name="notes"
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                  rows={2}
+                  placeholder="Additional notes about this system"
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateSystem(false)}
+                  className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  disabled={createSystemMutation.isPending}
+                >
+                  {createSystemMutation.isPending ? 'Creating...' : 'Create System'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

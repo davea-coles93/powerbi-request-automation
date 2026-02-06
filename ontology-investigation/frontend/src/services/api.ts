@@ -53,6 +53,9 @@ export const getEntity = (id: string) =>
 export const getObservations = (params?: { entity_id?: string; system_id?: string }) =>
   api.get<Observation[]>('/observations', { params }).then((res) => res.data);
 
+export const createObservation = (data: any) =>
+  api.post<Observation>('/observations', data).then((res) => res.data);
+
 // Measures
 export const getMeasures = (params?: { perspective_id?: string }) =>
   api.get<Measure[]>('/measures', { params }).then((res) => res.data);

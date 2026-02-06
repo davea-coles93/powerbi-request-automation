@@ -10,7 +10,6 @@ import { SystemsTable } from './components/SystemsTable';
 import { SemanticModelsTable } from './components/SemanticModelsTable';
 import { MetricDetail } from './components/MetricDetail';
 import { FullGraphView } from './components/FullGraphView';
-import { EnhancedProcessFlow } from './components/EnhancedProcessFlow';
 import { ProcessMapEditor } from './components/ProcessMapEditor';
 import { GapAnalysisDashboard } from './components/GapAnalysisDashboard';
 import { TableEditorModal } from './components/TableEditorModal';
@@ -34,9 +33,9 @@ import {
   useSemanticTables,
   useMappingStatus
 } from './hooks/useOntology';
-import { Activity, GitBranch, Layers, Table, Calculator, Database, AlertTriangle, Server, Edit3 } from 'lucide-react';
+import { Activity, GitBranch, Table, Calculator, Database, AlertTriangle, Server, Edit3 } from 'lucide-react';
 
-type ViewMode = 'metrics' | 'measures' | 'observations' | 'entities' | 'systems' | 'semanticModel' | 'gapAnalysis' | 'graph' | 'dataLineage' | 'process' | 'processMapEditor';
+type ViewMode = 'metrics' | 'processMapEditor' | 'measures' | 'observations' | 'entities' | 'systems' | 'semanticModel' | 'gapAnalysis' | 'graph' | 'dataLineage';
 
 function App() {
   const queryClient = useQueryClient();
@@ -284,44 +283,7 @@ function App() {
     setIsMeasureUsageOpen(true);
   };
 
-  // Process step handler functions
-  const handleViewStepData = (stepData: any) => {
-    // Map step data to full objects using real IDs from ProcessStep
-    const consumesObservations = (stepData.consumes_observation_ids || [])
-      .map((id: string) => observations?.find(obs => obs.id === id))
-      .filter(Boolean);
-
-    const producesObservations = (stepData.produces_observation_ids || [])
-      .map((id: string) => observations?.find(obs => obs.id === id))
-      .filter(Boolean);
-
-    const usesMetrics = (stepData.uses_metric_ids || [])
-      .map((id: string) => perspectiveView?.metrics.find(m => m.id === id))
-      .filter(Boolean);
-
-    const crystallizesObservations = (stepData.crystallizes_observation_ids || [])
-      .map((id: string) => observations?.find(obs => obs.id === id))
-      .filter(Boolean);
-
-    const realStepData = {
-      step: stepData,
-      consumesObservations,
-      producesObservations,
-      usesMetrics,
-      crystallizes: crystallizesObservations,
-    };
-    setStepDataModalData(realStepData);
-    setIsStepDataModalOpen(true);
-  };
-
-  const handleMapStepToModel = (stepData: any) => {
-    setStepMappingModalData({
-      ...stepData,
-      mappedTableIds: [],
-      mappedMeasureIds: [],
-    });
-    setIsStepMappingModalOpen(true);
-  };
+  // Note: handleViewStepData and handleMapStepToModel removed as Process Flow component was consolidated into Process Builder
 
   const handleSaveStepMappings = (mappings: any) => {
     console.log('Saving step mappings:', mappings);
@@ -363,6 +325,17 @@ function App() {
           >
             <Activity className="w-4 h-4" />
             Metrics
+          </button>
+          <button
+            onClick={() => setViewMode('processMapEditor')}
+            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
+              viewMode === 'processMapEditor'
+                ? 'border-blue-500 text-blue-600 font-medium'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Edit3 className="w-4 h-4" />
+            Process Builder
           </button>
           <button
             onClick={() => setViewMode('measures')}
@@ -440,28 +413,6 @@ function App() {
           >
             <GitBranch className="w-4 h-4" />
             Data Lineage
-          </button>
-          <button
-            onClick={() => setViewMode('process')}
-            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
-              viewMode === 'process'
-                ? 'border-blue-500 text-blue-600 font-medium'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-            Process Flow
-          </button>
-          <button
-            onClick={() => setViewMode('processMapEditor')}
-            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
-              viewMode === 'processMapEditor'
-                ? 'border-blue-500 text-blue-600 font-medium'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <Edit3 className="w-4 h-4" />
-            Process Map Editor
           </button>
         </div>
       </div>
@@ -563,20 +514,6 @@ function App() {
         {viewMode === 'graph' && (
           <div className="p-6">
             <FullGraphView perspective={selectedPerspective} />
-          </div>
-        )}
-
-        {viewMode === 'process' && (
-          <div className="p-6 space-y-6">
-            {processes?.map((process) => (
-              <EnhancedProcessFlow
-                key={process.id}
-                processId={process.id}
-                perspectiveLevel={selectedPerspective as 'financial' | 'management' | 'operational'}
-                onViewStepData={handleViewStepData}
-                onMapStepToModel={handleMapStepToModel}
-              />
-            ))}
           </div>
         )}
 

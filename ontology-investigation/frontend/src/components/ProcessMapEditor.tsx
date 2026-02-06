@@ -46,6 +46,8 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
   const [editMode, setEditMode] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [connectionMode, setConnectionMode] = useState(false);
+  const [firstNodeForConnection, setFirstNodeForConnection] = useState<string | null>(null);
   const cyRef = useRef<cytoscape.Core | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -249,6 +251,14 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
             'border-color': '#8b5cf6',
           },
         },
+        {
+          selector: '.connection-source',
+          style: {
+            'border-width': 6,
+            'border-color': '#10b981',
+            'border-style': 'dashed',
+          },
+        },
       ],
       layout: {
         name: 'preset',
@@ -262,6 +272,45 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
       const node = evt.target;
       const data = node.data();
 
+      // Connection mode: create edges between nodes
+      if (connectionMode) {
+        if (!firstNodeForConnection) {
+          // First click: select source node
+          setFirstNodeForConnection(data.id);
+          node.addClass('connection-source');
+        } else if (firstNodeForConnection === data.id) {
+          // Clicked same node: deselect
+          setFirstNodeForConnection(null);
+          cy.$('.connection-source').removeClass('connection-source');
+        } else {
+          // Second click: create edge
+          const sourceNode = flow?.nodes.find(n => n.id === firstNodeForConnection);
+          const targetNode = flow?.nodes.find(n => n.id === data.id);
+
+          if (sourceNode && targetNode) {
+            // Add edge visually (Cytoscape will re-render on data update)
+            alert(`Creating connection from "${sourceNode.label}" to "${targetNode.label}"\n\nNote: Edge persistence to backend is not yet implemented. The edge will appear until next refresh.`);
+
+            // TODO: Implement backend API to persist edges
+            // For now, just add it visually to Cytoscape
+            cy.add({
+              group: 'edges',
+              data: {
+                id: `edge-${firstNodeForConnection}-${data.id}`,
+                source: firstNodeForConnection,
+                target: data.id,
+              },
+            });
+          }
+
+          // Clear selection
+          setFirstNodeForConnection(null);
+          cy.$('.connection-source').removeClass('connection-source');
+        }
+        return;
+      }
+
+      // Normal mode: show step details
       setSelectedStep({
         id: data.id,
         name: data.label,
@@ -292,7 +341,7 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
         cyRef.current.destroy();
       }
     };
-  }, [elements, editMode]);
+  }, [elements, editMode, connectionMode, firstNodeForConnection, flow]);
 
   if (isLoading) {
     return <div className="p-4">Loading process map...</div>;
@@ -315,7 +364,10 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => setEditMode(!editMode)}
+              onClick={() => {
+                setEditMode(!editMode);
+                if (connectionMode) setConnectionMode(false);
+              }}
               className={`px-4 py-2 rounded font-semibold ${
                 editMode
                   ? 'bg-purple-600 text-white hover:bg-purple-700'
@@ -323,6 +375,20 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
               }`}
             >
               {editMode ? '✏️ Edit Mode: ON' : '👁️ View Mode'}
+            </button>
+            <button
+              onClick={() => {
+                setConnectionMode(!connectionMode);
+                setFirstNodeForConnection(null);
+                if (editMode) setEditMode(false);
+              }}
+              className={`px-4 py-2 rounded font-semibold ${
+                connectionMode
+                  ? 'bg-green-600 text-white hover:bg-green-700'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              {connectionMode ? '🔗 Connect Mode: ON' : '🔗 Connect Steps'}
             </button>
             <button
               className="px-4 py-2 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700"
