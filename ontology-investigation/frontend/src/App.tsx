@@ -11,6 +11,7 @@ import { SemanticModelsTable } from './components/SemanticModelsTable';
 import { MetricDetail } from './components/MetricDetail';
 import { FullGraphView } from './components/FullGraphView';
 import { EnhancedProcessFlow } from './components/EnhancedProcessFlow';
+import { ProcessMapEditor } from './components/ProcessMapEditor';
 import { GapAnalysisDashboard } from './components/GapAnalysisDashboard';
 import { TableEditorModal } from './components/TableEditorModal';
 import { ColumnMapperModal } from './components/ColumnMapperModal';
@@ -33,9 +34,9 @@ import {
   useSemanticTables,
   useMappingStatus
 } from './hooks/useOntology';
-import { Activity, GitBranch, Layers, Table, Calculator, Database, AlertTriangle, Server } from 'lucide-react';
+import { Activity, GitBranch, Layers, Table, Calculator, Database, AlertTriangle, Server, Edit3 } from 'lucide-react';
 
-type ViewMode = 'metrics' | 'measures' | 'observations' | 'entities' | 'systems' | 'semanticModel' | 'gapAnalysis' | 'graph' | 'dataLineage' | 'process';
+type ViewMode = 'metrics' | 'measures' | 'observations' | 'entities' | 'systems' | 'semanticModel' | 'gapAnalysis' | 'graph' | 'dataLineage' | 'process' | 'processMapEditor';
 
 function App() {
   const queryClient = useQueryClient();
@@ -451,6 +452,17 @@ function App() {
             <Layers className="w-4 h-4" />
             Process Flow
           </button>
+          <button
+            onClick={() => setViewMode('processMapEditor')}
+            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
+              viewMode === 'processMapEditor'
+                ? 'border-blue-500 text-blue-600 font-medium'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Edit3 className="w-4 h-4" />
+            Process Map Editor
+          </button>
         </div>
       </div>
 
@@ -565,6 +577,15 @@ function App() {
                 onMapStepToModel={handleMapStepToModel}
               />
             ))}
+          </div>
+        )}
+
+        {viewMode === 'processMapEditor' && processes && processes.length > 0 && (
+          <div className="h-[calc(100vh-180px)]">
+            <ProcessMapEditor
+              processId={processes[0].id}
+              perspectiveLevel={selectedPerspective}
+            />
           </div>
         )}
       </main>

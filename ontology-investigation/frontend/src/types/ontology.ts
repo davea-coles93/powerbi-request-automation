@@ -157,6 +157,12 @@ export interface ProcessFlow {
     actor?: string;
     has_sub_steps?: boolean;
     perspective_level?: PerspectiveLevel;
+    // Time and efficiency metadata
+    estimated_duration_minutes?: number;
+    automation_potential?: 'High' | 'Medium' | 'Low' | 'None';
+    systems_used_ids?: string[];
+    waste_category?: string;
+    manual_effort_percentage?: number;
   }[];
   edges: {
     source: string;
