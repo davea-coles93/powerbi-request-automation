@@ -1,0 +1,1257 @@
+{
+  "scenario_name": "Toyota Connected - Project Portfolio Management",
+  "scenario_description": "Enterprise project governance, resource management, and financial forecasting for digital initiatives",
+  "perspectives": [
+    {
+      "id": "operational",
+      "name": "Operational",
+      "purpose": "Execute projects efficiently and track daily progress",
+      "primary_concern": "Are we delivering sprint commitments? Are blockers cleared?",
+      "typical_actors": [
+        "Developer",
+        "Scrum Master",
+        "QA Engineer",
+        "DevOps Engineer",
+        "Business Analyst"
+      ],
+      "consumes_from": [],
+      "feeds": [
+        "management"
+      ]
+    },
+    {
+      "id": "management",
+      "name": "Management",
+      "purpose": "Ensure project health and resource optimization",
+      "primary_concern": "Are projects on track? Do we have the right people? What are the risks?",
+      "typical_actors": [
+        "Project Manager",
+        "Program Manager",
+        "Resource Manager",
+        "PMO Lead"
+      ],
+      "consumes_from": [
+        "operational"
+      ],
+      "feeds": [
+        "financial"
+      ]
+    },
+    {
+      "id": "financial",
+      "name": "Financial",
+      "purpose": "Optimize portfolio investment and ensure financial accountability",
+      "primary_concern": "Are we investing in the right projects? What's our forecast accuracy? Are we profitable?",
+      "typical_actors": [
+        "Finance Manager",
+        "CFO",
+        "Portfolio Director",
+        "Executive Leadership"
+      ],
+      "consumes_from": [
+        "management",
+        "operational"
+      ],
+      "feeds": []
+    }
+  ],
+  "systems": [
+    {
+      "id": "jira",
+      "name": "Jira",
+      "type": "Other",
+      "vendor": "Atlassian",
+      "reliability_default": "High",
+      "integration_status": "Connected",
+      "notes": "Primary project management tool. Stories, sprints, velocity tracked here. API connected but data quality depends on team discipline."
+    },
+    {
+      "id": "miruka",
+      "name": "Miruka",
+      "type": "Other",
+      "vendor": "Custom (Toyota Connected)",
+      "reliability_default": "Medium",
+      "integration_status": "Connected",
+      "notes": "Custom project governance tool. Performance issues cause users to work offline in Excel instead. Budget tracking, resource allocation, forecasting done here but often stale."
+    },
+    {
+      "id": "excel",
+      "name": "Excel Spreadsheets",
+      "type": "Spreadsheet",
+      "vendor": "Microsoft",
+      "reliability_default": "Low",
+      "integration_status": "Manual Extract",
+      "notes": "Heavy offline usage due to Miruka performance. Forecasts, resource plans, status reports all maintained in Excel. Version control nightmare, multiple sources of truth."
+    },
+    {
+      "id": "teams",
+      "name": "Microsoft Teams",
+      "type": "Other",
+      "vendor": "Microsoft",
+      "reliability_default": "Low",
+      "integration_status": "None",
+      "notes": "Conversations and decisions happen here but not captured systematically. Key context lost in chat history."
+    },
+    {
+      "id": "sharepoint",
+      "name": "SharePoint",
+      "type": "Other",
+      "vendor": "Microsoft",
+      "reliability_default": "Medium",
+      "integration_status": "Manual Extract",
+      "notes": "Document repository. Project charters, business cases, post-mortems stored here. Hard to search, inconsistent naming."
+    },
+    {
+      "id": "finance_system",
+      "name": "Financial System",
+      "type": "ERP",
+      "vendor": "SAP",
+      "reliability_default": "High",
+      "integration_status": "Manual Extract",
+      "notes": "System of record for actuals. Monthly export to reconcile with Miruka budgets. Lag time causes forecast inaccuracy."
+    }
+  ],
+  "entities": [
+    {
+      "id": "project",
+      "name": "Project",
+      "description": "Digital initiative with defined scope, budget, and timeline",
+      "core_attributes": [
+        {
+          "name": "project_id",
+          "data_type": "string",
+          "description": "Unique project code"
+        },
+        {
+          "name": "name",
+          "data_type": "string",
+          "description": "Project title"
+        },
+        {
+          "name": "start_date",
+          "data_type": "date"
+        },
+        {
+          "name": "planned_end_date",
+          "data_type": "date"
+        },
+        {
+          "name": "budget_amount",
+          "data_type": "number"
+        },
+        {
+          "name": "stage",
+          "data_type": "string",
+          "description": "Lead, Initiation, Execution, Handover, Closed"
+        }
+      ],
+      "lenses": [
+        {
+          "perspective_id": "operational",
+          "interpretation": "Set of sprints and deliverables to execute",
+          "derived_attributes": [
+            {
+              "name": "velocity",
+              "description": "Story points completed per sprint"
+            },
+            {
+              "name": "sprint_burndown",
+              "description": "Remaining work in current sprint"
+            }
+          ]
+        },
+        {
+          "perspective_id": "management",
+          "interpretation": "Resource commitment with schedule and risks",
+          "derived_attributes": [
+            {
+              "name": "rag_status",
+              "description": "Red/Amber/Green health indicator"
+            },
+            {
+              "name": "resource_utilization",
+              "description": "Allocated vs available capacity"
+            }
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Investment with expected ROI and burn rate",
+          "derived_attributes": [
+            {
+              "name": "budget_variance_pct",
+              "description": "Actual vs budget"
+            },
+            {
+              "name": "forecast_eac",
+              "description": "Estimate at completion"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sprint",
+      "name": "Sprint",
+      "description": "2-week iteration of project work",
+      "core_attributes": [
+        {
+          "name": "sprint_id",
+          "data_type": "string"
+        },
+        {
+          "name": "project_id",
+          "data_type": "string"
+        },
+        {
+          "name": "sprint_number",
+          "data_type": "number"
+        },
+        {
+          "name": "start_date",
+          "data_type": "date"
+        },
+        {
+          "name": "end_date",
+          "data_type": "date"
+        },
+        {
+          "name": "planned_points",
+          "data_type": "number"
+        }
+      ],
+      "lenses": []
+    },
+    {
+      "id": "resource",
+      "name": "Resource",
+      "description": "Person (employee or contractor) working on projects",
+      "core_attributes": [
+        {
+          "name": "resource_id",
+          "data_type": "string"
+        },
+        {
+          "name": "name",
+          "data_type": "string"
+        },
+        {
+          "name": "role",
+          "data_type": "string"
+        },
+        {
+          "name": "cost_rate",
+          "data_type": "number",
+          "description": "Hourly cost"
+        },
+        {
+          "name": "is_contractor",
+          "data_type": "boolean"
+        }
+      ],
+      "lenses": []
+    },
+    {
+      "id": "forecast",
+      "name": "Forecast",
+      "description": "Monthly financial projection for project portfolio",
+      "core_attributes": [
+        {
+          "name": "forecast_id",
+          "data_type": "string"
+        },
+        {
+          "name": "forecast_date",
+          "data_type": "date"
+        },
+        {
+          "name": "month",
+          "data_type": "date"
+        },
+        {
+          "name": "project_id",
+          "data_type": "string"
+        },
+        {
+          "name": "forecasted_spend",
+          "data_type": "number"
+        }
+      ],
+      "lenses": []
+    },
+    {
+      "id": "actual",
+      "name": "Actual",
+      "description": "Actual spend from financial system",
+      "core_attributes": [
+        {
+          "name": "actual_id",
+          "data_type": "string"
+        },
+        {
+          "name": "month",
+          "data_type": "date"
+        },
+        {
+          "name": "project_id",
+          "data_type": "string"
+        },
+        {
+          "name": "actual_spend",
+          "data_type": "number"
+        }
+      ],
+      "lenses": []
+    },
+    {
+      "id": "risk",
+      "name": "Risk",
+      "description": "Identified project risk requiring mitigation",
+      "core_attributes": [
+        {
+          "name": "risk_id",
+          "data_type": "string"
+        },
+        {
+          "name": "project_id",
+          "data_type": "string"
+        },
+        {
+          "name": "description",
+          "data_type": "string"
+        },
+        {
+          "name": "probability",
+          "data_type": "string"
+        },
+        {
+          "name": "impact",
+          "data_type": "string"
+        },
+        {
+          "name": "status",
+          "data_type": "string"
+        }
+      ],
+      "lenses": []
+    }
+  ],
+  "attributes": [],
+  "measures": [
+    {
+      "id": "total_active_projects",
+      "name": "Total Active Projects",
+      "description": "Count of projects not yet closed",
+      "logic": "Count distinct projects where stage <> 'Closed'",
+      "formula": "CALCULATE(DISTINCTCOUNT(Project[project_id]), Project[stage] <> \"Closed\")",
+      "input_attribute_ids": [],
+      "input_measure_ids": [],
+      "perspective_ids": [
+        "management",
+        "financial"
+      ]
+    },
+    {
+      "id": "total_budget",
+      "name": "Total Portfolio Budget",
+      "description": "Sum of approved budgets for active projects",
+      "logic": "Sum of budget_amount for active projects",
+      "formula": "CALCULATE(SUM(Project[budget_amount]), Project[stage] <> \"Closed\")",
+      "input_attribute_ids": [],
+      "input_measure_ids": [],
+      "perspective_ids": [
+        "financial"
+      ]
+    },
+    {
+      "id": "total_actual_spend",
+      "name": "Total Actual Spend",
+      "description": "Actual costs from financial system",
+      "logic": "Sum of actual_spend from finance system",
+      "formula": "SUM(Actual[actual_spend])",
+      "input_attribute_ids": [],
+      "input_measure_ids": [],
+      "perspective_ids": [
+        "financial"
+      ]
+    },
+    {
+      "id": "total_forecasted_spend",
+      "name": "Total Forecasted Spend",
+      "description": "Latest forecast for portfolio",
+      "logic": "Sum of forecasted_spend from most recent forecast",
+      "formula": "CALCULATE(SUM(Forecast[forecasted_spend]), Forecast[forecast_date] = MAX(Forecast[forecast_date]))",
+      "input_attribute_ids": [],
+      "input_measure_ids": [],
+      "perspective_ids": [
+        "financial"
+      ]
+    },
+    {
+      "id": "budget_variance",
+      "name": "Budget Variance",
+      "description": "Actual vs Budget difference",
+      "logic": "Total Actual Spend - Total Budget",
+      "formula": "[Total Actual Spend] - [Total Portfolio Budget]",
+      "input_attribute_ids": [],
+      "input_measure_ids": [
+        "total_actual_spend",
+        "total_budget"
+      ],
+      "perspective_ids": [
+        "financial"
+      ]
+    },
+    {
+      "id": "forecast_accuracy",
+      "name": "Forecast Accuracy %",
+      "description": "How close forecast was to actuals",
+      "logic": "1 - ABS(Forecast - Actual) / Actual",
+      "formula": "1 - DIVIDE(ABS([Total Forecasted Spend] - [Total Actual Spend]), [Total Actual Spend], 0)",
+      "input_attribute_ids": [],
+      "input_measure_ids": [
+        "total_forecasted_spend",
+        "total_actual_spend"
+      ],
+      "perspective_ids": [
+        "financial",
+        "management"
+      ]
+    },
+    {
+      "id": "avg_velocity",
+      "name": "Average Team Velocity",
+      "description": "Average story points completed per sprint",
+      "logic": "Average of completed points across all sprints",
+      "formula": "AVERAGE(Sprint[completed_points])",
+      "input_attribute_ids": [],
+      "input_measure_ids": [],
+      "perspective_ids": [
+        "operational",
+        "management"
+      ]
+    },
+    {
+      "id": "resource_utilization",
+      "name": "Resource Utilization %",
+      "description": "Allocated hours vs available hours",
+      "logic": "Sum of allocated hours / (resource count × 40 hrs/week × weeks)",
+      "formula": "DIVIDE(SUM(ResourceAllocation[allocated_hours]), SUM(Resource[available_hours]), 0)",
+      "input_attribute_ids": [],
+      "input_measure_ids": [],
+      "perspective_ids": [
+        "management"
+      ]
+    },
+    {
+      "id": "projects_at_risk",
+      "name": "Projects At Risk",
+      "description": "Count of projects with Red RAG status",
+      "logic": "Count projects where RAG = Red",
+      "formula": "CALCULATE(DISTINCTCOUNT(Project[project_id]), Project[rag_status] = \"Red\")",
+      "input_attribute_ids": [],
+      "input_measure_ids": [],
+      "perspective_ids": [
+        "management",
+        "financial"
+      ]
+    },
+    {
+      "id": "avg_stage_duration",
+      "name": "Average Stage Duration (Days)",
+      "description": "How long projects spend in each stage",
+      "logic": "Average days between stage transitions",
+      "formula": "AVERAGE(ProjectStageHistory[days_in_stage])",
+      "input_attribute_ids": [],
+      "input_measure_ids": [],
+      "perspective_ids": [
+        "management"
+      ]
+    },
+    {
+      "id": "portfolio_roi",
+      "name": "Portfolio ROI %",
+      "description": "Expected return on investment for active projects",
+      "logic": "(Sum of expected benefits - Sum of costs) / Sum of costs",
+      "formula": "DIVIDE(SUM(Project[expected_benefit]) - [Total Actual Spend], [Total Actual Spend], 0)",
+      "input_attribute_ids": [],
+      "input_measure_ids": [
+        "total_actual_spend"
+      ],
+      "perspective_ids": [
+        "financial"
+      ]
+    },
+    {
+      "id": "manual_effort_hours",
+      "name": "Manual Reporting Effort (Hours/Month)",
+      "description": "Time spent on manual status reporting and consolidation",
+      "logic": "Estimated hours per PM × number of PMs",
+      "formula": "20",
+      "input_attribute_ids": [],
+      "input_measure_ids": [],
+      "perspective_ids": [
+        "management",
+        "financial"
+      ]
+    }
+  ],
+  "metrics": [
+    {
+      "id": "portfolio_health",
+      "name": "Portfolio Health",
+      "description": "Overall health of project portfolio",
+      "business_question": "Are we delivering our committed projects on time and budget?",
+      "calculated_by_measure_ids": [
+        "projects_at_risk",
+        "budget_variance",
+        "avg_velocity"
+      ],
+      "perspective_ids": [
+        "management",
+        "financial"
+      ]
+    },
+    {
+      "id": "forecast_reliability",
+      "name": "Forecast Reliability",
+      "description": "Can we trust our financial projections?",
+      "business_question": "How accurate are our forecasts, and what's causing variances?",
+      "calculated_by_measure_ids": [
+        "forecast_accuracy",
+        "total_forecasted_spend",
+        "total_actual_spend"
+      ],
+      "perspective_ids": [
+        "financial"
+      ]
+    },
+    {
+      "id": "resource_optimization",
+      "name": "Resource Optimization",
+      "description": "Are we using our people effectively?",
+      "business_question": "Do we have the right people in the right places?",
+      "calculated_by_measure_ids": [
+        "resource_utilization",
+        "avg_velocity"
+      ],
+      "perspective_ids": [
+        "management"
+      ]
+    },
+    {
+      "id": "portfolio_value",
+      "name": "Portfolio Value",
+      "description": "Return on our project investments",
+      "business_question": "Are we investing in the right projects?",
+      "calculated_by_measure_ids": [
+        "portfolio_roi",
+        "total_budget",
+        "total_actual_spend"
+      ],
+      "perspective_ids": [
+        "financial"
+      ]
+    },
+    {
+      "id": "delivery_velocity",
+      "name": "Delivery Velocity",
+      "description": "How fast are teams shipping features?",
+      "business_question": "Are we delivering value at the right pace?",
+      "calculated_by_measure_ids": [
+        "avg_velocity"
+      ],
+      "perspective_ids": [
+        "operational",
+        "management"
+      ]
+    },
+    {
+      "id": "governance_efficiency",
+      "name": "Governance Efficiency",
+      "description": "Cost of project governance and reporting",
+      "business_question": "How much overhead do our governance processes add?",
+      "calculated_by_measure_ids": [
+        "manual_effort_hours",
+        "avg_stage_duration"
+      ],
+      "perspective_ids": [
+        "management",
+        "financial"
+      ]
+    }
+  ],
+  "processes": [
+    {
+      "id": "project_lifecycle",
+      "name": "Project Lifecycle & Monthly Forecast",
+      "description": "End-to-end project governance from idea through closure, including monthly forecasting cycle",
+      "steps": [
+        {
+          "id": "lead_review",
+          "sequence": 1,
+          "name": "Lead Evaluation",
+          "description": "Initial idea screening and prioritization",
+          "perspective_id": "management",
+          "actor": "PMO Lead",
+          "consumes_attribute_ids": [],
+          "produces_attribute_ids": [],
+          "uses_metric_ids": [
+            "portfolio_value"
+          ],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": [],
+          "parent_step_id": null,
+          "has_sub_steps": false,
+          "perspective_level": "management",
+          "estimated_duration_minutes": 120,
+          "automation_potential": "Medium",
+          "systems_used_ids": [
+            "sharepoint",
+            "excel"
+          ],
+          "waste_category": "Manual Consolidation",
+          "manual_effort_percentage": 70
+        },
+        {
+          "id": "business_case",
+          "sequence": 2,
+          "name": "Business Case Development",
+          "description": "Create business case with ROI analysis, resource needs, timeline",
+          "perspective_id": "financial",
+          "actor": "Program Manager",
+          "consumes_attribute_ids": [],
+          "produces_attribute_ids": [],
+          "uses_metric_ids": [
+            "portfolio_value",
+            "resource_optimization"
+          ],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": [
+            "lead_review"
+          ],
+          "parent_step_id": null,
+          "has_sub_steps": false,
+          "perspective_level": "financial",
+          "estimated_duration_minutes": 480,
+          "automation_potential": "High",
+          "systems_used_ids": [
+            "excel",
+            "sharepoint",
+            "teams"
+          ],
+          "waste_category": "Offline Excel Work",
+          "manual_effort_percentage": 85
+        },
+        {
+          "id": "budget_approval",
+          "sequence": 3,
+          "name": "Budget Approval & Project Code Creation",
+          "description": "Finance reviews, approves budget, creates project code in Miruka",
+          "perspective_id": "financial",
+          "actor": "Finance Manager",
+          "consumes_attribute_ids": [],
+          "produces_attribute_ids": [],
+          "uses_metric_ids": [
+            "portfolio_value",
+            "total_budget"
+          ],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": [
+            "business_case"
+          ],
+          "parent_step_id": null,
+          "has_sub_steps": false,
+          "perspective_level": "financial",
+          "estimated_duration_minutes": 180,
+          "automation_potential": "Low",
+          "systems_used_ids": [
+            "miruka",
+            "finance_system"
+          ],
+          "waste_category": "Waiting",
+          "manual_effort_percentage": 40
+        },
+        {
+          "id": "project_setup",
+          "sequence": 4,
+          "name": "Project Initiation & Setup",
+          "description": "Create Jira project, setup team, kickoff meeting",
+          "perspective_id": "operational",
+          "actor": "Project Manager",
+          "consumes_attribute_ids": [],
+          "produces_attribute_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": [
+            "budget_approval"
+          ],
+          "parent_step_id": null,
+          "has_sub_steps": false,
+          "perspective_level": "operational",
+          "estimated_duration_minutes": 240,
+          "automation_potential": "High",
+          "systems_used_ids": [
+            "jira",
+            "miruka",
+            "teams",
+            "sharepoint"
+          ],
+          "waste_category": "Rework",
+          "manual_effort_percentage": 60
+        },
+        {
+          "id": "sprint_planning",
+          "sequence": 5,
+          "name": "Sprint Planning",
+          "description": "Team plans next sprint, estimates stories, commits to work",
+          "perspective_id": "operational",
+          "actor": "Scrum Master",
+          "consumes_attribute_ids": [],
+          "produces_attribute_ids": [],
+          "uses_metric_ids": [
+            "avg_velocity"
+          ],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": [
+            "project_setup"
+          ],
+          "parent_step_id": null,
+          "has_sub_steps": false,
+          "perspective_level": "operational",
+          "estimated_duration_minutes": 240,
+          "automation_potential": "Low",
+          "systems_used_ids": [
+            "jira"
+          ],
+          "waste_category": "None",
+          "manual_effort_percentage": 20
+        },
+        {
+          "id": "sprint_execution",
+          "sequence": 6,
+          "name": "Sprint Execution",
+          "description": "Team works on committed stories, daily standups, impediment removal",
+          "perspective_id": "operational",
+          "actor": "Development Team",
+          "consumes_attribute_ids": [],
+          "produces_attribute_ids": [],
+          "uses_metric_ids": [
+            "avg_velocity"
+          ],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": [
+            "sprint_planning"
+          ],
+          "parent_step_id": null,
+          "has_sub_steps": false,
+          "perspective_level": "operational",
+          "estimated_duration_minutes": 4800,
+          "automation_potential": "None",
+          "systems_used_ids": [
+            "jira",
+            "teams"
+          ],
+          "waste_category": "None",
+          "manual_effort_percentage": 10
+        },
+        {
+          "id": "weekly_status",
+          "sequence": 7,
+          "name": "Weekly Status Reporting",
+          "description": "PM consolidates status from Jira, updates Miruka, creates Excel summary",
+          "perspective_id": "management",
+          "actor": "Project Manager",
+          "consumes_attribute_ids": [],
+          "produces_attribute_ids": [],
+          "uses_metric_ids": [
+            "portfolio_health",
+            "avg_velocity"
+          ],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": [
+            "sprint_execution"
+          ],
+          "parent_step_id": null,
+          "has_sub_steps": true,
+          "perspective_level": "management",
+          "estimated_duration_minutes": 180,
+          "automation_potential": "High",
+          "systems_used_ids": [
+            "jira",
+            "miruka",
+            "excel",
+            "sharepoint"
+          ],
+          "waste_category": "Manual Consolidation",
+          "manual_effort_percentage": 90
+        },
+        {
+          "id": "monthly_forecast_extract",
+          "sequence": 8,
+          "name": "Extract Data for Forecast",
+          "description": "Pull actuals from finance system, current project status from Miruka/Excel",
+          "perspective_id": "financial",
+          "actor": "Finance Analyst",
+          "consumes_attribute_ids": [],
+          "produces_attribute_ids": [],
+          "uses_metric_ids": [
+            "total_actual_spend"
+          ],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": [
+            "weekly_status"
+          ],
+          "parent_step_id": null,
+          "has_sub_steps": false,
+          "perspective_level": "financial",
+          "estimated_duration_minutes": 240,
+          "automation_potential": "High",
+          "systems_used_ids": [
+            "finance_system",
+            "miruka",
+            "excel"
+          ],
+          "waste_category": "Manual Consolidation",
+          "manual_effort_percentage": 95
+        },
+        {
+          "id": "forecast_model_update",
+          "sequence": 9,
+          "name": "Update Forecast Models",
+          "description": "Update Excel models with actuals, PM inputs, create projections",
+          "perspective_id": "financial",
+          "actor": "Finance Analyst",
+          "consumes_attribute_ids": [],
+          "produces_attribute_ids": [],
+          "uses_metric_ids": [
+            "total_forecasted_spend",
+            "forecast_accuracy"
+          ],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": [
+            "monthly_forecast_extract"
+          ],
+          "parent_step_id": null,
+          "has_sub_steps": false,
+          "perspective_level": "financial",
+          "estimated_duration_minutes": 480,
+          "automation_potential": "High",
+          "systems_used_ids": [
+            "excel"
+          ],
+          "waste_category": "Offline Excel Work",
+          "manual_effort_percentage": 90
+        },
+        {
+          "id": "forecast_review_meeting",
+          "sequence": 10,
+          "name": "Forecast Review Meeting",
+          "description": "Finance and PMO review forecast, discuss variances, challenge assumptions",
+          "perspective_id": "financial",
+          "actor": "Finance Manager",
+          "consumes_attribute_ids": [],
+          "produces_attribute_ids": [],
+          "uses_metric_ids": [
+            "forecast_accuracy",
+            "budget_variance",
+            "portfolio_health"
+          ],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": [
+            "forecast_model_update"
+          ],
+          "parent_step_id": null,
+          "has_sub_steps": false,
+          "perspective_level": "financial",
+          "estimated_duration_minutes": 120,
+          "automation_potential": "Low",
+          "systems_used_ids": [
+            "teams",
+            "excel"
+          ],
+          "waste_category": "Meetings",
+          "manual_effort_percentage": 30
+        },
+        {
+          "id": "forecast_finalization",
+          "sequence": 11,
+          "name": "Finalize & Publish Forecast",
+          "description": "Lock forecast, update Miruka, distribute to leadership",
+          "perspective_id": "financial",
+          "actor": "Finance Manager",
+          "consumes_attribute_ids": [],
+          "produces_attribute_ids": [],
+          "uses_metric_ids": [
+            "total_forecasted_spend"
+          ],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": [
+            "forecast_review_meeting"
+          ],
+          "parent_step_id": null,
+          "has_sub_steps": false,
+          "perspective_level": "financial",
+          "estimated_duration_minutes": 60,
+          "automation_potential": "Medium",
+          "systems_used_ids": [
+            "miruka",
+            "sharepoint",
+            "excel"
+          ],
+          "waste_category": "Manual Consolidation",
+          "manual_effort_percentage": 70
+        },
+        {
+          "id": "monthly_governance_review",
+          "sequence": 12,
+          "name": "Monthly Governance Review",
+          "description": "Leadership reviews portfolio health, budget, forecast, makes go/no-go decisions",
+          "perspective_id": "financial",
+          "actor": "Executive Leadership",
+          "consumes_attribute_ids": [],
+          "produces_attribute_ids": [],
+          "uses_metric_ids": [
+            "portfolio_health",
+            "forecast_reliability",
+            "portfolio_value",
+            "projects_at_risk"
+          ],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": [
+            "forecast_finalization"
+          ],
+          "parent_step_id": null,
+          "has_sub_steps": false,
+          "perspective_level": "financial",
+          "estimated_duration_minutes": 120,
+          "automation_potential": "None",
+          "systems_used_ids": [
+            "sharepoint",
+            "teams"
+          ],
+          "waste_category": "None",
+          "manual_effort_percentage": 10
+        },
+        {
+          "id": "project_handover",
+          "sequence": 13,
+          "name": "Project Handover",
+          "description": "Transition deliverables to operations, create handover documentation",
+          "perspective_id": "operational",
+          "actor": "Project Manager",
+          "consumes_attribute_ids": [],
+          "produces_attribute_ids": [],
+          "uses_metric_ids": [],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": [
+            "sprint_execution"
+          ],
+          "parent_step_id": null,
+          "has_sub_steps": false,
+          "perspective_level": "operational",
+          "estimated_duration_minutes": 480,
+          "automation_potential": "Medium",
+          "systems_used_ids": [
+            "sharepoint",
+            "jira"
+          ],
+          "waste_category": "Documentation",
+          "manual_effort_percentage": 60
+        },
+        {
+          "id": "project_close",
+          "sequence": 14,
+          "name": "Project Closure & Lessons Learned",
+          "description": "Final reconciliation, close budget, capture lessons learned",
+          "perspective_id": "financial",
+          "actor": "PMO Lead",
+          "consumes_attribute_ids": [],
+          "produces_attribute_ids": [],
+          "uses_metric_ids": [
+            "budget_variance",
+            "forecast_accuracy"
+          ],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": [
+            "project_handover"
+          ],
+          "parent_step_id": null,
+          "has_sub_steps": false,
+          "perspective_level": "financial",
+          "estimated_duration_minutes": 240,
+          "automation_potential": "Medium",
+          "systems_used_ids": [
+            "miruka",
+            "finance_system",
+            "sharepoint",
+            "excel"
+          ],
+          "waste_category": "Manual Consolidation",
+          "manual_effort_percentage": 75
+        }
+      ]
+    }
+  ],
+  "semantic_tables": [
+    {
+      "id": "fact_project_actuals",
+      "name": "Fact_ProjectActuals",
+      "table_type": "Fact",
+      "description": "Monthly actual costs by project from finance system",
+      "mapped_entity_id": "actual",
+      "source_system_id": "finance_system",
+      "columns": [
+        {
+          "id": "col_month",
+          "name": "Month",
+          "data_type": "Date",
+          "is_key": false,
+          "mapped_attribute_id": null
+        },
+        {
+          "id": "col_project_id",
+          "name": "ProjectID",
+          "data_type": "String",
+          "is_key": false,
+          "is_foreign_key": true,
+          "mapped_attribute_id": null
+        },
+        {
+          "id": "col_actual_spend",
+          "name": "ActualSpend",
+          "data_type": "Decimal",
+          "is_key": false,
+          "mapped_attribute_id": null
+        }
+      ],
+      "measures": [
+        {
+          "id": "dax_total_actual",
+          "name": "Total Actual Spend",
+          "expression": "SUM(Fact_ProjectActuals[ActualSpend])",
+          "mapped_measure_id": "total_actual_spend"
+        },
+        {
+          "id": "dax_ytd_actual",
+          "name": "YTD Actual Spend",
+          "expression": "CALCULATE([Total Actual Spend], DATESYTD('Dim_Date'[Date]))",
+          "mapped_measure_id": null
+        }
+      ]
+    },
+    {
+      "id": "fact_forecast",
+      "name": "Fact_Forecast",
+      "table_type": "Fact",
+      "description": "Monthly forecasted spend by project",
+      "mapped_entity_id": "forecast",
+      "source_system_id": "miruka",
+      "columns": [
+        {
+          "id": "col_forecast_date",
+          "name": "ForecastDate",
+          "data_type": "Date",
+          "is_key": false,
+          "mapped_attribute_id": null
+        },
+        {
+          "id": "col_forecast_month",
+          "name": "Month",
+          "data_type": "Date",
+          "is_key": false,
+          "mapped_attribute_id": null
+        },
+        {
+          "id": "col_forecast_project",
+          "name": "ProjectID",
+          "data_type": "String",
+          "is_key": false,
+          "is_foreign_key": true,
+          "mapped_attribute_id": null
+        },
+        {
+          "id": "col_forecasted_spend",
+          "name": "ForecastedSpend",
+          "data_type": "Decimal",
+          "is_key": false,
+          "mapped_attribute_id": null
+        }
+      ],
+      "measures": [
+        {
+          "id": "dax_latest_forecast",
+          "name": "Latest Forecast",
+          "expression": "CALCULATE(SUM(Fact_Forecast[ForecastedSpend]), Fact_Forecast[ForecastDate] = MAX(Fact_Forecast[ForecastDate]))",
+          "mapped_measure_id": "total_forecasted_spend"
+        },
+        {
+          "id": "dax_forecast_accuracy",
+          "name": "Forecast Accuracy %",
+          "expression": "1 - DIVIDE(ABS([Latest Forecast] - [Total Actual Spend]), [Total Actual Spend], 0)",
+          "mapped_measure_id": "forecast_accuracy"
+        }
+      ]
+    },
+    {
+      "id": "fact_sprint",
+      "name": "Fact_Sprint",
+      "table_type": "Fact",
+      "description": "Sprint metrics from Jira",
+      "mapped_entity_id": "sprint",
+      "source_system_id": "jira",
+      "columns": [
+        {
+          "id": "col_sprint_id",
+          "name": "SprintID",
+          "data_type": "String",
+          "is_key": true,
+          "mapped_attribute_id": null
+        },
+        {
+          "id": "col_sprint_project",
+          "name": "ProjectID",
+          "data_type": "String",
+          "is_key": false,
+          "is_foreign_key": true,
+          "mapped_attribute_id": null
+        },
+        {
+          "id": "col_planned_points",
+          "name": "PlannedPoints",
+          "data_type": "Integer",
+          "is_key": false,
+          "mapped_attribute_id": null
+        },
+        {
+          "id": "col_completed_points",
+          "name": "CompletedPoints",
+          "data_type": "Integer",
+          "is_key": false,
+          "mapped_attribute_id": null
+        }
+      ],
+      "measures": [
+        {
+          "id": "dax_avg_velocity",
+          "name": "Avg Velocity",
+          "expression": "AVERAGE(Fact_Sprint[CompletedPoints])",
+          "mapped_measure_id": "avg_velocity"
+        },
+        {
+          "id": "dax_sprint_completion",
+          "name": "Sprint Completion %",
+          "expression": "DIVIDE(SUM(Fact_Sprint[CompletedPoints]), SUM(Fact_Sprint[PlannedPoints]), 0)",
+          "mapped_measure_id": null
+        }
+      ]
+    },
+    {
+      "id": "dim_project",
+      "name": "Dim_Project",
+      "table_type": "Dimension",
+      "description": "Project master data",
+      "mapped_entity_id": "project",
+      "source_system_id": "miruka",
+      "columns": [
+        {
+          "id": "col_proj_id",
+          "name": "ProjectID",
+          "data_type": "String",
+          "is_key": true,
+          "mapped_attribute_id": null
+        },
+        {
+          "id": "col_proj_name",
+          "name": "ProjectName",
+          "data_type": "String",
+          "is_key": false,
+          "mapped_attribute_id": null
+        },
+        {
+          "id": "col_proj_stage",
+          "name": "Stage",
+          "data_type": "String",
+          "is_key": false,
+          "mapped_attribute_id": null
+        },
+        {
+          "id": "col_proj_rag",
+          "name": "RAGStatus",
+          "data_type": "String",
+          "is_key": false,
+          "mapped_attribute_id": null
+        },
+        {
+          "id": "col_proj_budget",
+          "name": "Budget",
+          "data_type": "Decimal",
+          "is_key": false,
+          "mapped_attribute_id": null
+        }
+      ],
+      "measures": [
+        {
+          "id": "dax_active_projects",
+          "name": "Active Projects",
+          "expression": "CALCULATE(DISTINCTCOUNT(Dim_Project[ProjectID]), Dim_Project[Stage] <> \"Closed\")",
+          "mapped_measure_id": "total_active_projects"
+        },
+        {
+          "id": "dax_projects_at_risk",
+          "name": "Projects At Risk",
+          "expression": "CALCULATE(DISTINCTCOUNT(Dim_Project[ProjectID]), Dim_Project[RAGStatus] = \"Red\")",
+          "mapped_measure_id": "projects_at_risk"
+        },
+        {
+          "id": "dax_total_budget",
+          "name": "Total Budget",
+          "expression": "SUM(Dim_Project[Budget])",
+          "mapped_measure_id": "total_budget"
+        }
+      ]
+    },
+    {
+      "id": "dim_date",
+      "name": "Dim_Date",
+      "table_type": "Dimension",
+      "description": "Date dimension for time intelligence",
+      "mapped_entity_id": null,
+      "source_system_id": null,
+      "columns": [
+        {
+          "id": "col_date",
+          "name": "Date",
+          "data_type": "Date",
+          "is_key": true,
+          "mapped_attribute_id": null
+        },
+        {
+          "id": "col_month",
+          "name": "Month",
+          "data_type": "String",
+          "is_key": false,
+          "mapped_attribute_id": null
+        },
+        {
+          "id": "col_quarter",
+          "name": "Quarter",
+          "data_type": "String",
+          "is_key": false,
+          "mapped_attribute_id": null
+        },
+        {
+          "id": "col_year",
+          "name": "Year",
+          "data_type": "Integer",
+          "is_key": false,
+          "mapped_attribute_id": null
+        }
+      ],
+      "measures": []
+    }
+  ],
+  "notes": {
+    "scope": "This ontology represents the PROJECT MANAGEMENT / PORTFOLIO PLANNING business unit at Toyota Connected. Each business unit would have its own separate ontology instance with the same 3-perspective framework. This scenario focuses on project governance and financial forecasting workflows."
+  }
+}

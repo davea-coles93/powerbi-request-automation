@@ -3,16 +3,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import toast, { Toaster } from 'react-hot-toast';
 import * as api from './services/api';
 import { PerspectiveNav } from './components/PerspectiveNav';
-import { MetricsTable } from './components/MetricsTable';
-import { MeasuresTable } from './components/MeasuresTable';
-import { ObservationsTable } from './components/ObservationsTable';
-import { EntitiesTable } from './components/EntitiesTable';
-import { SystemsTable } from './components/SystemsTable';
-import { SemanticModelsTable } from './components/SemanticModelsTable';
+import { DataFoundation } from './components/DataFoundation';
+import { SemanticModelView } from './components/SemanticModelView';
 import { MetricDetail } from './components/MetricDetail';
 import { FullGraphView } from './components/FullGraphView';
 import { ProcessMapEditor } from './components/ProcessMapEditor';
-import { GapAnalysisDashboard } from './components/GapAnalysisDashboard';
+import { ScenarioSelector } from './components/ScenarioSelector';
 import { TableEditorModal } from './components/TableEditorModal';
 import { ColumnMapperModal } from './components/ColumnMapperModal';
 import { RelationshipDesigner } from './components/RelationshipDesigner';
@@ -28,21 +24,21 @@ import {
   usePerspectiveView,
   useProcesses,
   useMeasures,
-  useObservations,
+  useAttributes,
   useEntities,
   useSystems,
   useSemanticTables,
   useMappingStatus
 } from './hooks/useOntology';
-import { Activity, GitBranch, Table, Calculator, Database, AlertTriangle, Server, Edit3 } from 'lucide-react';
+import { GitBranch, Table, Database, Edit3 } from 'lucide-react';
 
-type ViewMode = 'metrics' | 'processMapEditor' | 'measures' | 'observations' | 'entities' | 'systems' | 'semanticModel' | 'gapAnalysis' | 'graph' | 'dataLineage';
+type ViewMode = 'processBuilder' | 'dataFoundation' | 'semanticModel' | 'dataLineage';
 
 function App() {
   const queryClient = useQueryClient();
   const [selectedPerspective, setSelectedPerspective] = useState('financial');
   const [detailMetricId, setDetailMetricId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('metrics');
+  const [viewMode, setViewMode] = useState<ViewMode>('dataFoundation');
 
   // Modal states
   const [isTableEditorOpen, setIsTableEditorOpen] = useState(false);
@@ -71,77 +67,16 @@ function App() {
   const [isStepMappingModalOpen, setIsStepMappingModalOpen] = useState(false);
   const [stepMappingModalData, setStepMappingModalData] = useState<any | null>(null);
 
-  const { data: perspectiveView, isLoading } = usePerspectiveView(selectedPerspective);
+  usePerspectiveView(selectedPerspective);
   const { data: processes } = useProcesses();
   const { data: measures } = useMeasures();
-  const { data: observations } = useObservations();
+  const { data: attributes } = useAttributes();
   const { data: entities } = useEntities();
   const { data: systems } = useSystems();
   const { data: semanticTables } = useSemanticTables();
-  const { data: mappingStatus } = useMappingStatus();
-
-  const handleViewLineage = (_metricId: string) => {
-    setViewMode('graph');
-  };
-
-  // Extract DAX measures from semantic tables for measures table
-  const semanticModelMeasures = semanticTables?.flatMap(table =>
-    table.measures?.map(m => ({ ...m, table_id: table.id })) || []
-  ) || [];
-
-  // Gap analysis data from real API (use mapping status from backend)
-  const implementedMeasureIds = new Set(
-    semanticModelMeasures
-      .map(m => m.mapped_measure_id)
-      .filter((id): id is string => !!id)
-  );
-
-  const gapAnalysisData = mappingStatus ? {
-    // Real data from API
-    ...mappingStatus,
-    // Extended fields for richer UI
-    total_observations: observations?.length || 0,
-    observations_used_by_measures: observations?.filter(obs =>
-      measures?.some(m => m.input_observation_ids?.includes(obs.id))
-    ).length || 0,
-    total_business_measures: measures?.length || 0,
-    implemented_measures: implementedMeasureIds.size,
-    unimplemented_measures: measures?.filter(m => !implementedMeasureIds.has(m.id)).map(m => m.name) || [],
-    observations_with_complete_flow: observations?.filter(obs =>
-      measures?.some(m => m.input_observation_ids?.includes(obs.id)) &&
-      semanticTables?.some(t => t.columns.some(c => c.mapped_observation_id === obs.id))
-    ).length || 0,
-    observations_with_broken_flow: observations?.filter(obs =>
-      measures?.some(m => m.input_observation_ids?.includes(obs.id)) &&
-      !semanticTables?.some(t => t.columns.some(c => c.mapped_observation_id === obs.id))
-    ).map(o => o.name) || [],
-    semantic_tables_with_measures: semanticTables?.filter(t => t.measures && t.measures.length > 0).length || 0,
-    semantic_tables_without_measures: semanticTables?.filter(t => !t.measures || t.measures.length === 0).map(t => t.name) || [],
-  } : null;
+  useMappingStatus();
 
   // Handler functions
-  const handleNewTable = () => {
-    setSelectedTable(null);
-    setIsTableEditorOpen(true);
-  };
-
-  const handleEditTable = (tableId: string) => {
-    const table = semanticTables?.find(t => t.id === tableId);
-    if (table) {
-      setSelectedTable(table);
-      setIsTableEditorOpen(true);
-    }
-  };
-
-  const handleMapColumns = (tableId: string) => {
-    setColumnMapperTable(tableId);
-    setIsColumnMapperOpen(true);
-  };
-
-  const handleViewRelationships = () => {
-    setIsRelationshipDesignerOpen(true);
-  };
-
   const handleSaveTable = (tableData: any) => {
     console.log('Saving table:', tableData);
     // In a real app, this would call an API
@@ -158,34 +93,9 @@ function App() {
   };
 
   // New handler functions
-  const handleNewEntity = () => {
-    setSelectedEntity(null);
-    setIsEntityEditorOpen(true);
-  };
-
-  const handleEditEntity = (entity: any) => {
-    setSelectedEntity(entity);
-    setIsEntityEditorOpen(true);
-  };
-
-  const handleViewLenses = (entity: any) => {
-    console.log('View lenses for entity:', entity);
-    // Could open a dedicated lens viewer modal
-  };
-
   const handleSaveEntity = (entityData: any) => {
     console.log('Saving entity:', entityData);
     // In a real app, this would call an API
-  };
-
-  const handleNewSystem = () => {
-    setSelectedSystem(null);
-    setIsSystemEditorOpen(true);
-  };
-
-  const handleEditSystem = (system: any) => {
-    setSelectedSystem(system);
-    setIsSystemEditorOpen(true);
   };
 
   const handleSaveSystem = async (systemData: any) => {
@@ -205,37 +115,9 @@ function App() {
     }
   };
 
-  const handleNewObservation = () => {
-    setSelectedObservation(null);
-    setIsObservationEditorOpen(true);
-  };
-
-  const handleEditObservation = (observation: any) => {
-    setSelectedObservation(observation);
-    setIsObservationEditorOpen(true);
-  };
-
-  const handleSaveObservation = (observationData: any) => {
-    console.log('Saving observation:', observationData);
+  const handleSaveAttribute = (attributeData: any) => {
+    console.log('Saving attribute:', attributeData);
     // In a real app, this would call an API
-  };
-
-  const handleMapObservation = (observation: any) => {
-    // Open column mapper for the observation's entity
-    if (observation.entity_id) {
-      setColumnMapperTable(observation.entity_id);
-      setIsColumnMapperOpen(true);
-    }
-  };
-
-  const handleNewMeasure = () => {
-    setSelectedMeasure(null);
-    setIsMeasureEditorOpen(true);
-  };
-
-  const handleEditMeasure = (measure: any) => {
-    setSelectedMeasure(measure);
-    setIsMeasureEditorOpen(true);
   };
 
   const handleSaveMeasure = (measureData: any) => {
@@ -243,45 +125,9 @@ function App() {
     // In a real app, this would call an API
   };
 
-  const handleNewMetric = () => {
-    setSelectedMetric(null);
-    setIsMetricEditorOpen(true);
-  };
-
-  const handleEditMetric = (metric: any) => {
-    setSelectedMetric(metric);
-    setIsMetricEditorOpen(true);
-  };
-
   const handleSaveMetric = (metricData: any) => {
     console.log('Saving metric:', metricData);
     // In a real app, this would call an API
-  };
-
-  const handleViewMeasureUsage = (measure: any) => {
-    // Find which metrics and measures use this measure
-    const usedInMetrics = perspectiveView?.metrics.filter(metric =>
-      metric.calculated_by_measure_ids?.includes(measure.id)
-    ) || [];
-
-    const usedInMeasures = measures?.filter(m =>
-      m.input_measure_ids?.includes(measure.id)
-    ) || [];
-
-    const usageData = {
-      measure_id: measure.id,
-      measure_name: measure.name,
-      used_in_metrics: usedInMetrics,
-      used_in_measures: usedInMeasures,
-      depends_on_observations: observations?.filter(obs =>
-        measure.input_observation_ids?.includes(obs.id)
-      ) || [],
-      depends_on_measures: measures?.filter(m =>
-        measure.input_measure_ids?.includes(m.id)
-      ) || [],
-    };
-    setMeasureUsageData(usageData);
-    setIsMeasureUsageOpen(true);
   };
 
   // Note: handleViewStepData and handleMapStepToModel removed as Process Flow component was consolidated into Process Builder
@@ -295,13 +141,16 @@ function App() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b shadow-sm">
-        <div className="px-6 py-4">
-          <h1 className="text-2xl font-bold text-gray-900">
-            Business Ontology Framework
-          </h1>
-          <p className="text-gray-600 text-sm mt-1">
-            Power BI-Friendly Semantic Model Design & Process Mapping
-          </p>
+        <div className="px-6 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Business Ontology Framework
+            </h1>
+            <p className="text-gray-600 text-sm mt-1">
+              Power BI-Friendly Semantic Model Design & Process Mapping
+            </p>
+          </div>
+          <ScenarioSelector />
         </div>
       </header>
 
@@ -317,20 +166,9 @@ function App() {
       <div className="bg-white border-b px-6">
         <div className="flex gap-1 overflow-x-auto">
           <button
-            onClick={() => setViewMode('metrics')}
+            onClick={() => setViewMode('processBuilder')}
             className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
-              viewMode === 'metrics'
-                ? 'border-blue-500 text-blue-600 font-medium'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <Activity className="w-4 h-4" />
-            Metrics
-          </button>
-          <button
-            onClick={() => setViewMode('processMapEditor')}
-            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
-              viewMode === 'processMapEditor'
+              viewMode === 'processBuilder'
                 ? 'border-blue-500 text-blue-600 font-medium'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
@@ -339,48 +177,15 @@ function App() {
             Process Builder
           </button>
           <button
-            onClick={() => setViewMode('measures')}
+            onClick={() => setViewMode('dataFoundation')}
             className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
-              viewMode === 'measures'
-                ? 'border-blue-500 text-blue-600 font-medium'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <Calculator className="w-4 h-4" />
-            Measures
-          </button>
-          <button
-            onClick={() => setViewMode('observations')}
-            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
-              viewMode === 'observations'
+              viewMode === 'dataFoundation'
                 ? 'border-blue-500 text-blue-600 font-medium'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
             <Database className="w-4 h-4" />
-            Observations
-          </button>
-          <button
-            onClick={() => setViewMode('entities')}
-            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
-              viewMode === 'entities'
-                ? 'border-blue-500 text-blue-600 font-medium'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <Database className="w-4 h-4" />
-            Entities
-          </button>
-          <button
-            onClick={() => setViewMode('systems')}
-            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
-              viewMode === 'systems'
-                ? 'border-blue-500 text-blue-600 font-medium'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <Server className="w-4 h-4" />
-            Systems
+            Data Foundation
           </button>
           <button
             onClick={() => setViewMode('semanticModel')}
@@ -394,20 +199,9 @@ function App() {
             Semantic Model
           </button>
           <button
-            onClick={() => setViewMode('gapAnalysis')}
+            onClick={() => setViewMode('dataLineage')}
             className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
-              viewMode === 'gapAnalysis'
-                ? 'border-blue-500 text-blue-600 font-medium'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <AlertTriangle className="w-4 h-4" />
-            Gap Analysis
-          </button>
-          <button
-            onClick={() => setViewMode('graph')}
-            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
-              viewMode === 'graph'
+              viewMode === 'dataLineage'
                 ? 'border-blue-500 text-blue-600 font-medium'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
@@ -419,111 +213,31 @@ function App() {
       </div>
 
       {/* Main Content */}
-      <main className="bg-gray-50 min-h-[calc(100vh-180px)]">
-        {viewMode === 'metrics' && (
-          <div className="bg-white">
-            {isLoading ? (
-              <div className="p-6">
-                <div className="animate-pulse space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-16 bg-gray-200 rounded" />
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <MetricsTable
-                metrics={perspectiveView?.metrics || []}
-                onMetricClick={(metric) => setDetailMetricId(metric.id)}
-                onViewLineage={handleViewLineage}
-                onNewMetric={handleNewMetric}
-                onEditMetric={handleEditMetric}
-              />
-            )}
-          </div>
-        )}
-
-        {viewMode === 'measures' && (
-          <div className="bg-white">
-            <MeasuresTable
-              measures={measures || []}
-              semanticModelMeasures={semanticModelMeasures}
-              onMeasureClick={handleEditMeasure}
-              onNewMeasure={handleNewMeasure}
-              onViewUsage={handleViewMeasureUsage}
-            />
-          </div>
-        )}
-
-        {viewMode === 'observations' && (
-          <div className="bg-white">
-            <ObservationsTable
-              observations={observations || []}
-              onObservationClick={handleEditObservation}
-              onNewObservation={handleNewObservation}
-              onMapObservation={handleMapObservation}
-            />
-          </div>
-        )}
-
-        {viewMode === 'entities' && (
-          <div className="bg-white">
-            <EntitiesTable
-              entities={entities || []}
-              onEntityClick={handleEditEntity}
-              onEditEntity={handleEditEntity}
-              onViewLenses={handleViewLenses}
-              onNewEntity={handleNewEntity}
-            />
-          </div>
-        )}
-
-        {viewMode === 'systems' && (
-          <div className="bg-white">
-            <SystemsTable
-              systems={systems || []}
-              onSystemClick={handleEditSystem}
-              onEditSystem={handleEditSystem}
-              onNewSystem={handleNewSystem}
-            />
-          </div>
-        )}
-
-        {viewMode === 'semanticModel' && (
-          <div className="bg-white">
-            <SemanticModelsTable
-              tables={(semanticTables || []).map(table => ({
-                ...table,
-                columns_count: table.columns?.length || 0,
-                measures_count: table.measures?.length || 0,
-                has_relationships: false, // TODO: implement relationship tracking
-              }))}
-              onTableClick={(table) => console.log('View table:', table)}
-              onEditTable={handleEditTable}
-              onMapColumns={handleMapColumns}
-              onViewRelationships={handleViewRelationships}
-              onNewTable={handleNewTable}
-            />
-          </div>
-        )}
-
-        {viewMode === 'gapAnalysis' && gapAnalysisData && (
-          <div className="bg-white">
-            <GapAnalysisDashboard mappingStatus={gapAnalysisData} />
-          </div>
-        )}
-
-        {viewMode === 'graph' && (
-          <div className="p-6">
-            <FullGraphView perspective={selectedPerspective} />
-          </div>
-        )}
-
-        {viewMode === 'processMapEditor' && processes && processes.length > 0 && (
-          <div className="h-[calc(100vh-180px)]">
+      <main className="bg-gray-50 h-[calc(100vh-180px)]">
+        {viewMode === 'processBuilder' && processes && processes.length > 0 && (
+          <div className="h-full">
             <ProcessMapEditor
               processId={processes[0].id}
               perspectiveLevel={selectedPerspective}
             />
+          </div>
+        )}
+
+        {viewMode === 'dataFoundation' && (
+          <div className="h-full bg-white">
+            <DataFoundation />
+          </div>
+        )}
+
+        {viewMode === 'semanticModel' && (
+          <div className="h-full bg-white">
+            <SemanticModelView />
+          </div>
+        )}
+
+        {viewMode === 'dataLineage' && (
+          <div className="p-6">
+            <FullGraphView perspective={selectedPerspective} />
           </div>
         )}
       </main>
@@ -559,11 +273,11 @@ function App() {
           tableId={columnMapperTable}
           tableName={semanticTables?.find(t => t.id === columnMapperTable)?.name || ''}
           columns={semanticTables?.find(t => t.id === columnMapperTable)?.columns || []}
-          availableObservations={observations?.map(o => ({
-            id: o.id,
-            name: o.name,
-            description: o.description,
-            entity_id: o.entity_id,
+          availableObservations={attributes?.map(a => ({
+            id: a.id,
+            name: a.name,
+            description: a.description,
+            entity_id: a.entity_id,
             isMapped: false
           })) || []}
           existingMappings={[]}
@@ -602,7 +316,7 @@ function App() {
         onSave={handleSaveSystem}
       />
 
-      {/* Observation Editor Modal */}
+      {/* Attribute Editor Modal */}
       <ObservationEditorModal
         isOpen={isObservationEditorOpen}
         onClose={() => {
@@ -610,7 +324,7 @@ function App() {
           setSelectedObservation(null);
         }}
         observation={selectedObservation}
-        onSave={handleSaveObservation}
+        onSave={handleSaveAttribute}
         availableEntities={entities?.map(e => ({ id: e.id, name: e.name })) || []}
         availableSystems={systems?.map(s => ({ id: s.id, name: s.name })) || []}
       />
@@ -624,7 +338,7 @@ function App() {
         }}
         measure={selectedMeasure}
         onSave={handleSaveMeasure}
-        availableObservations={observations?.map(o => ({ id: o.id, name: o.name })) || []}
+        availableObservations={attributes?.map(a => ({ id: a.id, name: a.name })) || []}
         availableMeasures={measures?.map(m => ({ id: m.id, name: m.name })) || []}
       />
 
