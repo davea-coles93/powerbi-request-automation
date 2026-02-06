@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import toast, { Toaster } from 'react-hot-toast';
 import * as api from './services/api';
 import { PerspectiveNav } from './components/PerspectiveNav';
 import { MetricsTable } from './components/MetricsTable';
@@ -200,7 +201,7 @@ function App() {
       queryClient.invalidateQueries({ queryKey: ['systems'] });
     } catch (error) {
       console.error('Error saving system:', error);
-      alert('Failed to save system. Please try again.');
+      toast.error('Failed to save system. Please try again.');
     }
   };
 
@@ -670,6 +671,32 @@ function App() {
         availableTables={semanticTables || []}
         availableMeasures={measures?.map(m => ({ id: m.id, name: m.name, description: m.description })) || []}
         onSave={handleSaveStepMappings}
+      />
+
+      {/* Toast Notifications */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            duration: 4000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
       />
     </div>
   );
