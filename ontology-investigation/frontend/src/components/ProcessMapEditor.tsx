@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import toast from 'react-hot-toast';
 import cytoscape from 'cytoscape';
 import cytoscapeDagre from 'cytoscape-dagre';
 import { useProcessFlow, useUpdateProcessStep, useCreateProcessStep } from '../hooks/useOntology';
@@ -288,19 +289,38 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
           const targetNode = flow?.nodes.find(n => n.id === data.id);
 
           if (sourceNode && targetNode) {
-            // Add edge visually (Cytoscape will re-render on data update)
-            alert(`Creating connection from "${sourceNode.label}" to "${targetNode.label}"\n\nNote: Edge persistence to backend is not yet implemented. The edge will appear until next refresh.`);
+            // Persist edge to backend by updating target step's depends_on_step_ids
+            const targetStep = flow?.nodes.find(n => n.id === data.id);
+            if (targetStep) {
+              // Check if dependency already exists
+              const currentDependencies = (targetStep as any).depends_on_step_ids || [];
+              if (currentDependencies.includes(firstNodeForConnection)) {
+                toast.error('Connection already exists!');
+              } else {
+                const updatedDependencies = [...currentDependencies, firstNodeForConnection];
 
-            // TODO: Implement backend API to persist edges
-            // For now, just add it visually to Cytoscape
-            cy.add({
-              group: 'edges',
-              data: {
-                id: `edge-${firstNodeForConnection}-${data.id}`,
-                source: firstNodeForConnection,
-                target: data.id,
-              },
-            });
+                toast.loading('Creating connection...', { id: 'edge-creation' });
+
+                updateStepMutation.mutate(
+                  {
+                    processId: processId,
+                    stepId: data.id,
+                    data: {
+                      depends_on_step_ids: updatedDependencies,
+                    },
+                  },
+                  {
+                    onSuccess: () => {
+                      toast.success(`Connected "${sourceNode.label}" to "${targetNode.label}"`, { id: 'edge-creation' });
+                    },
+                    onError: (error) => {
+                      console.error('Error creating edge:', error);
+                      toast.error('Failed to create connection', { id: 'edge-creation' });
+                    },
+                  }
+                );
+              }
+            }
           }
 
           // Clear selection
@@ -701,12 +721,12 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
                       },
                       {
                         onSuccess: () => {
-                          alert('✅ Step duplicated successfully!');
+                          toast.success('Step duplicated successfully!');
                           setSelectedStep(null);
                         },
                         onError: (error) => {
                           console.error('Error duplicating step:', error);
-                          alert('❌ Error duplicating step.');
+                          toast.error('Error duplicating step.');
                         },
                       }
                     );
@@ -721,7 +741,7 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
                 onClick={() => {
                   if (confirm(`Are you sure you want to delete "${selectedStep.name}"? This cannot be undone.`)) {
                     // TODO: Implement delete functionality
-                    alert('Delete functionality - API endpoint needed');
+                    toast('Delete functionality - API endpoint needed');
                   }
                 }}
                 className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded font-semibold text-sm"
@@ -756,11 +776,11 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
                 onSuccess: () => {
                   setShowEditModal(false);
                   setSelectedStep(null);
-                  alert('✅ Step updated successfully!');
+                  toast.success('Step updated successfully!');
                 },
                 onError: (error) => {
                   console.error('Error updating step:', error);
-                  alert('❌ Error updating step. Backend endpoint needs to be implemented.');
+                  toast.error('Error updating step. Backend endpoint needs to be implemented.');
                 },
               }
             );
@@ -791,11 +811,11 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
               {
                 onSuccess: () => {
                   setShowAddModal(false);
-                  alert('✅ Step created successfully!');
+                  toast.success('Step created successfully!');
                 },
                 onError: (error) => {
                   console.error('Error creating step:', error);
-                  alert('❌ Error creating step. Please try again.');
+                  toast.error('Error creating step. Please try again.');
                 },
               }
             );

@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import toast from 'react-hot-toast';
+import { Tooltip } from 'react-tooltip';
 import { useObservations, useSystems, useEntities } from '../hooks/useOntology';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import * as api from '../services/api';
@@ -292,7 +294,15 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
               {/* Observations Produced */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-semibold">📤 Produces Observations</label>
+                  <label className="flex items-center gap-1 text-sm font-semibold">
+                    📤 Produces Observations
+                    <span
+                      data-tooltip-id="produces-obs-tooltip"
+                      className="cursor-help text-gray-400 hover:text-gray-600"
+                    >
+                      ℹ️
+                    </span>
+                  </label>
                   <button
                     onClick={() => setShowCreateObservation(true)}
                     className="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
@@ -300,6 +310,12 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
                     ➕ Create New
                   </button>
                 </div>
+                <Tooltip id="produces-obs-tooltip" place="top" style={{ maxWidth: '300px', zIndex: 9999 }}>
+                  <div className="text-xs">
+                    <strong>Observations</strong> are data points created or recorded by this step.
+                    Examples: Production confirmations, quality checks, inventory counts.
+                  </div>
+                </Tooltip>
                 <div className="border rounded p-3 max-h-40 overflow-y-auto">
                   {observations.length === 0 ? (
                     <p className="text-sm text-gray-500">No observations available</p>
@@ -323,7 +339,21 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
 
               {/* Observations Consumed */}
               <div>
-                <label className="block text-sm font-semibold mb-2">📥 Consumes Observations</label>
+                <label className="flex items-center gap-1 text-sm font-semibold mb-2">
+                  📥 Consumes Observations
+                  <span
+                    data-tooltip-id="consumes-obs-tooltip"
+                    className="cursor-help text-gray-400 hover:text-gray-600"
+                  >
+                    ℹ️
+                  </span>
+                </label>
+                <Tooltip id="consumes-obs-tooltip" place="top" style={{ maxWidth: '300px', zIndex: 9999 }}>
+                  <div className="text-xs">
+                    Data points read or used as input by this step.
+                    These observations should be created by previous steps.
+                  </div>
+                </Tooltip>
                 <div className="border rounded p-3 max-h-40 overflow-y-auto">
                   {observations.length === 0 ? (
                     <p className="text-sm text-gray-500">No observations available</p>
@@ -348,7 +378,15 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
               {/* Systems Used */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-semibold">💻 Systems Used</label>
+                  <label className="flex items-center gap-1 text-sm font-semibold">
+                    💻 Systems Used
+                    <span
+                      data-tooltip-id="systems-tooltip"
+                      className="cursor-help text-gray-400 hover:text-gray-600"
+                    >
+                      ℹ️
+                    </span>
+                  </label>
                   <button
                     onClick={() => setShowCreateSystem(true)}
                     className="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
@@ -356,6 +394,12 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
                     ➕ Create New
                   </button>
                 </div>
+                <Tooltip id="systems-tooltip" place="top" style={{ maxWidth: '300px', zIndex: 9999 }}>
+                  <div className="text-xs">
+                    <strong>Systems</strong> are software applications accessed during this step.
+                    Examples: ERP, CRM, Excel, databases. Track where data is entered or retrieved.
+                  </div>
+                </Tooltip>
                 <div className="border rounded p-3 max-h-40 overflow-y-auto">
                   {systems.length === 0 ? (
                     <p className="text-sm text-gray-500">No systems available</p>
@@ -418,11 +462,11 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
                 createObservationMutation.mutate(newObservation, {
                   onSuccess: () => {
                     setShowCreateObservation(false);
-                    alert('✅ Observation created successfully!');
+                    toast.success('Observation created successfully!');
                   },
                   onError: (error) => {
                     console.error('Error creating observation:', error);
-                    alert('❌ Error creating observation.');
+                    toast.error('Error creating observation.');
                   },
                 });
               }}
@@ -524,11 +568,11 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
                 createSystemMutation.mutate(newSystem, {
                   onSuccess: () => {
                     setShowCreateSystem(false);
-                    alert('✅ System created successfully!');
+                    toast.success('System created successfully!');
                   },
                   onError: (error) => {
                     console.error('Error creating system:', error);
-                    alert('❌ Error creating system.');
+                    toast.error('Error creating system.');
                   },
                 });
               }}
