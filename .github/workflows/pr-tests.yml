@@ -224,10 +224,16 @@ jobs:
         shell: pwsh
         run: |
           # Find which .SemanticModel folder was modified in this PR
-          # Fetch base branch for comparison
-          git fetch origin ${{ github.event.pull_request.base.ref }} --depth=50
+          # Fetch base branch with enough depth to find merge base
+          git fetch origin ${{ github.event.pull_request.base.ref }} --depth=200
 
-          $ChangedFiles = git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD
+          $ChangedFiles = git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Warning: git diff failed, trying simpler approach"
+            # Fallback: compare against fetched base ref directly
+            $ChangedFiles = git diff --name-only origin/${{ github.event.pull_request.base.ref }} HEAD
+          }
+
           Write-Host "Changed files:"
           $ChangedFiles | ForEach-Object { Write-Host "  $_" }
 
