@@ -7,7 +7,7 @@ from app.db.repositories import (
     PerspectiveRepository,
     SystemRepository,
     EntityRepository,
-    ObservationRepository,
+    AttributeRepository,
     MeasureRepository,
     MetricRepository,
     ProcessRepository,
@@ -17,7 +17,7 @@ from app.models import (
     Perspective,
     System,
     Entity,
-    Observation,
+    Attribute,
     Measure,
     Metric,
     Process,
@@ -79,13 +79,13 @@ def seed_database():
                 repo.create(Entity(**item))
                 print(f"  Created entity: {item['name']}")
 
-        # Seed observations
-        print("Seeding observations...")
-        repo = ObservationRepository(db)
-        for item in data.get("observations", []):
+        # Seed attributes
+        print("Seeding attributes...")
+        repo = AttributeRepository(db)
+        for item in data.get("attributes", []):
             if not repo.get_by_id(item["id"]):
-                repo.create(Observation(**item))
-                print(f"  Created observation: {item['name']}")
+                repo.create(Attribute(**item))
+                print(f"  Created attribute: {item['name']}")
 
         # Seed measures
         print("Seeding measures...")

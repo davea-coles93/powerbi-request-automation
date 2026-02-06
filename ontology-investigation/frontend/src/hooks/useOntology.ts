@@ -33,10 +33,10 @@ export const useEntity = (id: string) =>
     enabled: !!id,
   });
 
-export const useObservations = (params?: { entity_id?: string; system_id?: string }) =>
+export const useAttributes = (params?: { entity_id?: string; system_id?: string }) =>
   useQuery({
-    queryKey: ['observations', params],
-    queryFn: () => api.getObservations(params),
+    queryKey: ['attributes', params],
+    queryFn: () => api.getAttributes(params),
   });
 
 export const useMeasures = (params?: { perspective_id?: string }) =>
@@ -154,6 +154,25 @@ export const useCreateProcessStep = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['processFlow', variables.processId] });
       queryClient.invalidateQueries({ queryKey: ['processes'] });
+    },
+  });
+};
+
+// Scenarios queries and mutations
+export const useScenarioStatus = () =>
+  useQuery({
+    queryKey: ['scenarioStatus'],
+    queryFn: api.getScenarioStatus,
+  });
+
+export const useLoadScenario = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (scenarioId: string) => api.loadScenario(scenarioId),
+    onSuccess: () => {
+      // Invalidate all queries to refetch data with new scenario
+      queryClient.invalidateQueries();
     },
   });
 };

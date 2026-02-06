@@ -1,7 +1,7 @@
 from .perspective import Perspective
 from .system import System
 from .entity import Entity, EntityLens, CoreAttribute, DerivedAttribute
-from .observation import Observation
+from .attribute import Attribute
 from .measure import Measure
 from .metric import Metric
 from .process import Process, ProcessStep
@@ -14,7 +14,7 @@ __all__ = [
     "EntityLens",
     "CoreAttribute",
     "DerivedAttribute",
-    "Observation",
+    "Attribute",
     "Measure",
     "Metric",
     "Process",
