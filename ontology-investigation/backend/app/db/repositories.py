@@ -137,6 +137,50 @@ class ProcessRepository(BaseRepository[Process, ProcessDB]):
     def __init__(self, db: Session):
         super().__init__(db, ProcessDB, Process)
 
+    def update_step(self, process_id: str, step_id: str, step_data: dict) -> Optional[Process]:
+        """Update a specific step within a process."""
+        # Get the process
+        process = self.get_by_id(process_id)
+        if not process:
+            return None
+
+        # Find and update the step
+        step_found = False
+        updated_steps = []
+        for step in process.steps:
+            if step.id == step_id:
+                # Update the step with new data
+                updated_step = step.model_copy(update=step_data)
+                updated_steps.append(updated_step)
+                step_found = True
+            else:
+                updated_steps.append(step)
+
+        if not step_found:
+            return None
+
+        # Update the process with modified steps
+        process.steps = updated_steps
+        return self.update(process_id, process)
+
+    def create_step(self, process_id: str, step_data: dict) -> Optional[Process]:
+        """Add a new step to a process."""
+        from ..models import ProcessStep
+
+        # Get the process
+        process = self.get_by_id(process_id)
+        if not process:
+            return None
+
+        # Create new step
+        new_step = ProcessStep(**step_data)
+
+        # Add to process steps
+        process.steps.append(new_step)
+
+        # Update the process
+        return self.update(process_id, process)
+
 
 class SemanticMappingRepository(BaseRepository[SemanticMapping, SemanticMappingDB]):
     def __init__(self, db: Session):
