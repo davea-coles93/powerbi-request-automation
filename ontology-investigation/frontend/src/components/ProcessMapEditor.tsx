@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import cytoscape from 'cytoscape';
 import cytoscapeDagre from 'cytoscape-dagre';
-import { useProcessFlow, useUpdateProcessStep } from '../hooks/useOntology';
+import { useProcessFlow, useUpdateProcessStep, useCreateProcessStep } from '../hooks/useOntology';
 import { ProcessStepEditModal, StepFormData } from './ProcessStepEditModal';
 
 // Register dagre layout
@@ -45,11 +45,48 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
   const [selectedStep, setSelectedStep] = useState<StepMetadata | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const cyRef = useRef<cytoscape.Core | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { data: flow, isLoading } = useProcessFlow(processId, perspectiveLevel);
   const updateStepMutation = useUpdateProcessStep();
+  const createStepMutation = useCreateProcessStep();
+
+  // Calculate summary stats
+  const stats = useMemo(() => {
+    if (!flow) return null;
+
+    const totalSteps = flow.nodes.length;
+    const totalDuration = flow.nodes.reduce(
+      (sum, node) => sum + (node.estimated_duration_minutes || 0),
+      0
+    );
+
+    const automationCounts = {
+      High: 0,
+      Medium: 0,
+      Low: 0,
+      None: 0,
+    };
+
+    flow.nodes.forEach((node) => {
+      if (node.automation_potential) {
+        automationCounts[node.automation_potential]++;
+      }
+    });
+
+    const manualSteps = flow.nodes.filter(
+      (node) => node.manual_effort_percentage && node.manual_effort_percentage > 80
+    ).length;
+
+    return {
+      totalSteps,
+      totalDuration,
+      automationCounts,
+      manualSteps,
+    };
+  }, [flow]);
 
   // Convert flow data to Cytoscape elements
   const elements = useMemo(() => {
@@ -289,15 +326,55 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
             </button>
             <button
               className="px-4 py-2 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700"
-              onClick={() => {
-                // TODO: Add new step
-                alert('Add new step - coming soon!');
-              }}
+              onClick={() => setShowAddModal(true)}
             >
               ➕ Add Step
             </button>
           </div>
         </div>
+
+        {/* Summary Stats Bar */}
+        {stats && (
+          <div className="flex gap-6 text-sm bg-white border rounded-lg p-3 mb-2">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-700">📊 Total Steps:</span>
+              <span className="text-lg font-bold text-blue-600">{stats.totalSteps}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-700">⏱️ Total Time:</span>
+              <span className="text-lg font-bold text-purple-600">{stats.totalDuration}m</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-700">🤖 Automation:</span>
+              <div className="flex gap-2">
+                {stats.automationCounts.High > 0 && (
+                  <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold">
+                    🔴 {stats.automationCounts.High}
+                  </span>
+                )}
+                {stats.automationCounts.Medium > 0 && (
+                  <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs font-bold">
+                    🟠 {stats.automationCounts.Medium}
+                  </span>
+                )}
+                {stats.automationCounts.Low > 0 && (
+                  <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-bold">
+                    🟡 {stats.automationCounts.Low}
+                  </span>
+                )}
+                {stats.automationCounts.None > 0 && (
+                  <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">
+                    🟢 {stats.automationCounts.None}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-700">✋ High Manual:</span>
+              <span className="text-lg font-bold text-orange-600">{stats.manualSteps}</span>
+            </div>
+          </div>
+        )}
 
         {/* Legend */}
         <div className="flex gap-4 text-xs">
@@ -326,12 +403,81 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
       {/* Cytoscape container */}
       <div className="flex-1 relative">
         <div ref={containerRef} className="absolute inset-0" />
+
+        {/* Zoom Controls */}
+        <div className="absolute top-4 right-4 flex flex-col gap-2 bg-white border-2 border-gray-300 rounded-lg shadow-lg p-2">
+          <button
+            onClick={() => {
+              if (cyRef.current) {
+                cyRef.current.zoom(cyRef.current.zoom() * 1.2);
+                cyRef.current.center();
+              }
+            }}
+            className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded font-semibold text-gray-700"
+            title="Zoom In"
+          >
+            🔍+
+          </button>
+          <button
+            onClick={() => {
+              if (cyRef.current) {
+                cyRef.current.zoom(cyRef.current.zoom() * 0.8);
+                cyRef.current.center();
+              }
+            }}
+            className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded font-semibold text-gray-700"
+            title="Zoom Out"
+          >
+            🔍-
+          </button>
+          <button
+            onClick={() => {
+              if (cyRef.current) {
+                cyRef.current.fit(undefined, 50);
+              }
+            }}
+            className="px-3 py-2 bg-blue-100 hover:bg-blue-200 rounded font-semibold text-blue-700"
+            title="Fit to Screen"
+          >
+            ⬜
+          </button>
+        </div>
       </div>
 
+      {/* Instructions overlay when no step selected */}
+      {!selectedStep && !showEditModal && !showAddModal && (
+        <div className="absolute bottom-4 right-4 bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-300 rounded-lg shadow-lg p-6 w-96">
+          <h3 className="font-bold text-lg text-blue-900 mb-3">👋 Welcome to Process Map Editor</h3>
+          <div className="space-y-3 text-sm text-gray-700">
+            <div className="flex items-start gap-2">
+              <span className="text-blue-600">👆</span>
+              <p><strong>Click any step</strong> to view details and connections</p>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-purple-600">✏️</span>
+              <p><strong>Enable Edit Mode</strong> to modify step properties, time estimates, and automation potential</p>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-green-600">➕</span>
+              <p><strong>Add Step</strong> to create new process steps</p>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-orange-600">🔍</span>
+              <p><strong>Use zoom controls</strong> (top right) to navigate large process maps</p>
+            </div>
+          </div>
+          <div className="mt-4 p-3 bg-white rounded border border-blue-200">
+            <p className="text-xs text-gray-600">
+              <strong>Tip:</strong> Steps with red borders have <span className="text-red-600 font-semibold">High</span> automation potential and should be prioritized for improvement.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Selected step info panel */}
-      {selectedStep && !showEditModal && (
-        <div className="absolute bottom-4 right-4 bg-white border-2 border-gray-300 rounded-lg shadow-lg p-4 w-80">
-          <div className="flex items-start justify-between mb-2">
+      {selectedStep && !showEditModal && flow && (
+        <div className="absolute bottom-4 right-4 bg-white border-2 border-gray-300 rounded-lg shadow-lg p-4 w-96 max-h-[600px] overflow-y-auto">
+          <div className="flex items-start justify-between mb-3">
             <div>
               <h3 className="font-bold text-lg">{selectedStep.name}</h3>
               {selectedStep.actor && (
@@ -346,7 +492,7 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
             </button>
           </div>
 
-          <div className="space-y-2 text-sm">
+          <div className="space-y-2 text-sm mb-3">
             {selectedStep.estimated_duration_minutes && (
               <div className="flex items-center gap-2">
                 <span className="font-semibold">⏱️ Duration:</span>
@@ -378,14 +524,147 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
             )}
           </div>
 
-          {editMode && (
-            <button
-              onClick={() => setShowEditModal(true)}
-              className="mt-3 w-full px-4 py-2 bg-purple-600 text-white rounded font-semibold hover:bg-purple-700"
-            >
-              ✏️ Edit Step
-            </button>
-          )}
+          {/* Connections */}
+          <div className="border-t pt-3 mb-3">
+            <h4 className="font-semibold text-sm text-gray-700 mb-2">🔗 Connections</h4>
+            <div className="space-y-2 text-xs">
+              {/* Incoming edges */}
+              {(() => {
+                const incoming = flow.edges.filter(e => e.target === selectedStep.id);
+                return incoming.length > 0 ? (
+                  <div>
+                    <span className="font-semibold text-gray-600">← Depends on:</span>
+                    <div className="ml-4 mt-1">
+                      {incoming.map((edge, i) => {
+                        const sourceNode = flow.nodes.find(n => n.id === edge.source);
+                        return sourceNode ? (
+                          <div key={i} className="text-blue-600 hover:underline cursor-pointer"
+                            onClick={() => {
+                              const node = flow.nodes.find(n => n.id === edge.source);
+                              if (node) {
+                                setSelectedStep({
+                                  id: node.id,
+                                  name: node.label,
+                                  actor: node.actor,
+                                  sequence: node.sequence,
+                                  perspective_id: node.perspective_id,
+                                  estimated_duration_minutes: node.estimated_duration_minutes,
+                                  automation_potential: node.automation_potential,
+                                  waste_category: node.waste_category,
+                                  manual_effort_percentage: node.manual_effort_percentage,
+                                });
+                              }
+                            }}
+                          >
+                            • {sourceNode.label}
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-gray-500">← No dependencies</div>
+                );
+              })()}
+
+              {/* Outgoing edges */}
+              {(() => {
+                const outgoing = flow.edges.filter(e => e.source === selectedStep.id);
+                return outgoing.length > 0 ? (
+                  <div>
+                    <span className="font-semibold text-gray-600">→ Feeds into:</span>
+                    <div className="ml-4 mt-1">
+                      {outgoing.map((edge, i) => {
+                        const targetNode = flow.nodes.find(n => n.id === edge.target);
+                        return targetNode ? (
+                          <div key={i} className="text-blue-600 hover:underline cursor-pointer"
+                            onClick={() => {
+                              const node = flow.nodes.find(n => n.id === edge.target);
+                              if (node) {
+                                setSelectedStep({
+                                  id: node.id,
+                                  name: node.label,
+                                  actor: node.actor,
+                                  sequence: node.sequence,
+                                  perspective_id: node.perspective_id,
+                                  estimated_duration_minutes: node.estimated_duration_minutes,
+                                  automation_potential: node.automation_potential,
+                                  waste_category: node.waste_category,
+                                  manual_effort_percentage: node.manual_effort_percentage,
+                                });
+                              }
+                            }}
+                          >
+                            • {targetNode.label}
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-gray-500">→ No downstream steps</div>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="border-t pt-3 space-y-2">
+            {editMode && (
+              <button
+                onClick={() => setShowEditModal(true)}
+                className="w-full px-4 py-2 bg-purple-600 text-white rounded font-semibold hover:bg-purple-700"
+              >
+                ✏️ Edit Step
+              </button>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => {
+                  if (confirm(`Duplicate step "${selectedStep.name}"?`)) {
+                    const duplicatedStep = {
+                      ...selectedStep,
+                      id: `step_${Date.now()}`,
+                      name: `${selectedStep.name} (Copy)`,
+                      sequence: flow.nodes.length + 1,
+                    };
+                    createStepMutation.mutate(
+                      {
+                        processId: processId,
+                        data: duplicatedStep,
+                      },
+                      {
+                        onSuccess: () => {
+                          alert('✅ Step duplicated successfully!');
+                          setSelectedStep(null);
+                        },
+                        onError: (error) => {
+                          console.error('Error duplicating step:', error);
+                          alert('❌ Error duplicating step.');
+                        },
+                      }
+                    );
+                  }
+                }}
+                className="px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded font-semibold text-sm"
+                title="Duplicate this step"
+              >
+                📋 Duplicate
+              </button>
+              <button
+                onClick={() => {
+                  if (confirm(`Are you sure you want to delete "${selectedStep.name}"? This cannot be undone.`)) {
+                    // TODO: Implement delete functionality
+                    alert('Delete functionality - API endpoint needed');
+                  }
+                }}
+                className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded font-semibold text-sm"
+                title="Delete this step"
+              >
+                🗑️ Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -421,6 +700,41 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
             );
           }}
           onCancel={() => setShowEditModal(false)}
+        />
+      )}
+
+      {/* Add Step Modal */}
+      {showAddModal && flow && (
+        <ProcessStepEditModal
+          step={{
+            id: `step_${Date.now()}`,
+            name: 'New Step',
+            sequence: flow.nodes.length + 1,
+            perspective_id: perspectiveLevel || 'operational',
+            produces_observation_ids: [],
+            consumes_observation_ids: [],
+            uses_metric_ids: [],
+            systems_used_ids: [],
+          }}
+          onSave={(newStep) => {
+            createStepMutation.mutate(
+              {
+                processId: processId,
+                data: newStep,
+              },
+              {
+                onSuccess: () => {
+                  setShowAddModal(false);
+                  alert('✅ Step created successfully!');
+                },
+                onError: (error) => {
+                  console.error('Error creating step:', error);
+                  alert('❌ Error creating step. Please try again.');
+                },
+              }
+            );
+          }}
+          onCancel={() => setShowAddModal(false)}
         />
       )}
     </div>
