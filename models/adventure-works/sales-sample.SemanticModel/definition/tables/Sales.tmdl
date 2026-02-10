@@ -6,6 +6,10 @@ table Sales
 			```
 		lineageTag: c2fe3283-9d89-4bee-b219-09de50cc38c5
 
+	measure 'Total Order Quantity' = SUM(Sales[Order Quantity])
+		formatString: #,##0
+		lineageTag: e2etest1234567890
+
 	column SalesOrderLineKey
 		dataType: int64
 		isHidden

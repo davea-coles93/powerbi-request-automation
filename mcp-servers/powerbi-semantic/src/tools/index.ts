@@ -1087,6 +1087,546 @@ export function createTools(): Tool[] {
 
     // ========== WRITE OPERATIONS ==========
 
+    // Format DAX expression
+    {
+      name: 'format_dax',
+      description: 'Format a DAX expression for consistent style and readability',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          expression: {
+            type: 'string',
+            description: 'The DAX expression to format',
+          },
+          style: {
+            type: 'string',
+            enum: ['compact', 'readable'],
+            description: 'Formatting style: compact (single line) or readable (multi-line with indentation)',
+          },
+        },
+        required: ['expression'],
+      },
+      handler: async (args) => {
+        const expr = args.expression.trim();
+        const style = args.style || 'readable';
+
+        if (style === 'compact') {
+          // Compact: remove extra whitespace, single line
+          const compact = expr
+            .replace(/\s+/g, ' ')
+            .replace(/\s*,\s*/g, ', ')
+            .replace(/\s*\(\s*/g, '(')
+            .replace(/\s*\)\s*/g, ')')
+            .replace(/\s*=\s*/g, ' = ')
+            .replace(/\s*\+\s*/g, ' + ')
+            .replace(/\s*-\s*/g, ' - ')
+            .replace(/\s*\*\s*/g, ' * ')
+            .replace(/\s*\/\s*/g, ' / ')
+            .trim();
+
+          return {
+            formatted: compact,
+            style: 'compact',
+            lineCount: 1,
+          };
+        } else {
+          // Readable: multi-line with proper indentation
+          let formatted = expr;
+          let depth = 0;
+          const lines: string[] = [];
+          let currentLine = '';
+          let inString = false;
+          let stringChar = '';
+
+          for (let i = 0; i < formatted.length; i++) {
+            const char = formatted[i];
+            const prevChar = i > 0 ? formatted[i - 1] : '';
+
+            // Track string literals to avoid formatting inside them
+            if ((char === '"' || char === "'") && prevChar !== '\\') {
+              if (!inString) {
+                inString = true;
+                stringChar = char;
+              } else if (char === stringChar) {
+                inString = false;
+              }
+            }
+
+            if (!inString) {
+              // Add line breaks after commas in function calls
+              if (char === ',' && depth > 0) {
+                currentLine += char;
+                lines.push('\t'.repeat(depth) + currentLine.trim());
+                currentLine = '';
+                continue;
+              }
+
+              // Increase depth on opening parenthesis
+              if (char === '(') {
+                currentLine += char;
+                depth++;
+                // Check if next content should be on new line
+                const remaining = formatted.substring(i + 1).trim();
+                if (remaining.length > 40 || remaining.includes(',')) {
+                  lines.push('\t'.repeat(depth - 1) + currentLine.trim());
+                  currentLine = '';
+                }
+                continue;
+              }
+
+              // Decrease depth on closing parenthesis
+              if (char === ')') {
+                depth--;
+                if (currentLine.trim()) {
+                  lines.push('\t'.repeat(depth + 1) + currentLine.trim());
+                  currentLine = '';
+                }
+                currentLine += char;
+                continue;
+              }
+            }
+
+            currentLine += char;
+          }
+
+          // Add any remaining content
+          if (currentLine.trim()) {
+            lines.push('\t'.repeat(depth) + currentLine.trim());
+          }
+
+          // Join lines and clean up
+          formatted = lines
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+            .join('\n\t');
+
+          // Add consistent spacing around operators
+          formatted = formatted
+            .replace(/\s*=\s*/g, ' = ')
+            .replace(/\s*\+\s*/g, ' + ')
+            .replace(/\s*-\s*/g, ' - ')
+            .replace(/\s*\*\s*/g, ' * ')
+            .replace(/\s*\/\s*/g, ' / ')
+            .replace(/\s*&&\s*/g, ' && ')
+            .replace(/\s*\|\|\s*/g, ' || ');
+
+          return {
+            formatted,
+            style: 'readable',
+            lineCount: formatted.split('\n').length,
+          };
+        }
+      },
+    },
+
+    // Suggest measure table placement
+    {
+      name: 'suggest_measure_table',
+      description: 'Suggest which table a new measure should be placed in based on model conventions and dependencies',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          measureName: {
+            type: 'string',
+            description: 'Name of the measure to place',
+          },
+          expression: {
+            type: 'string',
+            description: 'DAX expression for the measure',
+          },
+        },
+        required: ['measureName', 'expression'],
+      },
+      handler: async (args) => {
+        const tmdlService = await getTmdlService(args.modelPath);
+        const project = await tmdlService.getProject();
+        const tables = project.model.tables;
+
+        // Extract table references from expression
+        const tableRefs = args.expression.match(/([A-Za-z0-9_]+)\[/g) || [];
+        const referencedTables = Array.from(new Set(
+          tableRefs.map((ref: string) => ref.slice(0, -1))
+        ));
+
+        // Check for existing measure tables
+        const measureTables = tables
+          .filter(t => t.measures.length > 0)
+          .map(t => ({
+            name: t.name,
+            measureCount: t.measures.length,
+            columnCount: t.columns.length,
+            hasMeasuresOnly: t.columns.length === 0,
+          }));
+
+        // Scoring logic
+        const scores = tables.map(table => {
+          let score = 0;
+          const reasons: string[] = [];
+
+          // Check if it's a dedicated measures table
+          if (table.measures.length > 0 && table.columns.length === 0) {
+            score += 50;
+            reasons.push('Dedicated measures table');
+          }
+
+          // Check if measure name matches table name pattern
+          if (args.measureName.toLowerCase().includes(table.name.toLowerCase())) {
+            score += 30;
+            reasons.push(`Measure name contains '${table.name}'`);
+          }
+
+          // Check if expression references this table
+          if (referencedTables.includes(table.name)) {
+            score += 25;
+            reasons.push(`Expression references ${table.name}`);
+          }
+
+          // Check if table already has many measures (convention established)
+          if (table.measures.length > 5) {
+            score += 15;
+            reasons.push(`Already has ${table.measures.length} measures`);
+          }
+
+          // Check for "_Measures" or "Measures" table name
+          if (table.name.toLowerCase().includes('measure')) {
+            score += 40;
+            reasons.push('Measures table by convention');
+          }
+
+          // Prefer fact tables over dimension tables for business metrics
+          if (table.measures.length > 0 && table.columns.length > 10) {
+            score += 10;
+            reasons.push('Fact table with existing measures');
+          }
+
+          return { table: table.name, score, reasons };
+        });
+
+        // Sort by score
+        scores.sort((a, b) => b.score - a.score);
+        const topSuggestion = scores[0];
+        const alternatives = scores.slice(1, 4).filter(s => s.score > 0);
+
+        return {
+          recommended: topSuggestion.table,
+          score: topSuggestion.score,
+          reasoning: topSuggestion.reasons,
+          referencedTables,
+          alternatives: alternatives.map(a => ({
+            table: a.table,
+            score: a.score,
+            reasons: a.reasons,
+          })),
+          measureTables: measureTables.map(mt => mt.name),
+          suggestion: topSuggestion.score > 30
+            ? `Place in '${topSuggestion.table}' table`
+            : `Consider creating a dedicated Measures table`,
+        };
+      },
+    },
+
+    // Manage calculated column (create/update/delete)
+    {
+      name: 'manage_calculated_column',
+      description: 'Create, update, or delete a calculated column in a TMDL table file',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          model_path: {
+            type: 'string',
+            description: 'Path to the semantic model directory (.SemanticModel)',
+          },
+          table_name: {
+            type: 'string',
+            description: 'Name of the table',
+          },
+          column_name: {
+            type: 'string',
+            description: 'Name of the calculated column',
+          },
+          operation: {
+            type: 'string',
+            enum: ['create', 'update', 'delete'],
+            description: 'Operation to perform',
+          },
+          expression: {
+            type: 'string',
+            description: 'DAX expression for the column (required for create/update)',
+          },
+          data_type: {
+            type: 'string',
+            enum: ['string', 'int64', 'double', 'decimal', 'boolean', 'dateTime'],
+            description: 'Data type of the calculated column',
+          },
+          format_string: {
+            type: 'string',
+            description: 'Optional format string',
+          },
+          is_hidden: {
+            type: 'boolean',
+            description: 'Whether the column should be hidden',
+          },
+          description: {
+            type: 'string',
+            description: 'Optional description/documentation',
+          },
+        },
+        required: ['model_path', 'table_name', 'column_name', 'operation'],
+      },
+      handler: async (args) => {
+        const fs = await import('fs');
+        const path = await import('path');
+
+        const tableFilePath = path.join(
+          args.model_path,
+          'definition',
+          'tables',
+          `${args.table_name}.tmdl`
+        );
+
+        if (!fs.existsSync(tableFilePath)) {
+          throw new Error(`Table file not found: ${tableFilePath}`);
+        }
+
+        let content = await fs.promises.readFile(tableFilePath, 'utf-8');
+        const lines = content.split('\n');
+
+        if (args.operation === 'create') {
+          // Check if column already exists
+          const escapedName = args.column_name.replace(/'/g, "\\'");
+          const columnPattern = new RegExp(`^\\s*column\\s+'${escapedName}'`, 'm');
+          if (columnPattern.test(content)) {
+            throw new Error(`Column '${args.column_name}' already exists`);
+          }
+
+          if (!args.expression) {
+            throw new Error('Expression is required for create operation');
+          }
+
+          // Find insertion point (after last column or before first measure)
+          let insertIndex = -1;
+          for (let i = lines.length - 1; i >= 0; i--) {
+            if (lines[i].match(/^\s*column\s+/)) {
+              insertIndex = i + 1;
+              // Skip to end of this column block
+              for (let j = i + 1; j < lines.length; j++) {
+                if (lines[j].match(/^\s*(column|measure|partition|hierarchy)\s+/) ||
+                    (lines[j].trim() && !lines[j].startsWith('\t\t'))) {
+                  insertIndex = j;
+                  break;
+                }
+              }
+              break;
+            }
+          }
+
+          // If no columns found, insert before first measure
+          if (insertIndex === -1) {
+            for (let i = 0; i < lines.length; i++) {
+              if (lines[i].match(/^\s*measure\s+/)) {
+                insertIndex = i;
+                break;
+              }
+            }
+          }
+
+          // If still not found, insert after table declaration
+          if (insertIndex === -1) {
+            insertIndex = 3;
+          }
+
+          // Generate unique lineageTag
+          const lineageTag = `${Math.random().toString(36).substring(2, 10)}${Date.now().toString(36)}`;
+
+          // Build column block
+          const columnLines = [
+            `\tcolumn '${args.column_name}' = ${args.expression}`,
+          ];
+
+          if (args.data_type) {
+            columnLines.push(`\t\tdataType: ${args.data_type}`);
+          }
+
+          if (args.format_string) {
+            columnLines.push(`\t\tformatString: ${args.format_string}`);
+          }
+
+          if (args.is_hidden) {
+            columnLines.push(`\t\tisHidden`);
+          }
+
+          if (args.description) {
+            columnLines.push(`\t\t/// ${args.description}`);
+          }
+
+          columnLines.push(`\t\tlineageTag: ${lineageTag}`);
+          columnLines.push(''); // Empty line after column
+
+          // Insert the column
+          lines.splice(insertIndex, 0, ...columnLines);
+
+          // Write back
+          content = lines.join('\n');
+          await fs.promises.writeFile(tableFilePath, content, 'utf-8');
+
+          return {
+            success: true,
+            operation: 'create',
+            column: args.column_name,
+            table: args.table_name,
+            message: `Created calculated column '${args.column_name}' in table '${args.table_name}'`,
+          };
+        } else if (args.operation === 'update') {
+          // Find the column block
+          const escapedName = args.column_name.replace(/'/g, "\\'");
+          const columnStartPattern = new RegExp(`^\\s*column\\s+'${escapedName}'`, 'm');
+
+          if (!columnStartPattern.test(content)) {
+            throw new Error(`Column '${args.column_name}' not found`);
+          }
+
+          // Find start and end of column block
+          let columnStart = -1;
+          let columnEnd = -1;
+          let inColumn = false;
+          let baseIndent = '';
+
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            if (line.match(new RegExp(`^\\s*column\\s+'${escapedName}'`))) {
+              columnStart = i;
+              inColumn = true;
+              baseIndent = line.match(/^\s*/)?.[0] || '';
+              continue;
+            }
+
+            if (inColumn) {
+              if (line.match(/^\s*(measure|column|partition|hierarchy)\s+/) ||
+                  (line.trim() && !line.startsWith(baseIndent + '\t'))) {
+                columnEnd = i;
+                break;
+              }
+            }
+          }
+
+          if (columnStart === -1) {
+            throw new Error(`Column '${args.column_name}' not found`);
+          }
+
+          if (columnEnd === -1) {
+            columnEnd = lines.length;
+          }
+
+          // Build updated column block
+          const columnLines = [
+            `${baseIndent}column '${args.column_name}'${args.expression ? ` = ${args.expression}` : ''}`,
+          ];
+
+          if (args.data_type) {
+            columnLines.push(`${baseIndent}\t\tdataType: ${args.data_type}`);
+          }
+
+          if (args.format_string) {
+            columnLines.push(`${baseIndent}\t\tformatString: ${args.format_string}`);
+          }
+
+          if (args.is_hidden !== undefined) {
+            if (args.is_hidden) {
+              columnLines.push(`${baseIndent}\t\tisHidden`);
+            }
+          }
+
+          if (args.description) {
+            columnLines.push(`${baseIndent}\t\t/// ${args.description}`);
+          }
+
+          // Preserve existing lineageTag
+          const oldContent = lines.slice(columnStart, columnEnd).join('\n');
+          const lineageMatch = oldContent.match(/lineageTag:\s*([a-zA-Z0-9]+)/);
+          const lineageTag = lineageMatch ? lineageMatch[1] : `${Math.random().toString(36).substring(2, 10)}${Date.now().toString(36)}`;
+          columnLines.push(`${baseIndent}\t\tlineageTag: ${lineageTag}`);
+          columnLines.push('');
+
+          // Replace the column block
+          lines.splice(columnStart, columnEnd - columnStart, ...columnLines);
+
+          // Write back
+          content = lines.join('\n');
+          await fs.promises.writeFile(tableFilePath, content, 'utf-8');
+
+          return {
+            success: true,
+            operation: 'update',
+            column: args.column_name,
+            table: args.table_name,
+            message: `Updated calculated column '${args.column_name}' in table '${args.table_name}'`,
+          };
+        } else if (args.operation === 'delete') {
+          // Find and delete the column block
+          const escapedName = args.column_name.replace(/'/g, "\\'");
+          const columnStartPattern = new RegExp(`^\\s*column\\s+'${escapedName}'`, 'm');
+
+          if (!columnStartPattern.test(content)) {
+            throw new Error(`Column '${args.column_name}' not found`);
+          }
+
+          // Find start and end of column block
+          let columnStart = -1;
+          let columnEnd = -1;
+          let inColumn = false;
+          let baseIndent = '';
+
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            if (line.match(new RegExp(`^\\s*column\\s+'${escapedName}'`))) {
+              columnStart = i;
+              inColumn = true;
+              baseIndent = line.match(/^\s*/)?.[0] || '';
+              continue;
+            }
+
+            if (inColumn) {
+              if (line.match(/^\s*(measure|column|partition|hierarchy)\s+/) ||
+                  (line.trim() && !line.startsWith(baseIndent + '\t'))) {
+                columnEnd = i;
+                break;
+              }
+            }
+          }
+
+          if (columnStart === -1) {
+            throw new Error(`Column '${args.column_name}' not found`);
+          }
+
+          if (columnEnd === -1) {
+            columnEnd = lines.length;
+          }
+
+          // Remove the column block
+          if (columnEnd < lines.length && lines[columnEnd].trim() === '') {
+            columnEnd++;
+          }
+          lines.splice(columnStart, columnEnd - columnStart);
+
+          // Write back
+          content = lines.join('\n');
+          await fs.promises.writeFile(tableFilePath, content, 'utf-8');
+
+          return {
+            success: true,
+            operation: 'delete',
+            column: args.column_name,
+            table: args.table_name,
+            message: `Deleted calculated column '${args.column_name}' from table '${args.table_name}'`,
+          };
+        } else {
+          throw new Error(`Unknown operation '${args.operation}'`);
+        }
+      },
+    },
+
     // Manage measure (create/update/delete)
     {
       name: 'manage_measure',
