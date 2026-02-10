@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Tooltip } from 'react-tooltip';
-import { useObservations, useSystems, useEntities } from '../hooks/useOntology';
+import { useAttributes, useSystems, useEntities } from '../hooks/useOntology';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import * as api from '../services/api';
 
@@ -21,8 +21,8 @@ export interface StepFormData {
   automation_potential?: 'High' | 'Medium' | 'Low' | 'None';
   waste_category?: string;
   manual_effort_percentage?: number;
-  produces_observation_ids?: string[];
-  consumes_observation_ids?: string[];
+  produces_attribute_ids?: string[];
+  consumes_attribute_ids?: string[];
   uses_metric_ids?: string[];
   systems_used_ids?: string[];
   description?: string;
@@ -31,19 +31,19 @@ export interface StepFormData {
 export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: ProcessStepEditModalProps) {
   const [step, setStep] = useState<StepFormData>(initialStep);
   const [activeTab, setActiveTab] = useState<'basic' | 'metadata' | 'links'>('basic');
-  const [showCreateObservation, setShowCreateObservation] = useState(false);
+  const [showCreateAttribute, setShowCreateAttribute] = useState(false);
   const [showCreateSystem, setShowCreateSystem] = useState(false);
 
   const queryClient = useQueryClient();
-  const { data: observations = [] } = useObservations();
+  const { data: attributes = [] } = useAttributes();
   const { data: systems = [] } = useSystems();
   const { data: entities = [] } = useEntities();
 
-  // Observation creation mutation
-  const createObservationMutation = useMutation({
-    mutationFn: (data: any) => api.createObservation(data),
+  // Attribute creation mutation
+  const createAttributeMutation = useMutation({
+    mutationFn: (data: any) => api.createAttribute(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['observations'] });
+      queryClient.invalidateQueries({ queryKey: ['attributes'] });
     },
   });
 
@@ -291,45 +291,45 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
           {/* Links Tab */}
           {activeTab === 'links' && (
             <div className="space-y-6">
-              {/* Observations Produced */}
+              {/* Attributes Produced */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="flex items-center gap-1 text-sm font-semibold">
-                    📤 Produces Observations
+                    📤 Produces Attributes
                     <span
-                      data-tooltip-id="produces-obs-tooltip"
+                      data-tooltip-id="produces-attr-tooltip"
                       className="cursor-help text-gray-400 hover:text-gray-600"
                     >
                       ℹ️
                     </span>
                   </label>
                   <button
-                    onClick={() => setShowCreateObservation(true)}
+                    onClick={() => setShowCreateAttribute(true)}
                     className="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
                   >
                     ➕ Create New
                   </button>
                 </div>
-                <Tooltip id="produces-obs-tooltip" place="top" style={{ maxWidth: '300px', zIndex: 9999 }}>
+                <Tooltip id="produces-attr-tooltip" place="top" style={{ maxWidth: '300px', zIndex: 9999 }}>
                   <div className="text-xs">
-                    <strong>Observations</strong> are data points created or recorded by this step.
+                    <strong>Attributes</strong> are data points created or recorded by this step.
                     Examples: Production confirmations, quality checks, inventory counts.
                   </div>
                 </Tooltip>
                 <div className="border rounded p-3 max-h-40 overflow-y-auto">
-                  {observations.length === 0 ? (
-                    <p className="text-sm text-gray-500">No observations available</p>
+                  {attributes.length === 0 ? (
+                    <p className="text-sm text-gray-500">No attributes available</p>
                   ) : (
                     <div className="space-y-1">
-                      {observations.map((obs) => (
-                        <label key={obs.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                      {attributes.map((attr) => (
+                        <label key={attr.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
                           <input
                             type="checkbox"
-                            checked={step.produces_observation_ids?.includes(obs.id) || false}
-                            onChange={() => toggleArrayItem('produces_observation_ids', obs.id)}
+                            checked={step.produces_attribute_ids?.includes(attr.id) || false}
+                            onChange={() => toggleArrayItem('produces_attribute_ids', attr.id)}
                             className="w-4 h-4"
                           />
-                          <span className="text-sm">{obs.name}</span>
+                          <span className="text-sm">{attr.name}</span>
                         </label>
                       ))}
                     </div>
@@ -337,37 +337,37 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
                 </div>
               </div>
 
-              {/* Observations Consumed */}
+              {/* Attributes Consumed */}
               <div>
                 <label className="flex items-center gap-1 text-sm font-semibold mb-2">
-                  📥 Consumes Observations
+                  📥 Consumes Attributes
                   <span
-                    data-tooltip-id="consumes-obs-tooltip"
+                    data-tooltip-id="consumes-attr-tooltip"
                     className="cursor-help text-gray-400 hover:text-gray-600"
                   >
                     ℹ️
                   </span>
                 </label>
-                <Tooltip id="consumes-obs-tooltip" place="top" style={{ maxWidth: '300px', zIndex: 9999 }}>
+                <Tooltip id="consumes-attr-tooltip" place="top" style={{ maxWidth: '300px', zIndex: 9999 }}>
                   <div className="text-xs">
                     Data points read or used as input by this step.
-                    These observations should be created by previous steps.
+                    These attributes should be created by previous steps.
                   </div>
                 </Tooltip>
                 <div className="border rounded p-3 max-h-40 overflow-y-auto">
-                  {observations.length === 0 ? (
-                    <p className="text-sm text-gray-500">No observations available</p>
+                  {attributes.length === 0 ? (
+                    <p className="text-sm text-gray-500">No attributes available</p>
                   ) : (
                     <div className="space-y-1">
-                      {observations.map((obs) => (
-                        <label key={obs.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                      {attributes.map((attr) => (
+                        <label key={attr.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
                           <input
                             type="checkbox"
-                            checked={step.consumes_observation_ids?.includes(obs.id) || false}
-                            onChange={() => toggleArrayItem('consumes_observation_ids', obs.id)}
+                            checked={step.consumes_attribute_ids?.includes(attr.id) || false}
+                            onChange={() => toggleArrayItem('consumes_attribute_ids', attr.id)}
                             className="w-4 h-4"
                           />
-                          <span className="text-sm">{obs.name}</span>
+                          <span className="text-sm">{attr.name}</span>
                         </label>
                       ))}
                     </div>
@@ -442,31 +442,31 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
         </div>
       </div>
 
-      {/* Create Observation Modal */}
-      {showCreateObservation && (
+      {/* Create Attribute Modal */}
+      {showCreateAttribute && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
           <div className="bg-white rounded-lg p-6 w-[500px] max-h-[80vh] overflow-y-auto">
-            <h3 className="text-lg font-bold mb-4">Create New Observation</h3>
+            <h3 className="text-lg font-bold mb-4">Create New Attribute</h3>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
-                const newObservation = {
-                  id: `obs_${Date.now()}`,
+                const newAttribute = {
+                  id: `attr_${Date.now()}`,
                   name: formData.get('name') as string,
                   description: formData.get('description') as string,
                   entity_id: formData.get('entity_id') as string,
                   system_id: formData.get('system_id') as string,
                 };
 
-                createObservationMutation.mutate(newObservation, {
+                createAttributeMutation.mutate(newAttribute, {
                   onSuccess: () => {
-                    setShowCreateObservation(false);
-                    toast.success('Observation created successfully!');
+                    setShowCreateAttribute(false);
+                    toast.success('Attribute created successfully!');
                   },
                   onError: (error) => {
-                    console.error('Error creating observation:', error);
-                    toast.error('Error creating observation.');
+                    console.error('Error creating attribute:', error);
+                    toast.error('Error creating attribute.');
                   },
                 });
               }}
@@ -489,7 +489,7 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
                   name="description"
                   className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
                   rows={2}
-                  placeholder="What this observation represents"
+                  placeholder="What this attribute represents"
                 />
               </div>
 
@@ -528,7 +528,7 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
               <div className="flex gap-2 justify-end pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowCreateObservation(false)}
+                  onClick={() => setShowCreateAttribute(false)}
                   className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
                 >
                   Cancel
@@ -536,9 +536,9 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
                 <button
                   type="submit"
                   className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                  disabled={createObservationMutation.isPending}
+                  disabled={createAttributeMutation.isPending}
                 >
-                  {createObservationMutation.isPending ? 'Creating...' : 'Create Observation'}
+                  {createAttributeMutation.isPending ? 'Creating...' : 'Create Attribute'}
                 </button>
               </div>
             </form>

@@ -89,31 +89,31 @@ export function MetricDetail({ metricId, onClose }: MetricDetailProps) {
             <ArrowRight className="w-5 h-5 text-gray-400 rotate-90" />
           </div>
 
-          {/* Observations */}
+          {/* Attributes */}
           <div>
             <div className="flex items-center gap-2 mb-3">
               <Database className="w-5 h-5 text-gray-500" />
-              <span className="font-medium text-gray-700">Sourced from Observations</span>
+              <span className="font-medium text-gray-700">Sourced from Attributes</span>
             </div>
             <div className="grid gap-3 ml-7">
-              {trace.observations.map((obs) => (
-                <div key={obs.id} className="bg-gray-50 p-3 rounded-lg border">
+              {trace.attributes.map((attr) => (
+                <div key={attr.id} className="bg-gray-50 p-3 rounded-lg border">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-medium">{obs.name}</h4>
+                    <h4 className="font-medium">{attr.name}</h4>
                     <span
                       className={`px-2 py-1 text-xs rounded ${
-                        obs.reliability === 'High'
+                        attr.reliability === 'High'
                           ? 'bg-green-100 text-green-700'
-                          : obs.reliability === 'Medium'
+                          : attr.reliability === 'Medium'
                           ? 'bg-yellow-100 text-yellow-700'
                           : 'bg-red-100 text-red-700'
                       }`}
                     >
-                      {obs.reliability} reliability
+                      {attr.reliability} reliability
                     </span>
                   </div>
                   <p className="text-sm text-gray-600 mt-1">
-                    Source: {obs.source_actor} | {obs.volatility}
+                    Source: {attr.source_actor} | {attr.volatility}
                   </p>
                 </div>
               ))}

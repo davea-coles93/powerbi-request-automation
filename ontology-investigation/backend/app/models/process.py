@@ -20,18 +20,18 @@ class ProcessStep(BaseModel):
     actor: Optional[str] = Field(
         default=None, description="Who or what performs this step"
     )
-    consumes_observation_ids: list[str] = Field(
-        default_factory=list, description="Observations read/used by this step"
+    consumes_attribute_ids: list[str] = Field(
+        default_factory=list, description="Attributes read/used by this step"
     )
-    produces_observation_ids: list[str] = Field(
-        default_factory=list, description="Observations created by this step"
+    produces_attribute_ids: list[str] = Field(
+        default_factory=list, description="Attributes created by this step"
     )
     uses_metric_ids: list[str] = Field(
         default_factory=list, description="Metrics reviewed/used in this step"
     )
-    crystallizes_observation_ids: list[str] = Field(
+    crystallizes_attribute_ids: list[str] = Field(
         default_factory=list,
-        description="Observations that become frozen after this step",
+        description="Attributes that become frozen after this step",
     )
     depends_on_step_ids: list[str] = Field(
         default_factory=list, description="Steps that must complete before this one"
@@ -94,10 +94,10 @@ class Process(BaseModel):
                         "description": "Confirm all completed production orders",
                         "perspective_id": "operational",
                         "actor": "Production Manager",
-                        "consumes_observation_ids": ["production_confirmations"],
-                        "produces_observation_ids": [],
+                        "consumes_attribute_ids": ["production_confirmations"],
+                        "produces_attribute_ids": [],
                         "uses_metric_ids": [],
-                        "crystallizes_observation_ids": [
+                        "crystallizes_attribute_ids": [
                             "production_confirmations",
                             "production_goods_movements",
                         ],

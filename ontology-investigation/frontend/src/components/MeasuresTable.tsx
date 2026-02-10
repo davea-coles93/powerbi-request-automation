@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from './DataTable';
-import { Check, X } from 'lucide-react';
+import { EmptyState } from './EmptyState';
+import { Check, X, Calculator } from 'lucide-react';
 
 interface Measure {
   id: string;
@@ -9,7 +10,7 @@ interface Measure {
   description?: string;
   logic?: string;
   formula?: string;
-  input_observation_ids: string[];
+  input_attribute_ids: string[];
   input_measure_ids?: string[];
   perspective_ids: string[];
 }
@@ -58,13 +59,13 @@ export function MeasuresTable({
         },
       },
       {
-        accessorKey: 'input_observation_ids',
-        header: 'Input Observations',
+        accessorKey: 'input_attribute_ids',
+        header: 'Input Attributes',
         cell: (info) => {
-          const observations = info.getValue() as string[];
+          const attributes = info.getValue() as string[];
           return (
             <div className="text-sm text-gray-600">
-              {observations.length} observation{observations.length !== 1 ? 's' : ''}
+              {attributes.length} attribute{attributes.length !== 1 ? 's' : ''}
             </div>
           );
         },
@@ -131,13 +132,13 @@ export function MeasuresTable({
         id: 'actions',
         header: 'Actions',
         cell: (info) => (
-          <div className="flex gap-2">
+          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onMeasureClick?.(info.row.original);
               }}
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+              className="px-3 py-1 text-blue-600 hover:bg-blue-100 hover:text-blue-800 rounded text-sm font-medium transition-colors"
             >
               Edit
             </button>
@@ -146,9 +147,9 @@ export function MeasuresTable({
                 e.stopPropagation();
                 onViewUsage?.(info.row.original);
               }}
-              className="text-gray-600 hover:text-gray-800 text-sm font-medium"
+              className="px-3 py-1 text-green-600 hover:bg-green-100 hover:text-green-800 rounded text-sm font-medium transition-colors"
             >
-              View Usage
+              Usage
             </button>
           </div>
         ),
@@ -157,13 +158,38 @@ export function MeasuresTable({
     [onMeasureClick, onViewUsage, semanticModelMeasures]
   );
 
+  // Show empty state if no measures
+  if (measures.length === 0) {
+    return (
+      <div className="p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Measures</h2>
+            <p className="text-gray-600 mt-1">
+              Calculations and derivations from attributes
+            </p>
+          </div>
+        </div>
+        <EmptyState
+          icon={<Calculator className="w-full h-full" />}
+          title="No Measures Yet"
+          description="Measures are calculations derived from attributes. They transform raw data into meaningful values. Examples: Total Production Quantity (sum of quantities), Average Cycle Time, Defect Rate (calculated ratio)."
+          actionLabel="+ Create First Measure"
+          onAction={onNewMeasure}
+          secondaryActionLabel="📖 Learn About Measures"
+          onSecondaryAction={() => window.open('https://docs.example.com/measures', '_blank')}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="p-6">
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Measures</h2>
           <p className="text-gray-600 mt-1">
-            Calculations and derivations from observations
+            Calculations and derivations from attributes
           </p>
         </div>
         <button

@@ -52,10 +52,10 @@ export interface Entity {
   lenses: EntityLens[];
 }
 
-// Observation types
+// Attribute types
 export type Volatility = 'Point-in-time' | 'Accumulating' | 'Continuous';
 
-export interface Observation {
+export interface Attribute {
   id: string;
   name: string;
   description?: string;
@@ -74,7 +74,7 @@ export interface Measure {
   description?: string;
   logic?: string;
   formula?: string;
-  input_observation_ids: string[];
+  input_attribute_ids: string[];
   input_measure_ids: string[];
   perspective_ids: string[];
 }
@@ -99,10 +99,10 @@ export interface ProcessStep {
   description?: string;
   perspective_id: string;
   actor?: string;
-  consumes_observation_ids: string[];
-  produces_observation_ids: string[];
+  consumes_attribute_ids: string[];
+  produces_attribute_ids: string[];
   uses_metric_ids: string[];
-  crystallizes_observation_ids: string[];
+  crystallizes_attribute_ids: string[];
   depends_on_step_ids: string[];
 
   // Hierarchical drill-down support
@@ -129,7 +129,7 @@ export interface Process {
 export interface MetricTrace {
   metric: Metric;
   measures: Measure[];
-  observations: Observation[];
+  attributes: Attribute[];
   systems: System[];
   entities: Entity[];
 }
@@ -138,7 +138,7 @@ export interface PerspectiveView {
   perspective: Perspective;
   metrics: Metric[];
   measures: Measure[];
-  observations: Observation[];
+  attributes: Attribute[];
   entities: Entity[];
   process_steps: (ProcessStep & { process_id: string; process_name: string })[];
 }
@@ -182,7 +182,7 @@ export interface Column {
   is_foreign_key?: boolean;
   source_system_id?: string;
   source_field?: string;
-  mapped_observation_id?: string;
+  mapped_attribute_id?: string;
   description?: string;
 }
 
@@ -222,7 +222,27 @@ export interface MappingStatus {
   mapped_columns: number;
   total_measures: number;
   mapped_measures: number;
-  orphaned_observations: string[];
+  orphaned_attributes?: string[];  // For frontend compatibility
+  orphaned_observations?: string[];  // Actual API response
   orphaned_tables: string[];
   missing_columns: string[];
+}
+
+// Scenario types
+export interface ScenarioInfo {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+}
+
+export interface ScenarioStatus {
+  current_scenario: string | null;
+  available_scenarios: ScenarioInfo[];
+}
+
+export interface LoadScenarioResponse {
+  success: boolean;
+  message: string;
+  scenario: ScenarioInfo;
 }

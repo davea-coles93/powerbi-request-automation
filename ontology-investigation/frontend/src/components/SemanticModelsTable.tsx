@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from './DataTable';
+import { EmptyState } from './EmptyState';
+import { Table } from 'lucide-react';
 
 interface SemanticModelTable {
   id: string;
@@ -118,13 +120,13 @@ export function SemanticModelsTable({
         id: 'actions',
         header: 'Actions',
         cell: (info) => (
-          <div className="flex gap-2">
+          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onEditTable?.(info.row.original.id);
               }}
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+              className="px-3 py-1 text-blue-600 hover:bg-blue-100 hover:text-blue-800 rounded text-sm font-medium transition-colors"
             >
               Edit
             </button>
@@ -133,7 +135,7 @@ export function SemanticModelsTable({
                 e.stopPropagation();
                 onMapColumns?.(info.row.original.id);
               }}
-              className="text-green-600 hover:text-green-800 text-sm font-medium"
+              className="px-3 py-1 text-green-600 hover:bg-green-100 hover:text-green-800 rounded text-sm font-medium transition-colors"
             >
               Map
             </button>
@@ -142,9 +144,9 @@ export function SemanticModelsTable({
                 e.stopPropagation();
                 onViewRelationships?.(info.row.original.id);
               }}
-              className="text-purple-600 hover:text-purple-800 text-sm font-medium"
+              className="px-3 py-1 text-purple-600 hover:bg-purple-100 hover:text-purple-800 rounded text-sm font-medium transition-colors"
             >
-              Relationships
+              Relations
             </button>
           </div>
         ),
@@ -153,13 +155,38 @@ export function SemanticModelsTable({
     [onEditTable, onViewRelationships, onMapColumns]
   );
 
+  // Show empty state if no tables
+  if (tables.length === 0) {
+    return (
+      <div className="p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Semantic Model</h2>
+            <p className="text-gray-600 mt-1">
+              BI tool tables, columns, and relationships
+            </p>
+          </div>
+        </div>
+        <EmptyState
+          icon={<Table className="w-full h-full" />}
+          title="No Semantic Model Tables Yet"
+          description="Semantic model tables are your BI tool implementation (Power BI, Tableau, etc.) that maps to your business ontology. Import existing tables or create new ones to start building your data model."
+          actionLabel="📥 Import from PBIX"
+          onAction={() => console.log('Import from PBIX')}
+          secondaryActionLabel="+ Create Table Manually"
+          onSecondaryAction={onNewTable}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="p-6">
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Semantic Model</h2>
           <p className="text-gray-600 mt-1">
-            Power BI tables, columns, and relationships
+            BI tool tables, columns, and relationships
           </p>
         </div>
         <div className="flex gap-2">

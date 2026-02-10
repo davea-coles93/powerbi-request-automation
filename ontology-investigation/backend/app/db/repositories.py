@@ -4,7 +4,7 @@ from .database import (
     PerspectiveDB,
     SystemDB,
     EntityDB,
-    ObservationDB,
+    AttributeDB,
     MeasureDB,
     MetricDB,
     ProcessDB,
@@ -15,7 +15,7 @@ from ..models import (
     Perspective,
     System,
     Entity,
-    Observation,
+    Attribute,
     Measure,
     Metric,
     Process,
@@ -89,17 +89,17 @@ class EntityRepository(BaseRepository[Entity, EntityDB]):
         super().__init__(db, EntityDB, Entity)
 
 
-class ObservationRepository(BaseRepository[Observation, ObservationDB]):
+class AttributeRepository(BaseRepository[Attribute, AttributeDB]):
     def __init__(self, db: Session):
-        super().__init__(db, ObservationDB, Observation)
+        super().__init__(db, AttributeDB, Attribute)
 
-    def get_by_entity(self, entity_id: str) -> list[Observation]:
+    def get_by_entity(self, entity_id: str) -> list[Attribute]:
         items = self.db.query(self.model_class).filter(
             self.model_class.entity_id == entity_id
         ).all()
         return [self._to_pydantic(item) for item in items]
 
-    def get_by_system(self, system_id: str) -> list[Observation]:
+    def get_by_system(self, system_id: str) -> list[Attribute]:
         items = self.db.query(self.model_class).filter(
             self.model_class.system_id == system_id
         ).all()
