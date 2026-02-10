@@ -2,8 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, Literal
 
 
-SystemType = Literal["ERP", "MES", "WMS", "Spreadsheet", "Manual", "BI", "Other"]
-Vendor = Literal["SAP", "Microsoft", "Oracle", "Custom", "N/A", "Other"]
+SystemType = Literal["ERP", "MES", "WMS", "CMMS", "QMS", "Spreadsheet", "Manual", "BI", "Other"]
 ReliabilityLevel = Literal["High", "Medium", "Low"]
 IntegrationStatus = Literal["Connected", "Planned", "Manual Extract", "None"]
 
@@ -14,7 +13,7 @@ class System(BaseModel):
     id: str = Field(..., description="Unique identifier")
     name: str = Field(..., description="Display name")
     type: SystemType = Field(..., description="Category of system")
-    vendor: Optional[Vendor] = Field(default=None, description="System vendor")
+    vendor: Optional[str] = Field(default=None, description="System vendor")
     reliability_default: Optional[ReliabilityLevel] = Field(
         default=None, description="Default reliability level for observations"
     )

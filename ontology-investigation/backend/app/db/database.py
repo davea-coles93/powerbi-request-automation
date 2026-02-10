@@ -5,7 +5,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 # Database path
-DATA_DIR = Path(__file__).parent.parent.parent.parent / "data"
+# Use /app/data which is mounted as a volume in Docker
+DATA_DIR = Path("/app/data")
 DATA_DIR.mkdir(exist_ok=True)
 DATABASE_URL = f"sqlite:///{DATA_DIR / 'ontology.db'}"
 
@@ -49,8 +50,8 @@ class EntityDB(Base):
     lenses = Column(JSON, default=list)
 
 
-class ObservationDB(Base):
-    __tablename__ = "observations"
+class AttributeDB(Base):
+    __tablename__ = "attributes"
 
     id = Column(String, primary_key=True)
     name = Column(String, nullable=False)
@@ -71,7 +72,7 @@ class MeasureDB(Base):
     description = Column(Text)
     logic = Column(Text)
     formula = Column(String)
-    input_observation_ids = Column(JSON, default=list)
+    input_attribute_ids = Column(JSON, default=list)
     input_measure_ids = Column(JSON, default=list)
     perspective_ids = Column(JSON, default=list)
 

@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import delete
+from sqlalchemy import delete, select, func
 from pydantic import BaseModel
 
 from app.db.database import (
@@ -98,22 +98,38 @@ def get_seed_data_path(scenario_file: str) -> Path:
 def clear_database(db: Session):
     """Clear all data from the database."""
     # Delete in order that respects foreign key constraints
+    # Most dependent tables first, then their dependencies
     tables = [
         ProcessDB.__table__,
         MetricDB.__table__,
         MeasureDB.__table__,
         AttributeDB.__table__,
         EntityDB.__table__,
+        SemanticTableDB.__table__,
         SystemDB.__table__,
         PerspectiveDB.__table__,
-        SemanticTableDB.__table__,
     ]
 
     # Delete all rows from each table
     for table in tables:
-        db.execute(delete(table))
+        result = db.execute(delete(table))
+        print(f"Deleted {result.rowcount} rows from {table.name}")
 
+    # Commit once after all deletes
     db.commit()
+
+    # Verify deletion worked by counting rows
+    for table in tables:
+        count_query = select(func.count()).select_from(table)
+        count = db.execute(count_query).scalar()
+        if count > 0:
+            print(f"WARNING: {table.name} still has {count} rows after clear, forcing delete")
+            # Force delete again
+            db.execute(delete(table))
+
+    # Final commit if any force deletes happened
+    db.commit()
+    print("Database cleared successfully")
 
 
 def load_seed_data_from_file(scenario_file: str) -> dict:

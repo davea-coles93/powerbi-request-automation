@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from './DataTable';
-import { Edit, Database } from 'lucide-react';
+import { EmptyState } from './EmptyState';
+import { Edit, Database, Server } from 'lucide-react';
 import { System, SystemType, IntegrationStatus } from '../types/ontology';
 
 interface SystemsTableProps {
@@ -101,13 +102,13 @@ export function SystemsTable({
         id: 'actions',
         header: 'Actions',
         cell: (info) => (
-          <div className="flex gap-2">
+          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onEditSystem?.(info.row.original);
               }}
-              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium"
+              className="flex items-center gap-1 px-3 py-1 text-blue-600 hover:bg-blue-100 hover:text-blue-800 rounded text-sm font-medium transition-colors"
             >
               <Edit className="w-3.5 h-3.5" />
               Edit
@@ -119,6 +120,34 @@ export function SystemsTable({
     [onEditSystem]
   );
 
+  // Show empty state if no systems
+  if (systems.length === 0) {
+    return (
+      <div className="p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Database className="w-6 h-6" />
+              Systems
+            </h2>
+            <p className="text-gray-600 mt-1">
+              Source systems that produce attributes and data
+            </p>
+          </div>
+        </div>
+        <EmptyState
+          icon={<Server className="w-full h-full" />}
+          title="No Systems Yet"
+          description="Systems are the source applications where data originates. They capture business events and produce attributes. Examples: SAP ERP, Manufacturing Execution System (MES), Warehouse Management System (WMS), Excel spreadsheets."
+          actionLabel="+ Add First System"
+          onAction={onNewSystem}
+          secondaryActionLabel="📖 Learn About Systems"
+          onSecondaryAction={() => window.open('https://docs.example.com/systems', '_blank')}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="p-6">
       <div className="mb-4 flex items-center justify-between">
@@ -128,7 +157,7 @@ export function SystemsTable({
             Systems
           </h2>
           <p className="text-gray-600 mt-1">
-            Source systems that produce observations and data
+            Source systems that produce attributes and data
           </p>
         </div>
         <button

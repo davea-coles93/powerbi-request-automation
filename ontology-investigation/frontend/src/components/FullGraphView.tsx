@@ -4,7 +4,7 @@ import cytoscapeDagre from 'cytoscape-dagre';
 import {
   usePerspectiveView,
   useMeasures,
-  useObservations,
+  useAttributes,
   useSystems,
   useSemanticTables,
   useProcesses,
@@ -21,7 +21,7 @@ type LayerVisibility = {
   processes: boolean;
   metrics: boolean;
   measures: boolean;
-  observations: boolean;
+  attributes: boolean;
   systems: boolean;
   semanticTables: boolean;
 };
@@ -31,7 +31,7 @@ export function FullGraphView({ perspective }: FullGraphViewProps) {
     processes: true,
     metrics: true,
     measures: true,
-    observations: true,
+    attributes: true,
     systems: true,
     semanticTables: true,
   });
@@ -42,7 +42,7 @@ export function FullGraphView({ perspective }: FullGraphViewProps) {
 
   const { data: perspectiveView, isLoading: perspectiveLoading } = usePerspectiveView(perspective);
   const { data: allMeasures, isLoading: measuresLoading } = useMeasures();
-  const { data: observations, isLoading: observationsLoading } = useObservations();
+  const { data: attributes, isLoading: attributesLoading } = useAttributes();
   const { data: systems, isLoading: systemsLoading } = useSystems();
   const { data: semanticTables, isLoading: tablesLoading } = useSemanticTables();
   const { data: processes, isLoading: processesLoading } = useProcesses();
@@ -55,7 +55,7 @@ export function FullGraphView({ perspective }: FullGraphViewProps) {
     if (
       !perspectiveView ||
       !allMeasures ||
-      !observations ||
+      !attributes ||
       !systems ||
       !semanticTables ||
       !processes
@@ -94,7 +94,7 @@ export function FullGraphView({ perspective }: FullGraphViewProps) {
       processes: 0,
       metrics: layerHeight,
       measures: layerHeight * 2,
-      observations: layerHeight * 3,
+      attributes: layerHeight * 3,
       systems: layerHeight * 4,
       semanticTables: layerHeight * 5,
     };
@@ -172,24 +172,24 @@ export function FullGraphView({ perspective }: FullGraphViewProps) {
       });
     });
 
-    // 4. Observations
-    observations.forEach((obs, index) => {
-      const nodeId = `observation-${obs.id}`;
+    // 4. Attributes
+    attributes.forEach((attr, index) => {
+      const nodeId = `attribute-${attr.id}`;
       validNodeIds.add(nodeId);
       cyElements.push({
         group: 'nodes',
         data: {
           id: nodeId,
-          label: obs.name,
-          subtitle: 'Observation',
-          layer: 'observations',
-          type: 'observation',
+          label: attr.name,
+          subtitle: 'Attribute',
+          layer: 'attributes',
+          type: 'attribute',
         },
         position: {
-          x: getXPosition(index, observations.length),
-          y: layers.observations,
+          x: getXPosition(index, attributes.length),
+          y: layers.attributes,
         },
-        classes: 'observation-node',
+        classes: 'attribute-node',
       });
     });
 
@@ -239,12 +239,12 @@ export function FullGraphView({ perspective }: FullGraphViewProps) {
 
     // Process Steps edges
     allSteps.forEach((step) => {
-      step.consumes_observation_ids?.forEach((obsId) => {
-        addEdge(`step-${step.id}`, `observation-${obsId}`, 'consumes', 'process-consume-edge');
+      step.consumes_attribute_ids?.forEach((attrId) => {
+        addEdge(`step-${step.id}`, `attribute-${attrId}`, 'consumes', 'process-consume-edge');
       });
 
-      step.produces_observation_ids?.forEach((obsId) => {
-        addEdge(`observation-${obsId}`, `step-${step.id}`, 'produced by', 'process-produce-edge');
+      step.produces_attribute_ids?.forEach((attrId) => {
+        addEdge(`attribute-${attrId}`, `step-${step.id}`, 'produced by', 'process-produce-edge');
       });
 
       step.uses_metric_ids?.forEach((metricId) => {
@@ -261,8 +261,8 @@ export function FullGraphView({ perspective }: FullGraphViewProps) {
 
     // Measures edges
     allMeasures.forEach((measure) => {
-      measure.input_observation_ids?.forEach((obsId) => {
-        addEdge(`measure-${measure.id}`, `observation-${obsId}`, 'uses', 'measure-edge');
+      measure.input_attribute_ids?.forEach((attrId) => {
+        addEdge(`measure-${measure.id}`, `attribute-${attrId}`, 'uses', 'measure-edge');
       });
 
       measure.input_measure_ids?.forEach((otherId) => {
@@ -270,9 +270,9 @@ export function FullGraphView({ perspective }: FullGraphViewProps) {
       });
     });
 
-    // Observations edges
-    observations.forEach((obs) => {
-      addEdge(`observation-${obs.id}`, `system-${obs.system_id}`, 'captured in', 'system-edge');
+    // Attributes edges
+    attributes.forEach((attr) => {
+      addEdge(`attribute-${attr.id}`, `system-${attr.system_id}`, 'captured in', 'system-edge');
     });
 
     // Semantic Tables edges
@@ -288,8 +288,8 @@ export function FullGraphView({ perspective }: FullGraphViewProps) {
       });
 
       table.columns?.forEach((column) => {
-        if (column.mapped_observation_id) {
-          addEdge(`observation-${column.mapped_observation_id}`, `table-${table.id}`, 'mapped to column', 'column-edge');
+        if (column.mapped_attribute_id) {
+          addEdge(`attribute-${column.mapped_attribute_id}`, `table-${table.id}`, 'mapped to column', 'column-edge');
         }
       });
     });
@@ -300,7 +300,7 @@ export function FullGraphView({ perspective }: FullGraphViewProps) {
       elements: cyElements,
       stats: { nodes: nodeCount, edges: edgeCount },
     };
-  }, [perspectiveView, allMeasures, observations, systems, semanticTables, processes]);
+  }, [perspectiveView, allMeasures, attributes, systems, semanticTables, processes]);
 
   // Initialize Cytoscape
   useEffect(() => {
@@ -350,7 +350,7 @@ export function FullGraphView({ perspective }: FullGraphViewProps) {
           },
         },
         {
-          selector: '.observation-node',
+          selector: '.attribute-node',
           style: {
             'background-color': '#dcfce7',
             'border-color': '#22c55e',
@@ -414,7 +414,7 @@ export function FullGraphView({ perspective }: FullGraphViewProps) {
           },
         },
         {
-          selector: '.observation-edge',
+          selector: '.attribute-edge',
           style: {
             'line-color': '#22c55e',
             'target-arrow-color': '#22c55e',
@@ -556,7 +556,7 @@ export function FullGraphView({ perspective }: FullGraphViewProps) {
   if (
     perspectiveLoading ||
     measuresLoading ||
-    observationsLoading ||
+    attributesLoading ||
     systemsLoading ||
     tablesLoading ||
     processesLoading
@@ -570,7 +570,7 @@ export function FullGraphView({ perspective }: FullGraphViewProps) {
       <div className="mb-4">
         <h2 className="text-2xl font-bold mb-2">Complete Data Lineage Graph</h2>
         <p className="text-gray-600 mb-2">
-          End-to-end traceability: Processes → Metrics → Measures → Observations → Systems → Semantic Model
+          End-to-end traceability: Processes → Metrics → Measures → Attributes → Systems → Semantic Model
         </p>
         <div className="flex gap-4 text-sm text-gray-600">
           <span>{stats.nodes} nodes</span>
@@ -643,7 +643,7 @@ export function FullGraphView({ perspective }: FullGraphViewProps) {
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded" style={{ backgroundColor: '#dcfce7', border: '2px solid #22c55e' }}></div>
-            <span>Observations</span>
+            <span>Attributes</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded" style={{ backgroundColor: '#ddd6fe', border: '2px solid #7c3aed' }}></div>

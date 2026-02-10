@@ -10,11 +10,11 @@ router = APIRouter(prefix="/api/graph", tags=["graph"])
 
 
 class MetricTrace(BaseModel):
-    """Full trace from metric back to observations and systems."""
+    """Full trace from metric back to attributes and systems."""
 
     metric: dict
     measures: list[dict]
-    observations: list[dict]
+    attributes: list[dict]
     systems: list[dict]
     entities: list[dict]
 
@@ -33,7 +33,7 @@ class PerspectiveView(BaseModel):
     perspective: dict
     metrics: list[dict]
     measures: list[dict]
-    observations: list[dict]
+    attributes: list[dict]
     entities: list[dict]
     process_steps: list[dict]
 
@@ -41,9 +41,9 @@ class PerspectiveView(BaseModel):
 @router.get("/trace-metric/{metric_id}", response_model=MetricTrace)
 def trace_metric(metric_id: str, db: Session = Depends(get_db)):
     """
-    Trace a metric back to its source observations and systems.
+    Trace a metric back to its source attributes and systems.
 
-    This is the key navigation: Metric → Measures → Observations → Systems/Entities
+    This is the key navigation: Metric → Measures → Attributes → Systems/Entities
     """
     service = GraphService(db)
     result = service.trace_metric(metric_id)
@@ -57,12 +57,12 @@ def analyze_impact(observation_id: str, db: Session = Depends(get_db)):
     """
     Analyze what metrics would be affected if this observation is wrong or changes.
 
-    Reverse trace: Observation → Measures → Metrics
+    Reverse trace: Attribute → Measures → Metrics
     """
     service = GraphService(db)
     result = service.analyze_impact(observation_id)
     if not result:
-        raise HTTPException(status_code=404, detail="Observation not found")
+        raise HTTPException(status_code=404, detail="Attribute not found")
     return result
 
 
@@ -74,7 +74,7 @@ def get_measure_usage(measure_id: str, db: Session = Depends(get_db)):
     Shows:
     - Which metrics use this measure
     - Which other measures use this measure
-    - Which observations this measure depends on
+    - Which attributes this measure depends on
     - Which measures this measure depends on
     """
     service = GraphService(db)
@@ -89,7 +89,7 @@ def get_perspective_view(perspective_id: str, db: Session = Depends(get_db)):
     """
     Get all elements relevant to a perspective.
 
-    Complete view of metrics, measures, observations for a given perspective.
+    Complete view of metrics, measures, attributes for a given perspective.
     """
     service = GraphService(db)
     result = service.get_perspective_view(perspective_id)
@@ -101,7 +101,7 @@ def get_perspective_view(perspective_id: str, db: Session = Depends(get_db)):
 @router.get("/entity/{entity_id}/full")
 def get_entity_full(entity_id: str, db: Session = Depends(get_db)):
     """
-    Get an entity with all its lenses and related observations.
+    Get an entity with all its lenses and related attributes.
     """
     service = GraphService(db)
     result = service.get_entity_full(entity_id)
@@ -133,7 +133,7 @@ def get_process_flow(
 @router.get("/process/{process_id}/crystallization")
 def get_crystallization_points(process_id: str, db: Session = Depends(get_db)):
     """
-    Get which observations crystallize at which steps.
+    Get which attributes crystallize at which steps.
     """
     service = GraphService(db)
     result = service.get_crystallization_points(process_id)
@@ -148,7 +148,7 @@ def get_step_full_lineage(step_id: str, db: Session = Depends(get_db)):
     Get complete lineage from a process step through the entire ontology.
 
     Traces:
-    - Process Step → Observations → Measures → Metrics → Systems
+    - Process Step → Attributes → Measures → Metrics → Systems
     - Includes waste analysis showing automation potential and time savings
 
     This endpoint reveals the complete story of how an operational task

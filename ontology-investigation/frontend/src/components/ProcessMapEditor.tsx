@@ -48,6 +48,7 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [connectionMode, setConnectionMode] = useState(false);
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false);
   const [firstNodeForConnection, setFirstNodeForConnection] = useState<string | null>(null);
   const cyRef = useRef<cytoscape.Core | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -531,9 +532,20 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
       </div>
 
       {/* Instructions overlay when no step selected */}
-      {!selectedStep && !showEditModal && !showAddModal && (
+      {!selectedStep && !showEditModal && !showAddModal && !welcomeDismissed && (
         <div className="absolute bottom-4 right-4 bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-300 rounded-lg shadow-lg p-6 w-96">
-          <h3 className="font-bold text-lg text-blue-900 mb-3">👋 Welcome to Process Map Editor</h3>
+          <div className="flex items-start justify-between mb-3">
+            <h3 className="font-bold text-lg text-blue-900">👋 Welcome to Process Map Editor</h3>
+            <button
+              onClick={() => setWelcomeDismissed(true)}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Close welcome message"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
           <div className="space-y-3 text-sm text-gray-700">
             <div className="flex items-start gap-2">
               <span className="text-blue-600">👆</span>
@@ -797,8 +809,8 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
             name: 'New Step',
             sequence: flow.nodes.length + 1,
             perspective_id: perspectiveLevel || 'operational',
-            produces_observation_ids: [],
-            consumes_observation_ids: [],
+            produces_attribute_ids: [],
+            consumes_attribute_ids: [],
             uses_metric_ids: [],
             systems_used_ids: [],
           }}

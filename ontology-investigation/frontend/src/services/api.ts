@@ -3,7 +3,7 @@ import type {
   Perspective,
   System,
   Entity,
-  Observation,
+  Attribute,
   Measure,
   Metric,
   Process,
@@ -13,6 +13,8 @@ import type {
   SemanticModel,
   SemanticTable,
   MappingStatus,
+  ScenarioStatus,
+  LoadScenarioResponse,
 } from '../types/ontology';
 
 const api = axios.create({
@@ -49,12 +51,12 @@ export const getEntities = () =>
 export const getEntity = (id: string) =>
   api.get<Entity>(`/entities/${id}`).then((res) => res.data);
 
-// Observations
-export const getObservations = (params?: { entity_id?: string; system_id?: string }) =>
-  api.get<Observation[]>('/observations', { params }).then((res) => res.data);
+// Attributes
+export const getAttributes = (params?: { entity_id?: string; system_id?: string }) =>
+  api.get<Attribute[]>('/attributes', { params }).then((res) => res.data);
 
-export const createObservation = (data: any) =>
-  api.post<Observation>('/observations', data).then((res) => res.data);
+export const createAttribute = (data: any) =>
+  api.post<Attribute>('/attributes', data).then((res) => res.data);
 
 // Measures
 export const getMeasures = (params?: { perspective_id?: string }) =>
@@ -125,3 +127,10 @@ export const getMappingStatus = () =>
 
 export const exportTableDAX = (tableId: string) =>
   api.get(`/semantic-model/tables/${tableId}/export-dax`).then((res) => res.data);
+
+// Scenarios endpoints
+export const getScenarioStatus = () =>
+  api.get<ScenarioStatus>('/scenarios/status').then((res) => res.data);
+
+export const loadScenario = (scenarioId: string) =>
+  api.post<LoadScenarioResponse>(`/scenarios/load/${scenarioId}`).then((res) => res.data);

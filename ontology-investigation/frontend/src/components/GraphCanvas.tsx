@@ -44,23 +44,23 @@ export function GraphCanvas({ metricId, onNodeClick }: GraphCanvasProps) {
       });
     });
 
-    // Add observation nodes and edges
-    trace.observations.forEach((obs) => {
+    // Add attribute nodes and edges
+    trace.attributes.forEach((attr) => {
       nodes.push({
         data: {
-          id: `observation-${obs.id}`,
-          label: obs.name,
-          type: 'observation',
-          reliability: obs.reliability,
+          id: `attribute-${attr.id}`,
+          label: attr.name,
+          type: 'attribute',
+          reliability: attr.reliability,
         },
       });
 
-      // Find which measures use this observation
+      // Find which measures use this attribute
       trace.measures.forEach((measure) => {
-        if (measure.input_observation_ids.includes(obs.id)) {
+        if (measure.input_attribute_ids.includes(attr.id)) {
           edges.push({
             data: {
-              source: `observation-${obs.id}`,
+              source: `attribute-${attr.id}`,
               target: `measure-${measure.id}`,
             },
           });
@@ -79,13 +79,13 @@ export function GraphCanvas({ metricId, onNodeClick }: GraphCanvasProps) {
         },
       });
 
-      // Connect observations to their systems
-      trace.observations.forEach((obs) => {
-        if (obs.system_id === system.id) {
+      // Connect attributes to their systems
+      trace.attributes.forEach((attr) => {
+        if (attr.system_id === system.id) {
           edges.push({
             data: {
               source: `system-${system.id}`,
-              target: `observation-${obs.id}`,
+              target: `attribute-${attr.id}`,
             },
           });
         }
@@ -128,7 +128,7 @@ export function GraphCanvas({ metricId, onNodeClick }: GraphCanvasProps) {
       },
     },
     {
-      selector: 'node[type="observation"]',
+      selector: 'node[type="attribute"]',
       style: {
         'background-color': '#22c55e',
         color: '#fff',
@@ -191,7 +191,7 @@ export function GraphCanvas({ metricId, onNodeClick }: GraphCanvasProps) {
             <span className="w-3 h-3 bg-purple-500 rounded" /> Measure
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-3 h-3 bg-operational-500 rounded-full" /> Observation
+            <span className="w-3 h-3 bg-operational-500 rounded-full" /> Attribute
           </span>
           <span className="flex items-center gap-1">
             <span className="w-3 h-3 bg-amber-500 rounded" /> System

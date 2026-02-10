@@ -30,9 +30,10 @@ import {
   useSemanticTables,
   useMappingStatus
 } from './hooks/useOntology';
-import { GitBranch, Table, Database, Edit3 } from 'lucide-react';
+import { GitBranch, Table, Database, Edit3, Activity } from 'lucide-react';
+import { ProcessEfficiencyDashboard } from './components/ProcessEfficiencyDashboard';
 
-type ViewMode = 'processBuilder' | 'dataFoundation' | 'semanticModel' | 'dataLineage';
+type ViewMode = 'processBuilder' | 'dataFoundation' | 'semanticModel' | 'dataLineage' | 'processEfficiency';
 
 function App() {
   const queryClient = useQueryClient();
@@ -209,6 +210,17 @@ function App() {
             <GitBranch className="w-4 h-4" />
             Data Lineage
           </button>
+          <button
+            onClick={() => setViewMode('processEfficiency')}
+            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
+              viewMode === 'processEfficiency'
+                ? 'border-blue-500 text-blue-600 font-medium'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Activity className="w-4 h-4" />
+            Process Efficiency
+          </button>
         </div>
       </div>
 
@@ -238,6 +250,12 @@ function App() {
         {viewMode === 'dataLineage' && (
           <div className="p-6">
             <FullGraphView perspective={selectedPerspective} />
+          </div>
+        )}
+
+        {viewMode === 'processEfficiency' && (
+          <div className="h-full bg-white">
+            <ProcessEfficiencyDashboard />
           </div>
         )}
       </main>

@@ -7,7 +7,7 @@ from ..db.repositories import (
     PerspectiveRepository,
     SystemRepository,
     EntityRepository,
-    ObservationRepository,
+    AttributeRepository,
     MeasureRepository,
     MetricRepository,
     ProcessRepository,
@@ -17,7 +17,7 @@ from ..models import (
     Perspective,
     System,
     Entity,
-    Observation,
+    Attribute,
     Measure,
     Metric,
     Process,
@@ -156,14 +156,14 @@ def delete_entity(id: str, db: Session = Depends(get_db)):
     return {"message": f"Entity {id} deleted successfully"}
 
 
-# ============ Observations ============
-@router.get("/observations", response_model=list[Observation])
-def get_observations(
+# ============ Attributes ============
+@router.get("/attributes", response_model=list[Attribute])
+def get_attributes(
     entity_id: Optional[str] = None,
     system_id: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    repo = ObservationRepository(db)
+    repo = AttributeRepository(db)
     if entity_id:
         return repo.get_by_entity(entity_id)
     if system_id:
@@ -171,40 +171,40 @@ def get_observations(
     return repo.get_all()
 
 
-@router.get("/observations/{id}", response_model=Observation)
-def get_observation(id: str, db: Session = Depends(get_db)):
-    repo = ObservationRepository(db)
+@router.get("/attributes/{id}", response_model=Attribute)
+def get_attribute(id: str, db: Session = Depends(get_db)):
+    repo = AttributeRepository(db)
     result = repo.get_by_id(id)
     if not result:
-        raise HTTPException(status_code=404, detail="Observation not found")
+        raise HTTPException(status_code=404, detail="Attribute not found")
     return result
 
 
-@router.post("/observations", response_model=Observation)
-def create_observation(data: Observation, db: Session = Depends(get_db)):
-    """Create a new observation."""
-    repo = ObservationRepository(db)
+@router.post("/attributes", response_model=Attribute)
+def create_attribute(data: Attribute, db: Session = Depends(get_db)):
+    """Create a new attribute."""
+    repo = AttributeRepository(db)
     return repo.create(data)
 
 
-@router.put("/observations/{id}", response_model=Observation)
-def update_observation(id: str, data: Observation, db: Session = Depends(get_db)):
-    """Update an existing observation."""
-    repo = ObservationRepository(db)
+@router.put("/attributes/{id}", response_model=Attribute)
+def update_attribute(id: str, data: Attribute, db: Session = Depends(get_db)):
+    """Update an existing attribute."""
+    repo = AttributeRepository(db)
     result = repo.update(id, data)
     if not result:
-        raise HTTPException(status_code=404, detail="Observation not found")
+        raise HTTPException(status_code=404, detail="Attribute not found")
     return result
 
 
-@router.delete("/observations/{id}")
-def delete_observation(id: str, db: Session = Depends(get_db)):
-    """Delete an observation."""
-    repo = ObservationRepository(db)
+@router.delete("/attributes/{id}")
+def delete_attribute(id: str, db: Session = Depends(get_db)):
+    """Delete an attribute."""
+    repo = AttributeRepository(db)
     success = repo.delete(id)
     if not success:
-        raise HTTPException(status_code=404, detail="Observation not found")
-    return {"message": f"Observation {id} deleted successfully"}
+        raise HTTPException(status_code=404, detail="Attribute not found")
+    return {"message": f"Attribute {id} deleted successfully"}
 
 
 # ============ Measures ============

@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from './DataTable';
+import { EmptyState } from './EmptyState';
+import { Target } from 'lucide-react';
 
 interface Metric {
   id: string;
@@ -77,13 +79,13 @@ export function MetricsTable({ metrics, onMetricClick, onViewLineage, onNewMetri
         id: 'actions',
         header: 'Actions',
         cell: (info) => (
-          <div className="flex gap-2">
+          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onEditMetric?.(info.row.original);
               }}
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+              className="px-3 py-1 text-blue-600 hover:bg-blue-100 hover:text-blue-800 rounded text-sm font-medium transition-colors"
             >
               Edit
             </button>
@@ -92,9 +94,9 @@ export function MetricsTable({ metrics, onMetricClick, onViewLineage, onNewMetri
                 e.stopPropagation();
                 onViewLineage?.(info.row.original.id);
               }}
-              className="text-gray-600 hover:text-gray-800 text-sm font-medium"
+              className="px-3 py-1 text-purple-600 hover:bg-purple-100 hover:text-purple-800 rounded text-sm font-medium transition-colors"
             >
-              View Lineage
+              Lineage
             </button>
           </div>
         ),
@@ -103,20 +105,52 @@ export function MetricsTable({ metrics, onMetricClick, onViewLineage, onNewMetri
     [onMetricClick, onViewLineage, onEditMetric]
   );
 
+  // Show empty state if no metrics
+  if (metrics.length === 0) {
+    return (
+      <div className="p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Metrics</h2>
+            <p className="text-gray-600 mt-1">
+              Business KPIs and performance indicators
+            </p>
+          </div>
+        </div>
+        <EmptyState
+          icon={<Target className="w-full h-full" />}
+          title="No Metrics Yet"
+          description="Metrics answer key business questions and are calculated from measures. They represent high-level KPIs that stakeholders care about. Examples: Overall Equipment Effectiveness (OEE), On-Time Delivery Rate, Inventory Turnover."
+          actionLabel="+ Create First Metric"
+          onAction={onNewMetric}
+          secondaryActionLabel="📖 Learn About Metrics"
+          onSecondaryAction={() => window.open('https://docs.example.com/metrics', '_blank')}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="p-6">
-      <div className="mb-4 flex items-center justify-between">
+    <div>
+      <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Metrics</h2>
-          <p className="text-gray-600 mt-1">
+          <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <span className="text-4xl">📊</span>
+            Metrics
+          </h2>
+          <p className="text-gray-600 mt-2 text-lg">
             Business KPIs and performance indicators
           </p>
         </div>
         <button
           onClick={onNewMetric}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+          className="group relative px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 font-semibold shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-200 transform hover:-translate-y-0.5"
         >
-          + New Metric
+          <span className="relative z-10 flex items-center gap-2">
+            <span className="text-xl">+</span>
+            New Metric
+          </span>
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-500 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity" />
         </button>
       </div>
 

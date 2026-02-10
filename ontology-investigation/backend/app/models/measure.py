@@ -3,7 +3,7 @@ from typing import Optional
 
 
 class Measure(BaseModel):
-    """A calculation applied to observations and other measures to derive insight."""
+    """A calculation applied to attributes and other measures to derive insight."""
 
     id: str = Field(..., description="Unique identifier")
     name: str = Field(..., description="Display name")
@@ -16,8 +16,8 @@ class Measure(BaseModel):
     formula: Optional[str] = Field(
         default=None, description="Optional formula representation"
     )
-    input_observation_ids: list[str] = Field(
-        default_factory=list, description="Observations that feed into this measure"
+    input_attribute_ids: list[str] = Field(
+        default_factory=list, description="Attributes that feed into this measure"
     )
     input_measure_ids: list[str] = Field(
         default_factory=list, description="Other measures that feed into this measure"
@@ -34,7 +34,7 @@ class Measure(BaseModel):
                 "description": "Total material cost for production",
                 "logic": "Sum of material quantities issued multiplied by standard cost",
                 "formula": "SUM(qty × std_cost)",
-                "input_observation_ids": ["goods_issues", "standard_costs"],
+                "input_attribute_ids": ["goods_issues", "standard_costs"],
                 "input_measure_ids": [],
                 "perspective_ids": ["financial"],
             }
