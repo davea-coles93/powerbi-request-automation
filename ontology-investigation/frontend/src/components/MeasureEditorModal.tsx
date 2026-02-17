@@ -7,7 +7,7 @@ interface MeasureData {
   description?: string;
   logic?: string;
   formula?: string;
-  input_observation_ids: string[];
+  input_attribute_ids: string[];
   input_measure_ids: string[];
   perspective_ids: string[];
 }
@@ -17,7 +17,7 @@ interface MeasureEditorModalProps {
   onClose: () => void;
   measure?: MeasureData | null;
   onSave: (measure: MeasureData) => void;
-  availableObservations?: Array<{ id: string; name: string }>;
+  availableAttributes?: Array<{ id: string; name: string }>;
   availableMeasures?: Array<{ id: string; name: string }>;
 }
 
@@ -26,7 +26,7 @@ export function MeasureEditorModal({
   onClose,
   measure,
   onSave,
-  availableObservations = [],
+  availableAttributes = [],
   availableMeasures = [],
 }: MeasureEditorModalProps) {
   const [formData, setFormData] = useState<MeasureData>({
@@ -34,7 +34,7 @@ export function MeasureEditorModal({
     description: '',
     logic: '',
     formula: '',
-    input_observation_ids: [],
+    input_attribute_ids: [],
     input_measure_ids: [],
     perspective_ids: [],
   });
@@ -48,20 +48,20 @@ export function MeasureEditorModal({
         description: '',
         logic: '',
         formula: '',
-        input_observation_ids: [],
+        input_attribute_ids: [],
         input_measure_ids: [],
         perspective_ids: [],
       });
     }
   }, [measure, isOpen]);
 
-  const handleObservationToggle = (obsId: string) => {
-    const isSelected = formData.input_observation_ids.includes(obsId);
+  const handleAttributeToggle = (obsId: string) => {
+    const isSelected = formData.input_attribute_ids.includes(obsId);
     setFormData({
       ...formData,
-      input_observation_ids: isSelected
-        ? formData.input_observation_ids.filter((id) => id !== obsId)
-        : [...formData.input_observation_ids, obsId],
+      input_attribute_ids: isSelected
+        ? formData.input_attribute_ids.filter((id) => id !== obsId)
+        : [...formData.input_attribute_ids, obsId],
     });
   };
 
@@ -105,7 +105,7 @@ export function MeasureEditorModal({
                 {measure ? 'Edit Measure' : 'Create New Measure'}
               </h2>
               <p className="text-sm text-gray-600 mt-1">
-                Define a calculation or derivation from observations
+                Define a calculation or derivation from attributes
               </p>
             </div>
             <button
@@ -188,30 +188,30 @@ export function MeasureEditorModal({
               </div>
             </div>
 
-            {/* Input Observations */}
+            {/* Input Attributes */}
             <div className="space-y-4 border-t pt-6">
               <h3 className="text-lg font-semibold text-gray-900">
-                Input Observations
+                Input Attributes
               </h3>
               <p className="text-sm text-gray-600">
-                Select the observations this measure depends on
+                Select the attributes this measure depends on
               </p>
 
               <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-4 space-y-2">
-                {availableObservations.length === 0 ? (
+                {availableAttributes.length === 0 ? (
                   <p className="text-sm text-gray-500 italic">
-                    No observations available
+                    No attributes available
                   </p>
                 ) : (
-                  availableObservations.map((obs) => (
+                  availableAttributes.map((obs) => (
                     <label
                       key={obs.id}
                       className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer"
                     >
                       <input
                         type="checkbox"
-                        checked={formData.input_observation_ids.includes(obs.id)}
-                        onChange={() => handleObservationToggle(obs.id)}
+                        checked={formData.input_attribute_ids.includes(obs.id)}
+                        onChange={() => handleAttributeToggle(obs.id)}
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                       <span className="text-sm text-gray-900">{obs.name}</span>
@@ -220,10 +220,10 @@ export function MeasureEditorModal({
                 )}
               </div>
 
-              {formData.input_observation_ids.length > 0 && (
+              {formData.input_attribute_ids.length > 0 && (
                 <div className="text-sm text-gray-600">
-                  {formData.input_observation_ids.length} observation
-                  {formData.input_observation_ids.length !== 1 ? 's' : ''} selected
+                  {formData.input_attribute_ids.length} attribute
+                  {formData.input_attribute_ids.length !== 1 ? 's' : ''} selected
                 </div>
               )}
             </div>

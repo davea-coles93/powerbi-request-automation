@@ -1,31 +1,29 @@
-import { useMemo, useState } from 'react';
-import { useProcesses, useSystems } from '../hooks/useOntology';
-import { Process, ProcessStep } from '../types/ontology';
+import { useMemo, useState, useEffect } from 'react';
+import { useProcesses, useSystems, useAnalyzeProcesses } from '../hooks/useOntology';
+import { ProcessStep } from '../types/ontology';
 import {
-  TrendingUp,
   Clock,
   DollarSign,
   AlertTriangle,
   Zap,
-  XCircle,
   Activity,
-  Sparkles
+  Sparkles,
+  Loader2,
+  GitBranch,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
+import { StepLineageDrawer } from './StepLineageDrawer';
+import { AutomationBadge } from './cells/AutomationBadge';
+import { WasteCategoryTag } from './cells/WasteCategoryTag';
+import { ManualEffortBar } from './cells/ManualEffortBar';
 
-// AI Hook placeholder for future integration
 interface AIInsight {
   type: 'optimization' | 'automation' | 'consolidation';
   priority: 'high' | 'medium' | 'low';
   description: string;
-  estimated_savings: number;
+  estimated_savings: string;
 }
-
-// AI Hook: This will be replaced with actual AI-powered analysis
-const useAIProcessInsights = (_processes: Process[] | undefined): AIInsight[] => {
-  // TODO: Implement AI-powered insights using Claude API
-  // This hook will analyze process steps and suggest optimizations
-  return [];
-};
 
 interface EfficiencyMetrics {
   totalSteps: number;
@@ -48,10 +46,38 @@ interface WasteCategoryStats {
 export function ProcessEfficiencyDashboard() {
   const { data: processes, isLoading: processesLoading } = useProcesses();
   const { data: systems, isLoading: systemsLoading } = useSystems();
-  const [hourlyRate, setHourlyRate] = useState(75); // Default hourly rate in USD
+  const [hourlyRate, setHourlyRate] = useState(75);
+  const [aiInsights, setAiInsights] = useState<AIInsight[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [lineageStepId, setLineageStepId] = useState<string | null>(null);
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
-  // AI Hook for future insights
-  const aiInsights = useAIProcessInsights(processes);
+  const toggleSection = (section: string) => {
+    setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const analyzeProcesses = useAnalyzeProcesses();
+
+  // Fetch AI process insights when processes are loaded
+  useEffect(() => {
+    if (!processes || processes.length === 0) return;
+    setAiLoading(true);
+    analyzeProcesses.mutateAsync()
+      .then(data => {
+        if (data?.insights) {
+          setAiInsights(data.insights.map((i: any) => ({
+            type: i.type === 'automation_opportunity' ? 'automation' :
+                  i.type === 'system_switching' ? 'consolidation' : 'optimization',
+            priority: i.priority,
+            description: i.description,
+            estimated_savings: i.estimated_savings || '',
+          })));
+        }
+      })
+      .catch(() => { /* silently fail */ })
+      .finally(() => setAiLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [processes]);
 
   const metrics = useMemo<EfficiencyMetrics>(() => {
     if (!processes || processes.length === 0) {
@@ -178,15 +204,6 @@ export function ProcessEfficiencyDashboard() {
     return 'bg-green-500';
   };
 
-  const getAutomationPotentialIcon = (potential?: string) => {
-    switch (potential) {
-      case 'High': return <Zap className="w-4 h-4 text-green-600" />;
-      case 'Medium': return <TrendingUp className="w-4 h-4 text-yellow-600" />;
-      case 'Low': return <Activity className="w-4 h-4 text-gray-600" />;
-      default: return <XCircle className="w-4 h-4 text-gray-400" />;
-    }
-  };
-
   if (processesLoading || systemsLoading) {
     return (
       <div className="p-6">
@@ -238,25 +255,45 @@ export function ProcessEfficiencyDashboard() {
         </div>
       </div>
 
-      {/* AI Insights Placeholder */}
-      {aiInsights.length > 0 && (
+      {/* AI Insights */}
+      {aiLoading && (
         <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <Sparkles className="w-5 h-5 text-purple-600 mt-0.5" />
-            <div className="flex-1">
-              <h3 className="font-semibold text-gray-900 mb-2">AI-Powered Insights</h3>
-              <div className="space-y-2">
-                {aiInsights.map((insight, idx) => (
-                  <div key={idx} className="text-sm text-gray-700">
-                    <span className="font-medium">{insight.description}</span>
-                    <span className="text-gray-500 ml-2">
-                      (Est. savings: ${insight.estimated_savings.toLocaleString()}/year)
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+          <div className="flex items-center gap-3">
+            <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />
+            <span className="text-sm text-gray-600">Analyzing processes for insights...</span>
           </div>
+        </div>
+      )}
+      {!aiLoading && aiInsights.length > 0 && (
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
+          <button
+            onClick={() => toggleSection('aiInsights')}
+            className="w-full flex items-center gap-3 p-4 text-left hover:bg-purple-50/50 transition-colors rounded-lg"
+          >
+            <Sparkles className="w-5 h-5 text-purple-600" />
+            <h3 className="font-semibold text-gray-900 flex-1">AI-Powered Insights</h3>
+            <span className="text-xs text-gray-500">{aiInsights.length} insight{aiInsights.length !== 1 ? 's' : ''}</span>
+            {collapsedSections.aiInsights ? <ChevronRight className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+          </button>
+          {!collapsedSections.aiInsights && (
+            <div className="px-4 pb-4 space-y-2 max-h-64 overflow-y-auto">
+              {aiInsights.map((insight, idx) => (
+                <div key={idx} className="text-sm text-gray-700 bg-white rounded p-2.5 border border-purple-100">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                      insight.priority === 'high' ? 'bg-red-100 text-red-700' :
+                      insight.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-blue-100 text-blue-700'
+                    }`}>{insight.priority}</span>
+                    <span className="font-medium">{insight.description}</span>
+                  </div>
+                  {insight.estimated_savings && (
+                    <span className="text-xs text-gray-500">Est. savings: {insight.estimated_savings}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -307,129 +344,178 @@ export function ProcessEfficiencyDashboard() {
 
       {/* Waste Category Analysis */}
       {wasteCategoryStats.length > 0 && (
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Waste by Category</h3>
-          <div className="space-y-3">
-            {wasteCategoryStats.map((stat) => (
-              <div key={stat.category} className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-700">{stat.category}</span>
-                    <span className="text-sm text-gray-600">
-                      {stat.count} step{stat.count !== 1 ? 's' : ''} · {stat.totalEstimatedHours.toFixed(1)}h/month ·
-                      ${(stat.totalEstimatedHours * hourlyRate).toLocaleString(undefined, { maximumFractionDigits: 0 })}/month
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full ${getManualEffortColor(stat.avgManualEffort)}`}
-                      style={{ width: `${stat.avgManualEffort}%` }}
-                    ></div>
+        <div className="bg-white rounded-lg border border-gray-200">
+          <button
+            onClick={() => toggleSection('waste')}
+            className="w-full flex items-center justify-between p-6 pb-4 text-left hover:bg-gray-50 transition-colors rounded-t-lg"
+          >
+            <h3 className="text-lg font-semibold text-gray-900">Waste by Category</h3>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">{wasteCategoryStats.length} categor{wasteCategoryStats.length !== 1 ? 'ies' : 'y'}</span>
+              {collapsedSections.waste ? <ChevronRight className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+            </div>
+          </button>
+          {!collapsedSections.waste && (
+            <div className="px-6 pb-6 space-y-3">
+              {wasteCategoryStats.map((stat) => (
+                <div key={stat.category} className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <WasteCategoryTag category={stat.category} />
+                      <span className="text-sm text-gray-600">
+                        {stat.count} step{stat.count !== 1 ? 's' : ''} · {stat.totalEstimatedHours.toFixed(1)}h/month ·
+                        ${(stat.totalEstimatedHours * hourlyRate).toLocaleString(undefined, { maximumFractionDigits: 0 })}/month
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full ${getManualEffortColor(stat.avgManualEffort)}`}
+                        style={{ width: `${stat.avgManualEffort}%` }}
+                      ></div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* System Switching Analysis */}
+      {/* System Switching & High Waste */}
       <div className="grid grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">System Switching Pain Points</h3>
-          <div className="mb-4">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <AlertTriangle className="w-4 h-4 text-orange-500" />
-              <span>{metrics.systemSwitchingCount} steps require multiple systems</span>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-700 mb-2">Most Used Systems:</p>
-            {metrics.mostUsedSystems.map((sys) => (
-              <div key={sys.system} className="flex items-center justify-between text-sm">
-                <span className="text-gray-700">{getSystemName(sys.system)}</span>
-                <span className="text-gray-600">{sys.count} steps</span>
+        <div className="bg-white rounded-lg border border-gray-200">
+          <button
+            onClick={() => toggleSection('systemSwitching')}
+            className="w-full flex items-center justify-between p-6 pb-4 text-left hover:bg-gray-50 transition-colors rounded-t-lg"
+          >
+            <h3 className="text-lg font-semibold text-gray-900">System Switching Pain Points</h3>
+            {collapsedSections.systemSwitching ? <ChevronRight className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+          </button>
+          {!collapsedSections.systemSwitching && (
+            <div className="px-6 pb-6">
+              <div className="mb-4">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <AlertTriangle className="w-4 h-4 text-orange-500" />
+                  <span>{metrics.systemSwitchingCount} steps require multiple systems</span>
+                </div>
               </div>
-            ))}
-          </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-700 mb-2">Most Used Systems:</p>
+                {metrics.mostUsedSystems.map((sys) => (
+                  <div key={sys.system} className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700">{getSystemName(sys.system)}</span>
+                    <span className="text-gray-600">{sys.count} steps</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* High Waste Steps */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Highest Manual Effort Steps</h3>
-          <div className="space-y-3 max-h-64 overflow-y-auto">
-            {metrics.highWasteSteps.slice(0, 10).map((step) => (
-              <div key={step.id} className="flex items-start justify-between border-b border-gray-100 pb-2">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{step.name}</p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    {step.waste_category || 'No waste category specified'}
-                  </p>
+        <div className="bg-white rounded-lg border border-gray-200">
+          <button
+            onClick={() => toggleSection('highWaste')}
+            className="w-full flex items-center justify-between p-6 pb-4 text-left hover:bg-gray-50 transition-colors rounded-t-lg"
+          >
+            <h3 className="text-lg font-semibold text-gray-900">Highest Manual Effort Steps</h3>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">{metrics.highWasteSteps.length} steps</span>
+              {collapsedSections.highWaste ? <ChevronRight className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+            </div>
+          </button>
+          {!collapsedSections.highWaste && (
+            <div className="px-6 pb-6 space-y-3 max-h-64 overflow-y-auto">
+              {metrics.highWasteSteps.slice(0, 10).map((step) => (
+                <div key={step.id} className="flex items-center justify-between border-b border-gray-100 pb-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">{step.name}</p>
+                    <div className="mt-1">
+                      <WasteCategoryTag category={step.waste_category} />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 ml-4">
+                    <AutomationBadge potential={step.automation_potential} />
+                    <ManualEffortBar percentage={step.manual_effort_percentage} />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 ml-4">
-                  {getAutomationPotentialIcon(step.automation_potential)}
-                  <span className="text-sm font-semibold text-gray-900">
-                    {step.manual_effort_percentage}%
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Automation Opportunities - ROI Analysis */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Zap className="w-5 h-5 text-green-600" />
-          Top Automation Opportunities (Ranked by ROI)
-        </h3>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left text-sm font-medium text-gray-700 pb-2">Process Step</th>
-                <th className="text-center text-sm font-medium text-gray-700 pb-2">Manual %</th>
-                <th className="text-center text-sm font-medium text-gray-700 pb-2">Duration</th>
-                <th className="text-center text-sm font-medium text-gray-700 pb-2">Potential</th>
-                <th className="text-center text-sm font-medium text-gray-700 pb-2">Est. Savings/Month</th>
-                <th className="text-center text-sm font-medium text-gray-700 pb-2">Systems Used</th>
-              </tr>
-            </thead>
-            <tbody>
-              {metrics.automationOpportunities.slice(0, 10).map((step) => {
-                const manualHours = ((step.estimated_duration_minutes || 0) / 60) * ((step.manual_effort_percentage || 0) / 100);
-                const monthlySavings = manualHours * hourlyRate * 0.8; // Assume 80% reduction with automation
+      <div className="bg-white rounded-lg border border-gray-200">
+        <button
+          onClick={() => toggleSection('automation')}
+          className="w-full flex items-center justify-between p-6 pb-4 text-left hover:bg-gray-50 transition-colors rounded-t-lg"
+        >
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <Zap className="w-5 h-5 text-green-600" />
+            Top Automation Opportunities (Ranked by ROI)
+          </h3>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">{metrics.automationOpportunities.length} opportunities</span>
+            {collapsedSections.automation ? <ChevronRight className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+          </div>
+        </button>
+        {!collapsedSections.automation && (
+          <div className="px-6 pb-6 overflow-x-auto max-h-96 overflow-y-auto">
+            <table className="w-full">
+              <thead className="sticky top-0 bg-white">
+                <tr className="border-b border-gray-200">
+                  <th className="text-left text-sm font-medium text-gray-700 pb-2">Process Step</th>
+                  <th className="text-center text-sm font-medium text-gray-700 pb-2">Manual %</th>
+                  <th className="text-center text-sm font-medium text-gray-700 pb-2">Duration</th>
+                  <th className="text-center text-sm font-medium text-gray-700 pb-2">Potential</th>
+                  <th className="text-center text-sm font-medium text-gray-700 pb-2">Est. Savings/Month</th>
+                  <th className="text-center text-sm font-medium text-gray-700 pb-2">Systems Used</th>
+                  <th className="text-center text-sm font-medium text-gray-700 pb-2">Lineage</th>
+                </tr>
+              </thead>
+              <tbody>
+                {metrics.automationOpportunities.slice(0, 10).map((step) => {
+                  const manualHours = ((step.estimated_duration_minutes || 0) / 60) * ((step.manual_effort_percentage || 0) / 100);
+                  const monthlySavings = manualHours * hourlyRate * 0.8;
 
-                return (
-                  <tr key={step.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 text-sm text-gray-900">{step.name}</td>
-                    <td className="py-3 text-center">
-                      <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium text-white ${getManualEffortColor(step.manual_effort_percentage || 0)}`}>
-                        {step.manual_effort_percentage}%
-                      </span>
-                    </td>
-                    <td className="py-3 text-center text-sm text-gray-600">
-                      {step.estimated_duration_minutes || 0}m
-                    </td>
-                    <td className="py-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        {getAutomationPotentialIcon(step.automation_potential)}
-                        <span className="text-xs text-gray-700">{step.automation_potential}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 text-center text-sm font-semibold text-green-600">
-                      ${monthlySavings.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </td>
-                    <td className="py-3 text-center text-xs text-gray-600">
-                      {step.systems_used_ids?.map(sId => getSystemName(sId)).join(', ') || 'None'}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                  return (
+                    <tr key={step.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 text-sm text-gray-900">{step.name}</td>
+                      <td className="py-3 text-center">
+                        <ManualEffortBar percentage={step.manual_effort_percentage} />
+                      </td>
+                      <td className="py-3 text-center text-sm text-gray-600">
+                        {step.estimated_duration_minutes || 0}m
+                      </td>
+                      <td className="py-3 text-center">
+                        <div className="flex items-center justify-center">
+                          <AutomationBadge potential={step.automation_potential} />
+                        </div>
+                      </td>
+                      <td className="py-3 text-center text-sm font-semibold text-green-600">
+                        ${monthlySavings.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      </td>
+                      <td className="py-3 text-center text-xs text-gray-600">
+                        {step.systems_used_ids?.map(sId => getSystemName(sId)).join(', ') || 'None'}
+                      </td>
+                      <td className="py-3 text-center">
+                        <button
+                          onClick={() => setLineageStepId(step.id)}
+                          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded transition-colors"
+                          title="View full lineage"
+                        >
+                          <GitBranch className="w-3 h-3" />
+                          Lineage
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Annual ROI Summary */}
@@ -452,6 +538,14 @@ export function ProcessEfficiencyDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Step Lineage Drawer */}
+      {lineageStepId && (
+        <StepLineageDrawer
+          stepId={lineageStepId}
+          onClose={() => setLineageStepId(null)}
+        />
+      )}
     </div>
   );
 }

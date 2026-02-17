@@ -32,6 +32,32 @@ class Attribute(BaseModel):
     )
     notes: Optional[str] = Field(default=None, description="Additional notes")
 
+    # Source binding - where this attribute lives in a source system
+    source_table: Optional[str] = Field(
+        default=None,
+        description="Source table name in the system (e.g., AFKO, dbo.ProductionOrders)",
+    )
+    source_column: Optional[str] = Field(
+        default=None,
+        description="Source column name (e.g., GAMNG, ConfirmedQty)",
+    )
+    source_connection: Optional[str] = Field(
+        default=None,
+        description="Connection reference (e.g., SAP ECC PRD)",
+    )
+
+    # Business rules and constraints
+    constraints: Optional[list[dict]] = Field(
+        default=None,
+        description="Business rules and constraints. Each dict has: type (range|required|format), params (min, max, pattern, etc.), description",
+    )
+
+    # Perspective relevance
+    perspective_ids: Optional[list[str]] = Field(
+        default=None,
+        description="Perspectives this attribute is relevant to",
+    )
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -43,5 +69,14 @@ class Attribute(BaseModel):
                 "source_actor": "Floor Operator / Auto",
                 "reliability": "High",
                 "volatility": "Accumulating",
+                "source_table": "AFKO",
+                "source_column": "GAMNG",
+                "source_connection": "SAP ECC PRD",
+                "constraints": [
+                    {
+                        "type": "required",
+                        "description": "Required for month-end close cutoff",
+                    }
+                ],
             }
         }

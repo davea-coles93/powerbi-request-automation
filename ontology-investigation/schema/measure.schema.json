@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "measure.schema.json",
   "title": "Measure",
-  "description": "A calculation applied to observations and other measures to derive insight",
+  "description": "A calculation applied to attributes and other measures to derive insight",
   "type": "object",
   "required": ["id", "name"],
   "properties": {
@@ -26,10 +26,10 @@
       "type": "string",
       "description": "Optional formula representation"
     },
-    "input_observation_ids": {
+    "input_attribute_ids": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Observations that feed into this measure"
+      "description": "Attributes that feed into this measure"
     },
     "input_measure_ids": {
       "type": "array",

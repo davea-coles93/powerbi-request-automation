@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "observation.schema.json",
-  "title": "Observation",
+  "$id": "attribute.schema.json",
+  "title": "Attribute",
   "description": "Raw data that is captured at a point of activity - where data is born",
   "type": "object",
   "required": ["id", "name", "entity_id", "system_id"],
@@ -16,19 +16,19 @@
     },
     "description": {
       "type": "string",
-      "description": "What this observation captures"
+      "description": "What this attribute captures"
     },
     "entity_id": {
       "type": "string",
-      "description": "Reference to the entity this observation describes"
+      "description": "Reference to the entity this attribute describes"
     },
     "system_id": {
       "type": "string",
-      "description": "Reference to the system where this observation is captured"
+      "description": "Reference to the system where this attribute is captured"
     },
     "source_actor": {
       "type": "string",
-      "description": "Who or what creates this observation (role or system component)"
+      "description": "Who or what creates this attribute (role or system component)"
     },
     "reliability": {
       "type": "string",
@@ -38,7 +38,7 @@
     "volatility": {
       "type": "string",
       "enum": ["Point-in-time", "Accumulating", "Continuous"],
-      "description": "How this observation changes over time"
+      "description": "How this attribute changes over time"
     },
     "notes": {
       "type": "string",

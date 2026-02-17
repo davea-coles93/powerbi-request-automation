@@ -2,6 +2,7 @@
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
 
 from app.db.database import Base
@@ -11,8 +12,12 @@ from app.main import app
 @pytest.fixture(scope="function")
 def test_db():
     """Create a fresh test database for each test."""
-    # Use in-memory SQLite for tests
-    engine = create_engine("sqlite:///:memory:")
+    # Use in-memory SQLite with StaticPool so all connections share the same DB
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Base.metadata.create_all(bind=engine)
 
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -78,19 +83,19 @@ def sample_entity():
             {
                 "perspective_id": "test_perspective",
                 "interpretation": "Test interpretation",
-                "key_attributes": ["attr1"],
+                "derived_attributes": [{"name": "attr1"}],
             }
         ],
     }
 
 
 @pytest.fixture
-def sample_observation():
-    """Sample observation data."""
+def sample_attribute():
+    """Sample attribute data."""
     return {
-        "id": "test_observation",
-        "name": "Test Observation",
-        "description": "Test observation",
+        "id": "test_attribute",
+        "name": "Test Attribute",
+        "description": "Test attribute",
         "system_id": "test_system",
         "entity_id": "test_entity",
         "perspective_ids": ["test_perspective"],
@@ -106,8 +111,8 @@ def sample_measure():
         "id": "test_measure",
         "name": "Test Measure",
         "description": "Test measure",
-        "logic": "sum(test_observation)",
-        "input_observation_ids": ["test_observation"],
+        "logic": "sum(test_attribute)",
+        "input_attribute_ids": ["test_attribute"],
         "perspective_ids": ["test_perspective"],
     }
 
@@ -140,7 +145,7 @@ def sample_process():
                 "perspective_id": "test_perspective",
                 "actor": "Tester",
                 "depends_on_step_ids": [],
-                "crystallizes_observation_ids": ["test_observation"],
+                "crystallizes_attribute_ids": ["test_attribute"],
             }
         ],
     }

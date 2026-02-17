@@ -5,7 +5,7 @@
 Build a working prototype that demonstrates:
 1. The schema can represent real business scenarios
 2. The three-perspective navigation works
-3. The backward-tracing from Metrics → Observations is useful
+3. The backward-tracing from Metrics → attributes is useful
 4. Integration with Power BI semantic models is feasible
 5. Architecture supports AI integration for future phases
 
@@ -20,7 +20,7 @@ Build a working prototype that demonstrates:
 - React frontend with graph visualization
 - Month-end close example fully populated
 - Three perspective views with filtering
-- Click-through navigation (Metric → Measures → Observations → Systems)
+- Click-through navigation (Metric → Measures → attributes → Systems)
 - Power BI semantic model import (read TMDL, suggest mappings)
 - AI integration hooks (structured for LLM interaction)
 
@@ -85,7 +85,7 @@ Build a working prototype that demonstrates:
 Pros:
 - Native graph database, perfect for ontology relationships
 - Cypher query language is intuitive for traversals
-- "Find all observations that feed COGS" is one query
+- "Find all attributes that feed COGS" is one query
 - Scales well for complex relationship queries
 
 Cons:
@@ -119,7 +119,7 @@ Cons:
 │   ├── perspective.schema.json
 │   ├── entity.schema.json
 │   ├── system.schema.json
-│   ├── observation.schema.json
+│   ├── attribute.schema.json
 │   ├── measure.schema.json
 │   ├── metric.schema.json
 │   ├── process.schema.json
@@ -132,7 +132,7 @@ Cons:
 │   │   ├── /models              # Pydantic models
 │   │   │   ├── perspective.py
 │   │   │   ├── entity.py
-│   │   │   ├── observation.py
+│   │   │   ├── attribute.py
 │   │   │   ├── measure.py
 │   │   │   ├── metric.py
 │   │   │   ├── process.py
@@ -194,7 +194,7 @@ GET    /api/perspectives
 GET    /api/entities
 GET    /api/entities/{id}
 POST   /api/entities
-GET    /api/observations
+GET    /api/attributes
 GET    /api/measures
 GET    /api/metrics
 GET    /api/processes
@@ -202,30 +202,30 @@ GET    /api/systems
 
 # Graph Queries (the interesting part)
 GET    /api/graph/trace-metric/{metric_id}
-       → Returns full tree: Metric → Measures → Observations → Systems
+       → Returns full tree: Metric → Measures → attributes → Systems
 
 GET    /api/graph/perspective/{perspective_id}
        → Returns all elements relevant to a perspective
 
 GET    /api/graph/entity/{entity_id}/full
-       → Returns entity with all lenses and related observations
+       → Returns entity with all lenses and related attributes
 
-GET    /api/graph/impact/{observation_id}
-       → Returns "what metrics would be affected if this observation is wrong?"
+GET    /api/graph/impact/{attribute_id}
+       → Returns "what metrics would be affected if this attribute is wrong?"
 
 # Process
 GET    /api/processes/{id}/flow
        → Returns process with step dependencies for visualization
 
 GET    /api/processes/{id}/crystallization
-       → Returns which observations crystallize at which steps
+       → Returns which attributes crystallize at which steps
 
 # TMDL Integration
 POST   /api/tmdl/parse
        → Upload TMDL files, get parsed tables/measures/columns
 
 GET    /api/tmdl/suggest-mappings
-       → Given parsed TMDL + ontology, suggest entity/observation mappings
+       → Given parsed TMDL + ontology, suggest entity/attribute mappings
 
 # AI Endpoints
 POST   /api/ai/explain-metric
@@ -254,7 +254,7 @@ POST   /api/ai/suggest-measures
       {
         "id": "material_cost_consumed",
         "name": "Material Cost Consumed",
-        "observations": [
+        "attributes": [
           {
             "id": "goods_issues",
             "name": "Goods Issues (Materials)",
@@ -272,7 +272,7 @@ POST   /api/ai/suggest-measures
       {
         "id": "labor_cost_applied",
         "name": "Labor Cost Applied",
-        "observations": [
+        "attributes": [
           {
             "id": "labor_time",
             "name": "Labor Time Recordings",
@@ -325,12 +325,12 @@ POST   /api/ai/suggest-measures
 
 2. **Gap Analysis**: "What's missing?"
    - Input: Current ontology + reference patterns
-   - Process: Compare, identify missing entities/observations/measures
+   - Process: Compare, identify missing entities/attributes/measures
    - Output: List of gaps with recommendations
 
 3. **Suggest**: "I need to track X, what do I need?"
    - Input: Natural language requirement
-   - Process: Match to patterns, suggest measures/observations needed
+   - Process: Match to patterns, suggest measures/attributes needed
    - Output: Proposed additions to ontology
 
 ### Context Preparation for LLM
@@ -350,8 +350,8 @@ def prepare_metric_context(metric_id: str) -> str:
     CALCULATED BY MEASURES:
     {format_measures(trace.measures)}
 
-    SOURCED FROM OBSERVATIONS:
-    {format_observations(trace.observations)}
+    SOURCED FROM attributeS:
+    {format_attributes(trace.attributes)}
 
     DATA ORIGINATES IN SYSTEMS:
     {format_systems(trace.systems)}
@@ -432,7 +432,7 @@ CREATE TABLE entities (
     lenses JSON            -- [{"perspective": "operational", "interpretation": "...", "derived_attributes": [...]}]
 );
 
-CREATE TABLE observations (
+CREATE TABLE attributes (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     entity_id TEXT REFERENCES entities(id),
@@ -447,7 +447,7 @@ CREATE TABLE measures (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     logic TEXT,
-    input_observations JSON,  -- ["obs_id_1", "obs_id_2"]
+    input_attributes JSON,  -- ["obs_id_1", "obs_id_2"]
     input_measures JSON,      -- ["measure_id_1"]
     delivers_metrics JSON,    -- ["metric_id_1"]
     perspectives JSON         -- ["management", "financial"]
@@ -470,7 +470,7 @@ CREATE TABLE processes (
 -- Mapping tables (separate layer)
 CREATE TABLE semantic_mappings (
     id TEXT PRIMARY KEY,
-    ontology_type TEXT,      -- 'entity', 'observation', 'measure'
+    ontology_type TEXT,      -- 'entity', 'attribute', 'measure'
     ontology_id TEXT,
     semantic_object TEXT,    -- 'FactProductionOrders', '[Total COGS]'
     semantic_type TEXT,      -- 'table', 'column', 'measure'
@@ -483,7 +483,7 @@ CREATE TABLE semantic_mappings (
 
 ## Success Criteria
 
-1. **Full Trace Works**: Start from COGS metric, click through to see ERP goods issues observation
+1. **Full Trace Works**: Start from COGS metric, click through to see ERP goods issues attribute
 2. **Three Views**: Switch perspectives, see same data filtered appropriately
 3. **Process Flow**: Visualize month-end close with dependencies and crystallization
 4. **TMDL Parse**: Load a .pbip, see tables/measures, get mapping suggestions

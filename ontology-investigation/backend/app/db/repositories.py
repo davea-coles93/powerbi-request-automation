@@ -10,6 +10,7 @@ from .database import (
     ProcessDB,
     SemanticMappingDB,
     SemanticTableDB,
+    WorkshopSessionDB,
 )
 from ..models import (
     Perspective,
@@ -21,6 +22,7 @@ from ..models import (
     Process,
     SemanticMapping,
 )
+from ..models.workshop import WorkshopSession
 from ..models.semantic_model import Table
 
 T = TypeVar("T")
@@ -181,6 +183,27 @@ class ProcessRepository(BaseRepository[Process, ProcessDB]):
         # Update the process
         return self.update(process_id, process)
 
+    def delete_step(self, process_id: str, step_id: str) -> Optional[Process]:
+        """Remove a step from a process."""
+        process = self.get_by_id(process_id)
+        if not process:
+            return None
+
+        original_count = len(process.steps)
+        process.steps = [s for s in process.steps if s.id != step_id]
+
+        if len(process.steps) == original_count:
+            return None  # step not found
+
+        # Also remove references to this step from depends_on_step_ids
+        for step in process.steps:
+            if step_id in step.depends_on_step_ids:
+                step.depends_on_step_ids = [
+                    sid for sid in step.depends_on_step_ids if sid != step_id
+                ]
+
+        return self.update(process_id, process)
+
 
 class SemanticMappingRepository(BaseRepository[SemanticMapping, SemanticMappingDB]):
     def __init__(self, db: Session):
@@ -214,5 +237,17 @@ class SemanticTableRepository(BaseRepository[Table, SemanticTableDB]):
         """Get tables from a specific source system."""
         items = self.db.query(self.model_class).filter(
             self.model_class.source_system_id == system_id
+        ).all()
+        return [self._to_pydantic(item) for item in items]
+
+
+class WorkshopSessionRepository(BaseRepository[WorkshopSession, WorkshopSessionDB]):
+    def __init__(self, db: Session):
+        super().__init__(db, WorkshopSessionDB, WorkshopSession)
+
+    def get_by_type(self, session_type: str) -> list[WorkshopSession]:
+        """Get sessions by type (top_down, bottom_up, gap_analysis)."""
+        items = self.db.query(self.model_class).filter(
+            self.model_class.session_type == session_type
         ).all()
         return [self._to_pydantic(item) for item in items]

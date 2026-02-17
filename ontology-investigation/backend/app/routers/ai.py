@@ -43,10 +43,10 @@ class SuggestRequest(BaseModel):
 
 
 class SuggestResponse(BaseModel):
-    """Suggested measures and observations."""
+    """Suggested measures and attributes."""
 
     suggested_measures: list[dict]
-    suggested_observations: list[dict]
+    suggested_attributes: list[dict]
     rationale: str
 
 
@@ -79,13 +79,33 @@ async def find_gaps(request: GapAnalysisRequest, db: Session = Depends(get_db)):
 @router.post("/suggest-measures", response_model=SuggestResponse)
 async def suggest_measures(request: SuggestRequest, db: Session = Depends(get_db)):
     """
-    Suggest measures and observations for a requirement.
+    Suggest measures and attributes for a requirement.
 
-    Given a natural language requirement, suggests what measures and observations
+    Given a natural language requirement, suggests what measures and attributes
     would be needed to fulfill it.
     """
     service = AIService(db)
     result = await service.suggest_measures(request.requirement)
+    return result
+
+
+class ProcessAnalysisResponse(BaseModel):
+    """Process efficiency analysis results."""
+
+    insights: list[dict]
+    summary: str
+
+
+@router.post("/analyze-processes", response_model=ProcessAnalysisResponse)
+async def analyze_processes(db: Session = Depends(get_db)):
+    """
+    Analyze processes for efficiency insights.
+
+    Identifies high manual effort steps, waste categories, system switching,
+    and automation opportunities.
+    """
+    service = AIService(db)
+    result = await service.analyze_processes()
     return result
 
 

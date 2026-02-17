@@ -49,25 +49,25 @@
             "type": "string",
             "description": "Who or what performs this step"
           },
-          "consumes_observation_ids": {
+          "consumes_attribute_ids": {
             "type": "array",
             "items": { "type": "string" },
-            "description": "Observations read/used by this step"
+            "description": "Attributes read/used by this step"
           },
-          "produces_observation_ids": {
+          "produces_attribute_ids": {
             "type": "array",
             "items": { "type": "string" },
-            "description": "Observations created by this step"
+            "description": "Attributes created by this step"
           },
           "uses_metric_ids": {
             "type": "array",
             "items": { "type": "string" },
             "description": "Metrics reviewed/used in this step"
           },
-          "crystallizes_observation_ids": {
+          "crystallizes_attribute_ids": {
             "type": "array",
             "items": { "type": "string" },
-            "description": "Observations that become frozen after this step"
+            "description": "Attributes that become frozen after this step"
           },
           "depends_on_step_ids": {
             "type": "array",

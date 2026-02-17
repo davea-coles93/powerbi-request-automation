@@ -5,7 +5,7 @@ from app.db.repositories import (
     PerspectiveRepository,
     SystemRepository,
     EntityRepository,
-    ObservationRepository,
+    AttributeRepository,
     MeasureRepository,
     MetricRepository,
     ProcessRepository,
@@ -15,7 +15,7 @@ from app.models import (
     System,
     Entity,
     EntityLens,
-    Observation,
+    Attribute,
     Measure,
     Metric,
     Process,
@@ -111,89 +111,70 @@ def test_entity_repository_create(test_db, sample_entity):
     assert created.lenses[0].perspective_id == "test_perspective"
 
 
-def test_observation_repository_create(
-    test_db, sample_perspective, sample_system, sample_entity, sample_observation
+def test_attribute_repository_create(
+    test_db, sample_perspective, sample_system, sample_entity, sample_attribute
 ):
-    """Test creating an observation."""
+    """Test creating an attribute."""
     # Create dependencies first
     PerspectiveRepository(test_db).create(Perspective(**sample_perspective))
     SystemRepository(test_db).create(System(**sample_system))
     EntityRepository(test_db).create(Entity(**sample_entity))
 
-    repo = ObservationRepository(test_db)
-    observation = Observation(**sample_observation)
+    repo = AttributeRepository(test_db)
+    attribute = Attribute(**sample_attribute)
 
-    created = repo.create(observation)
-    assert created.id == sample_observation["id"]
+    created = repo.create(attribute)
+    assert created.id == sample_attribute["id"]
     assert created.reliability == "High"
     assert created.volatility == "Point-in-time"
 
 
-def test_observation_repository_get_by_system(
-    test_db, sample_perspective, sample_system, sample_entity, sample_observation
+def test_attribute_repository_get_by_system(
+    test_db, sample_perspective, sample_system, sample_entity, sample_attribute
 ):
-    """Test getting observations by system ID."""
+    """Test getting attributes by system ID."""
     # Create dependencies
     PerspectiveRepository(test_db).create(Perspective(**sample_perspective))
     SystemRepository(test_db).create(System(**sample_system))
     EntityRepository(test_db).create(Entity(**sample_entity))
 
-    repo = ObservationRepository(test_db)
-    observation = Observation(**sample_observation)
-    repo.create(observation)
+    repo = AttributeRepository(test_db)
+    attribute = Attribute(**sample_attribute)
+    repo.create(attribute)
 
-    observations = repo.get_by_system_id(sample_system["id"])
-    assert len(observations) == 1
-    assert observations[0].system_id == sample_system["id"]
+    attributes = repo.get_by_system(sample_system["id"])
+    assert len(attributes) == 1
+    assert attributes[0].system_id == sample_system["id"]
 
 
 def test_measure_repository_create(
-    test_db, sample_perspective, sample_system, sample_entity, sample_observation, sample_measure
+    test_db, sample_perspective, sample_system, sample_entity, sample_attribute, sample_measure
 ):
     """Test creating a measure."""
     # Create dependencies
     PerspectiveRepository(test_db).create(Perspective(**sample_perspective))
     SystemRepository(test_db).create(System(**sample_system))
     EntityRepository(test_db).create(Entity(**sample_entity))
-    ObservationRepository(test_db).create(Observation(**sample_observation))
+    AttributeRepository(test_db).create(Attribute(**sample_attribute))
 
     repo = MeasureRepository(test_db)
     measure = Measure(**sample_measure)
 
     created = repo.create(measure)
     assert created.id == sample_measure["id"]
-    assert len(created.input_observation_ids) == 1
-
-
-def test_measure_repository_get_by_observation(
-    test_db, sample_perspective, sample_system, sample_entity, sample_observation, sample_measure
-):
-    """Test getting measures that use a specific observation."""
-    # Create dependencies
-    PerspectiveRepository(test_db).create(Perspective(**sample_perspective))
-    SystemRepository(test_db).create(System(**sample_system))
-    EntityRepository(test_db).create(Entity(**sample_entity))
-    ObservationRepository(test_db).create(Observation(**sample_observation))
-
-    repo = MeasureRepository(test_db)
-    measure = Measure(**sample_measure)
-    repo.create(measure)
-
-    measures = repo.get_by_observation_id(sample_observation["id"])
-    assert len(measures) == 1
-    assert measures[0].id == sample_measure["id"]
+    assert len(created.input_attribute_ids) == 1
 
 
 def test_metric_repository_create(
     test_db, sample_perspective, sample_system, sample_entity,
-    sample_observation, sample_measure, sample_metric
+    sample_attribute, sample_measure, sample_metric
 ):
     """Test creating a metric."""
     # Create dependencies
     PerspectiveRepository(test_db).create(Perspective(**sample_perspective))
     SystemRepository(test_db).create(System(**sample_system))
     EntityRepository(test_db).create(Entity(**sample_entity))
-    ObservationRepository(test_db).create(Observation(**sample_observation))
+    AttributeRepository(test_db).create(Attribute(**sample_attribute))
     MeasureRepository(test_db).create(Measure(**sample_measure))
 
     repo = MetricRepository(test_db)

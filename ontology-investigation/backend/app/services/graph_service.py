@@ -27,9 +27,9 @@ class GraphService:
 
     def trace_metric(self, metric_id: str) -> Optional[dict]:
         """
-        Trace a metric back to its source observations and systems.
+        Trace a metric back to its source attributes and systems.
 
-        Returns the full tree: Metric → Measures → Observations → Systems/Entities
+        Returns the full tree: Metric → Measures → Attributes → Systems/Entities
         """
         metric = self.metrics.get_by_id(metric_id)
         if not metric:
@@ -37,29 +37,29 @@ class GraphService:
 
         # Get measures that calculate this metric
         measures = []
-        all_observation_ids = set()
+        all_attribute_ids = set()
         for measure_id in metric.calculated_by_measure_ids:
             measure = self.measures.get_by_id(measure_id)
             if measure:
                 measures.append(measure.model_dump())
-                all_observation_ids.update(measure.input_attribute_ids)
+                all_attribute_ids.update(measure.input_attribute_ids)
                 # Also check for chained measures
                 for input_measure_id in measure.input_measure_ids:
                     input_measure = self.measures.get_by_id(input_measure_id)
                     if input_measure:
                         measures.append(input_measure.model_dump())
-                        all_observation_ids.update(input_measure.input_attribute_ids)
+                        all_attribute_ids.update(input_measure.input_attribute_ids)
 
-        # Get observations
-        observations = []
+        # Get attributes
+        attributes_list = []
         system_ids = set()
         entity_ids = set()
-        for obs_id in all_observation_ids:
-            obs = self.attributes.get_by_id(obs_id)
-            if obs:
-                observations.append(obs.model_dump())
-                system_ids.add(obs.system_id)
-                entity_ids.add(obs.entity_id)
+        for attr_id in all_attribute_ids:
+            attr = self.attributes.get_by_id(attr_id)
+            if attr:
+                attributes_list.append(attr.model_dump())
+                system_ids.add(attr.system_id)
+                entity_ids.add(attr.entity_id)
 
         # Get systems
         systems = []
@@ -78,25 +78,25 @@ class GraphService:
         return {
             "metric": metric.model_dump(),
             "measures": measures,
-            "attributes": observations,
+            "attributes": attributes_list,
             "systems": systems,
             "entities": entities,
         }
 
-    def analyze_impact(self, observation_id: str) -> Optional[dict]:
+    def analyze_impact(self, attribute_id: str) -> Optional[dict]:
         """
-        Analyze what metrics would be affected if this observation changes.
+        Analyze what metrics would be affected if this attribute changes.
 
-        Reverse trace: Observation → Measures → Metrics
+        Reverse trace: Attribute → Measures → Metrics
         """
-        observation = self.attributes.get_by_id(observation_id)
-        if not observation:
+        attribute = self.attributes.get_by_id(attribute_id)
+        if not attribute:
             return None
 
-        # Find measures that use this observation
+        # Find measures that use this attribute
         all_measures = self.measures.get_all()
         affected_measures = [
-            m for m in all_measures if observation_id in m.input_attribute_ids
+            m for m in all_measures if attribute_id in m.input_attribute_ids
         ]
 
         # Find metrics calculated by these measures
@@ -112,7 +112,7 @@ class GraphService:
         ]
 
         return {
-            "observation": observation.model_dump(),
+            "attribute": attribute.model_dump(),
             "affected_measures": [m.model_dump() for m in affected_measures],
             "affected_metrics": [m.model_dump() for m in affected_metrics],
         }
@@ -124,7 +124,7 @@ class GraphService:
         Returns:
         - Which metrics use this measure
         - Which other measures use this measure
-        - Which observations this measure depends on
+        - Which attributes this measure depends on
         - Which other measures this measure depends on
         """
         measure = self.measures.get_by_id(measure_id)
@@ -143,12 +143,12 @@ class GraphService:
             m for m in all_measures if measure_id in m.input_measure_ids
         ]
 
-        # Get observations this measure depends on
-        depends_on_observations = []
-        for obs_id in measure.input_attribute_ids:
-            obs = self.attributes.get_by_id(obs_id)
-            if obs:
-                depends_on_observations.append(obs.model_dump())
+        # Get attributes this measure depends on
+        depends_on_attributes = []
+        for attr_id in measure.input_attribute_ids:
+            attr = self.attributes.get_by_id(attr_id)
+            if attr:
+                depends_on_attributes.append(attr.model_dump())
 
         # Get other measures this measure depends on
         depends_on_measures = []
@@ -161,7 +161,7 @@ class GraphService:
             "measure": measure.model_dump(),
             "used_in_metrics": [m.model_dump() for m in used_in_metrics],
             "used_in_measures": [m.model_dump() for m in used_in_measures],
-            "depends_on_observations": depends_on_observations,
+            "depends_on_attributes": depends_on_attributes,
             "depends_on_measures": depends_on_measures,
         }
 
@@ -169,7 +169,7 @@ class GraphService:
         """
         Get complete lineage from a process step through to semantic model.
 
-        Traces: ProcessStep → Observations → Measures → Metrics → Systems
+        Traces: ProcessStep → Attributes → Measures → Metrics → Systems
 
         Also includes waste analysis for the step.
         """
@@ -187,33 +187,33 @@ class GraphService:
         if not step:
             return None
 
-        # Get observations produced by this step
-        produced_observations = []
-        for obs_id in step.produces_observation_ids:
-            obs = self.attributes.get_by_id(obs_id)
-            if obs:
-                produced_observations.append(obs.model_dump())
+        # Get attributes produced by this step
+        produced_attributes = []
+        for attr_id in step.produces_attribute_ids:
+            attr = self.attributes.get_by_id(attr_id)
+            if attr:
+                produced_attributes.append(attr.model_dump())
 
-        # Get observations consumed by this step
-        consumed_observations = []
-        for obs_id in step.consumes_observation_ids:
-            obs = self.attributes.get_by_id(obs_id)
-            if obs:
-                consumed_observations.append(obs.model_dump())
+        # Get attributes consumed by this step
+        consumed_attributes = []
+        for attr_id in step.consumes_attribute_ids:
+            attr = self.attributes.get_by_id(attr_id)
+            if attr:
+                consumed_attributes.append(attr.model_dump())
 
-        # Get observations crystallized by this step
-        crystallized_observations = []
-        for obs_id in step.crystallizes_observation_ids:
-            obs = self.attributes.get_by_id(obs_id)
-            if obs:
-                crystallized_observations.append(obs.model_dump())
+        # Get attributes crystallized by this step
+        crystallized_attributes = []
+        for attr_id in step.crystallizes_attribute_ids:
+            attr = self.attributes.get_by_id(attr_id)
+            if attr:
+                crystallized_attributes.append(attr.model_dump())
 
-        # Find measures that use the produced observations
-        all_observation_ids = set(step.produces_observation_ids + step.crystallizes_observation_ids)
+        # Find measures that use the produced attributes
+        all_attribute_ids = set(step.produces_attribute_ids + step.crystallizes_attribute_ids)
         all_measures = self.measures.get_all()
         affected_measures = []
         for measure in all_measures:
-            if any(obs_id in all_observation_ids for obs_id in measure.input_attribute_ids):
+            if any(attr_id in all_attribute_ids for attr_id in measure.input_attribute_ids):
                 affected_measures.append(measure.model_dump())
 
         # Find metrics calculated by these measures
@@ -252,10 +252,10 @@ class GraphService:
 
         return {
             "step": step.model_dump(),
-            "consumes_observations": consumed_observations,
-            "produces_observations": produced_observations,
-            "crystallizes_observations": crystallized_observations,
-            "observations_feed_measures": affected_measures,
+            "consumes_attributes": consumed_attributes,
+            "produces_attributes": produced_attributes,
+            "crystallizes_attributes": crystallized_attributes,
+            "attributes_feed_measures": affected_measures,
             "measures_calculate_metrics": affected_metrics,
             "systems_used": systems_used,
             "waste_analysis": waste_analysis,
@@ -275,24 +275,24 @@ class GraphService:
         # Get measures for this perspective
         measures = self.measures.get_by_perspective(perspective_id)
 
-        # Get all observations referenced by these measures
-        observation_ids = set()
+        # Get all attributes referenced by these measures
+        attribute_ids = set()
         for measure in measures:
-            observation_ids.update(measure.input_attribute_ids)
+            attribute_ids.update(measure.input_attribute_ids)
 
-        observations = [
-            self.attributes.get_by_id(obs_id)
-            for obs_id in observation_ids
-            if self.attributes.get_by_id(obs_id)
-        ]
+        attributes_list = []
+        for attr_id in attribute_ids:
+            attr = self.attributes.get_by_id(attr_id)
+            if attr:
+                attributes_list.append(attr)
 
-        # Get entities from observations
-        entity_ids = {obs.entity_id for obs in observations if obs}
-        entities = [
-            self.entities.get_by_id(ent_id)
-            for ent_id in entity_ids
-            if self.entities.get_by_id(ent_id)
-        ]
+        # Get entities from attributes
+        entity_ids = {attr.entity_id for attr in attributes_list}
+        entities = []
+        for ent_id in entity_ids:
+            entity = self.entities.get_by_id(ent_id)
+            if entity:
+                entities.append(entity)
 
         # Get process steps for this perspective
         process_steps = []
@@ -307,34 +307,34 @@ class GraphService:
             "perspective": perspective.model_dump(),
             "metrics": [m.model_dump() for m in metrics],
             "measures": [m.model_dump() for m in measures],
-            "attributes": [o.model_dump() for o in observations if o],
+            "attributes": [a.model_dump() for a in attributes_list if a],
             "entities": [e.model_dump() for e in entities if e],
             "process_steps": process_steps,
         }
 
     def get_entity_full(self, entity_id: str) -> Optional[dict]:
         """
-        Get an entity with all its lenses and related observations.
+        Get an entity with all its lenses and related attributes.
         """
         entity = self.entities.get_by_id(entity_id)
         if not entity:
             return None
 
-        # Get observations for this entity
-        observations = self.attributes.get_by_entity(entity_id)
+        # Get attributes for this entity
+        attributes_list = self.attributes.get_by_entity(entity_id)
 
-        # Get systems from observations
-        system_ids = {obs.system_id for obs in observations}
-        systems = [
-            self.systems.get_by_id(sys_id)
-            for sys_id in system_ids
-            if self.systems.get_by_id(sys_id)
-        ]
+        # Get systems from attributes
+        system_ids = {attr.system_id for attr in attributes_list}
+        systems = []
+        for sys_id in system_ids:
+            system = self.systems.get_by_id(sys_id)
+            if system:
+                systems.append(system)
 
         return {
             "entity": entity.model_dump(),
-            "attributes": [o.model_dump() for o in observations],
-            "systems": [s.model_dump() for s in systems if s],
+            "attributes": [a.model_dump() for a in attributes_list],
+            "systems": [s.model_dump() for s in systems],
         }
 
     def get_process_flow(
@@ -382,6 +382,14 @@ class GraphService:
                 "actor": getattr(step, "actor", None),
                 "has_sub_steps": getattr(step, "has_sub_steps", False),
                 "perspective_level": getattr(step, "perspective_level", "financial"),
+                "estimated_duration_minutes": getattr(step, "estimated_duration_minutes", None),
+                "automation_potential": getattr(step, "automation_potential", None),
+                "waste_category": getattr(step, "waste_category", None),
+                "manual_effort_percentage": getattr(step, "manual_effort_percentage", None),
+                "systems_used_ids": getattr(step, "systems_used_ids", []),
+                "consumes_attribute_ids": getattr(step, "consumes_attribute_ids", []),
+                "produces_attribute_ids": getattr(step, "produces_attribute_ids", []),
+                "uses_metric_ids": getattr(step, "uses_metric_ids", []),
             })
 
             # Create edges for dependencies
@@ -403,7 +411,7 @@ class GraphService:
 
     def get_crystallization_points(self, process_id: str) -> Optional[dict]:
         """
-        Get which observations crystallize at which steps.
+        Get which attributes crystallize at which steps.
         """
         process = self.processes.get_by_id(process_id)
         if not process:
@@ -412,19 +420,19 @@ class GraphService:
         crystallization_map = []
 
         for step in process.steps:
-            crystallizes = step.crystallizes_observation_ids
+            crystallizes = step.crystallizes_attribute_ids
             if crystallizes:
-                observations = [
-                    self.attributes.get_by_id(obs_id)
-                    for obs_id in crystallizes
-                    if self.attributes.get_by_id(obs_id)
-                ]
+                crystallized_attrs = []
+                for attr_id in crystallizes:
+                    attr = self.attributes.get_by_id(attr_id)
+                    if attr:
+                        crystallized_attrs.append(attr)
                 crystallization_map.append({
                     "step_id": step.id,
                     "step_name": step.name,
                     "step_sequence": step.sequence,
-                    "crystallized_observations": [
-                        o.model_dump() for o in observations if o
+                    "crystallized_attributes": [
+                        a.model_dump() for a in crystallized_attrs
                     ],
                 })
 

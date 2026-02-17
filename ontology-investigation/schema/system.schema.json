@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "system.schema.json",
   "title": "System",
-  "description": "A system where observations are captured/stored",
+  "description": "A system where attributes are captured/stored",
   "type": "object",
   "required": ["id", "name", "type"],
   "properties": {
@@ -27,7 +27,7 @@
     "reliability_default": {
       "type": "string",
       "enum": ["High", "Medium", "Low"],
-      "description": "Default reliability level for observations from this system"
+      "description": "Default reliability level for attributes from this system"
     },
     "integration_status": {
       "type": "string",

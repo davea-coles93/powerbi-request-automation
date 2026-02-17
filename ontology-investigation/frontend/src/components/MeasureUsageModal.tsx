@@ -5,7 +5,7 @@ interface MeasureUsageData {
   measure_name: string;
   used_in_metrics: Array<{ id: string; name: string; description?: string }>;
   used_in_measures: Array<{ id: string; name: string; description?: string }>;
-  depends_on_observations: Array<{ id: string; name: string; entity_id?: string }>;
+  depends_on_attributes: Array<{ id: string; name: string; entity_id?: string }>;
   depends_on_measures: Array<{ id: string; name: string }>;
 }
 
@@ -119,19 +119,19 @@ export function MeasureUsageModal({
               <h3 className="text-lg font-semibold text-gray-900">Depends On</h3>
             </div>
 
-            {/* Depends on Observations */}
+            {/* Depends on Attributes */}
             <div className="space-y-2">
               <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-                Observations ({usageData.depends_on_observations.length})
+                Attributes ({usageData.depends_on_attributes.length})
               </h4>
 
-              {usageData.depends_on_observations.length === 0 ? (
+              {usageData.depends_on_attributes.length === 0 ? (
                 <div className="bg-gray-50 rounded-lg p-3 text-center">
-                  <p className="text-xs text-gray-500">No observation dependencies</p>
+                  <p className="text-xs text-gray-500">No attribute dependencies</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
-                  {usageData.depends_on_observations.map((obs) => (
+                  {usageData.depends_on_attributes.map((obs) => (
                     <div
                       key={obs.id}
                       className="bg-green-50 border border-green-200 rounded-lg p-3"
@@ -185,7 +185,7 @@ export function MeasureUsageModal({
                 <div>
                   <span className="text-gray-600">Upstream Dependencies:</span>
                   <div className="font-semibold text-gray-900">
-                    {usageData.depends_on_observations.length} observations,{' '}
+                    {usageData.depends_on_attributes.length} attributes,{' '}
                     {usageData.depends_on_measures.length} measures
                   </div>
                 </div>

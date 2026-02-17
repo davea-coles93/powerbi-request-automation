@@ -20,9 +20,9 @@ class MetricTrace(BaseModel):
 
 
 class ImpactAnalysis(BaseModel):
-    """What metrics would be affected if an observation changes."""
+    """What metrics would be affected if an attribute changes."""
 
-    observation: dict
+    attribute: dict
     affected_measures: list[dict]
     affected_metrics: list[dict]
 
@@ -52,15 +52,15 @@ def trace_metric(metric_id: str, db: Session = Depends(get_db)):
     return result
 
 
-@router.get("/impact/{observation_id}", response_model=ImpactAnalysis)
-def analyze_impact(observation_id: str, db: Session = Depends(get_db)):
+@router.get("/impact/{attribute_id}", response_model=ImpactAnalysis)
+def analyze_impact(attribute_id: str, db: Session = Depends(get_db)):
     """
-    Analyze what metrics would be affected if this observation is wrong or changes.
+    Analyze what metrics would be affected if this attribute is wrong or changes.
 
     Reverse trace: Attribute → Measures → Metrics
     """
     service = GraphService(db)
-    result = service.analyze_impact(observation_id)
+    result = service.analyze_impact(attribute_id)
     if not result:
         raise HTTPException(status_code=404, detail="Attribute not found")
     return result

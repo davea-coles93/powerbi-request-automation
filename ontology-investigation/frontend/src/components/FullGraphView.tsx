@@ -35,7 +35,6 @@ export function FullGraphView({ perspective }: FullGraphViewProps) {
     systems: true,
     semanticTables: true,
   });
-  const [_selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
   const cyRef = useRef<cytoscape.Core | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -505,7 +504,6 @@ export function FullGraphView({ perspective }: FullGraphViewProps) {
     cy.on('tap', 'node', (evt) => {
       const node = evt.target;
       const nodeId = node.id();
-      setSelectedNodeId(nodeId);
       setFocusedNodeId(nodeId);
 
       // Get all connected nodes and edges
@@ -523,7 +521,6 @@ export function FullGraphView({ perspective }: FullGraphViewProps) {
 
     cy.on('tap', (evt) => {
       if (evt.target === cy) {
-        setSelectedNodeId(null);
         setFocusedNodeId(null);
         // Remove all dimming and highlighting
         cy.elements().removeClass('dimmed highlighted');
@@ -601,7 +598,6 @@ export function FullGraphView({ perspective }: FullGraphViewProps) {
             <button
               onClick={() => {
                 setFocusedNodeId(null);
-                setSelectedNodeId(null);
                 if (cyRef.current) {
                   cyRef.current.elements().removeClass('dimmed highlighted');
                 }

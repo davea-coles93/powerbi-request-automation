@@ -10,9 +10,6 @@ from pydantic import BaseModel
 
 from app.db.database import (
     get_db,
-    init_db,
-    SessionLocal,
-    engine,
     PerspectiveDB,
     SystemDB,
     EntityDB,
@@ -77,6 +74,13 @@ SCENARIOS = {
         "description": "Software project management and financial forecasting with stage gates and portfolio planning",
         "icon": "📊",
         "file": "seed_data_toyota_connected.json"
+    },
+    "tceu": {
+        "id": "tceu",
+        "name": "TCEU - Mieruka Replacement Programme",
+        "description": "Enterprise project governance, resource management, timesheet management, and financial forecasting for TCEU's digital consulting practice",
+        "icon": "🚗",
+        "file": "seed_data_tceu.json"
     }
 }
 
@@ -158,7 +162,8 @@ def seed_from_data(db: Session, data: dict):
 
     # Seed attributes
     repo = AttributeRepository(db)
-    for item in data.get("attributes", []):
+    attrs_data = data.get("attributes", [])
+    for item in attrs_data:
         repo.create(Attribute(**item))
 
     # Seed measures

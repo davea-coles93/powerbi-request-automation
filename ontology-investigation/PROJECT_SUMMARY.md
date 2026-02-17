@@ -4,7 +4,7 @@
 
 A full-stack application for mapping business processes, semantic models, measures, and metrics across three organizational perspectives: Operational, Management, and Financial.
 
-**Use Case:** Month-end close process in manufacturing, tracing Cost of Goods Sold (COGS) from source systems through observations, measures, to final metrics.
+**Use Case:** Month-end close process in manufacturing, tracing Cost of Goods Sold (COGS) from source systems through attributes, measures, to final metrics.
 
 ## 📊 Project Status: ✅ POC COMPLETE
 
@@ -73,15 +73,15 @@ ontology-investigation/
 1. **Perspective** - Operational, Management, Financial
 2. **System** - ERP, MES, WMS, Spreadsheet, Manual
 3. **Entity** - Business objects with perspective lenses
-4. **Observation** - Data born in systems (12 seeded)
-5. **Measure** - Calculations from observations (8 seeded)
+4. **attribute** - Data born in systems (12 seeded)
+5. **Measure** - Calculations from attributes (8 seeded)
 6. **Metric** - Business KPIs (7 seeded)
 7. **Process** - Cross-perspective workflows
 8. **ProcessStep** - Individual process steps
 
 ### Data Flow
 ```
-System → Observation → Measure → Metric
+System → attribute → Measure → Metric
          ↓
        Entity
          ↓
@@ -164,7 +164,7 @@ npm test
 GET  /api/perspectives     # List perspectives
 GET  /api/systems          # List systems
 GET  /api/entities         # List entities
-GET  /api/observations     # List observations
+GET  /api/attributes     # List attributes
 GET  /api/measures         # List measures
 GET  /api/metrics          # List metrics
 GET  /api/processes        # List processes
@@ -190,7 +190,7 @@ The database contains a complete month-end close example:
 - **3 Perspectives:** Operational, Management, Financial
 - **5 Systems:** ERP, MES, WMS, Spreadsheet, Manual
 - **7 Entities:** Production Order, Inventory Item, Material Movement, etc.
-- **12 Observations:** Qty Produced, Qty Scrapped, Material Issued, etc.
+- **12 attributes:** Qty Produced, Qty Scrapped, Material Issued, etc.
 - **8 Measures:** Actual Production, Scrap Qty, Total Inventory Value, etc.
 - **7 Metrics:** COGS, Inventory Valuation, Yield Rate, etc.
 - **1 Process:** Month-End Close (9 steps)
@@ -201,7 +201,7 @@ COGS Metric
   ↓
 Material Cost Consumed + Labor Cost Applied + Overhead Absorbed (Measures)
   ↓
-Material Issued + Labor Hours + Inventory Value (Observations)
+Material Issued + Labor Hours + Inventory Value (attributes)
   ↓
 ERP + MES + Spreadsheet (Systems)
   ↓
@@ -299,8 +299,8 @@ None - frontend is fully functional
 | Backend API working | ✅ | All endpoints returning correct data |
 | Frontend displaying data | ✅ | UI shows perspectives, metrics, graphs |
 | Docker deployment | ✅ | Both containers running successfully |
-| Database seeded | ✅ | 7 metrics, 8 measures, 12 observations loaded |
-| Graph traversal | ✅ | COGS traced to 5 observations across 2 systems |
+| Database seeded | ✅ | 7 metrics, 8 measures, 12 attributes loaded |
+| Graph traversal | ✅ | COGS traced to 5 attributes across 2 systems |
 | Process flow | ✅ | 9-step month-end close with dependencies |
 | Unit tests | ✅ | 60% passing, core functionality tested |
 | E2E tests | ✅ | 21 tests created covering full stack |
@@ -348,7 +348,7 @@ npm test
 ## 🎓 Key Learnings
 
 1. **Perspective-based ontology works** - Same entity viewed differently by different perspectives
-2. **Crystallization concept validated** - Process steps freeze observations in time
+2. **Crystallization concept validated** - Process steps freeze attributes in time
 3. **Graph traversal efficient** - Can trace complex lineages quickly
 4. **Docker simplifies deployment** - Single command to spin up entire stack
 5. **Test-driven approach valuable** - Found bugs early, validated design
@@ -370,7 +370,7 @@ This project introduces several novel concepts:
 
 1. **Tri-perspective ontology** - Operational, Management, Financial views of same data
 2. **Entity lenses** - Same business object interpreted differently per perspective
-3. **Observation crystallization** - Data frozen at specific process steps
+3. **attribute crystallization** - Data frozen at specific process steps
 4. **Lineage tracing** - Full path from metric to source system
 5. **Cross-perspective processes** - Workflows spanning all three perspectives
 

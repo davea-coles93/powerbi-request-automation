@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, Literal
 
 
-OntologyType = Literal["entity", "observation", "measure"]
+OntologyType = Literal["entity", "attribute", "measure"]
 SemanticType = Literal["table", "column", "measure"]
 MappingStatus = Literal["mapped", "partial", "gap"]
 

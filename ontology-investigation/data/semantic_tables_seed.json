@@ -31,42 +31,42 @@
           "id": "quantity",
           "name": "Quantity",
           "data_type": "Decimal",
-          "mapped_observation_id": "production_confirmations",
+          "mapped_attribute_id": "production_confirmations",
           "source_field": "ConfirmedQuantity"
         },
         {
           "id": "scrap_qty",
           "name": "ScrapQuantity",
           "data_type": "Decimal",
-          "mapped_observation_id": "scrap_postings",
+          "mapped_attribute_id": "scrap_postings",
           "source_field": "ScrapQty"
         },
         {
           "id": "material_cost",
           "name": "MaterialCost",
           "data_type": "Decimal",
-          "mapped_observation_id": "goods_issues",
+          "mapped_attribute_id": "goods_issues",
           "source_field": "Value"
         },
         {
           "id": "labor_hours",
           "name": "LaborHours",
           "data_type": "Decimal",
-          "mapped_observation_id": "labor_time_recordings",
+          "mapped_attribute_id": "labor_time_recordings",
           "source_field": "Hours"
         },
         {
           "id": "labor_cost",
           "name": "LaborCost",
           "data_type": "Decimal",
-          "mapped_observation_id": "labor_time_recordings",
+          "mapped_attribute_id": "labor_time_recordings",
           "source_field": "CostAmount"
         },
         {
           "id": "overhead_cost",
           "name": "OverheadCost",
           "data_type": "Decimal",
-          "mapped_observation_id": "overhead_rates"
+          "mapped_attribute_id": "overhead_rates"
         }
       ],
       "measures": [
@@ -164,21 +164,21 @@
           "id": "system_qty",
           "name": "SystemQuantity",
           "data_type": "Decimal",
-          "mapped_observation_id": "system_stock",
+          "mapped_attribute_id": "system_stock",
           "source_field": "Quantity"
         },
         {
           "id": "counted_qty",
           "name": "CountedQuantity",
           "data_type": "Decimal",
-          "mapped_observation_id": "inventory_counts",
+          "mapped_attribute_id": "inventory_counts",
           "source_field": "CountedQty"
         },
         {
           "id": "unit_cost",
           "name": "UnitCost",
           "data_type": "Decimal",
-          "mapped_observation_id": "standard_costs",
+          "mapped_attribute_id": "standard_costs",
           "source_field": "Cost"
         },
         {
@@ -246,14 +246,14 @@
           "id": "gr_value",
           "name": "GR_Value",
           "data_type": "Decimal",
-          "mapped_observation_id": "goods_receipts",
+          "mapped_attribute_id": "goods_receipts",
           "source_field": "Value"
         },
         {
           "id": "ir_value",
           "name": "IR_Value",
           "data_type": "Decimal",
-          "mapped_observation_id": "invoice_receipts",
+          "mapped_attribute_id": "invoice_receipts",
           "source_field": "Value"
         }
       ],

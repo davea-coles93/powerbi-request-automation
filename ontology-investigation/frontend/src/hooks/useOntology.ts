@@ -104,6 +104,20 @@ export const useEntityFull = (entityId: string) =>
     enabled: !!entityId,
   });
 
+export const useCrystallizationPoints = (processId: string) =>
+  useQuery({
+    queryKey: ['crystallizationPoints', processId],
+    queryFn: () => api.getCrystallizationPoints(processId),
+    enabled: !!processId,
+  });
+
+export const useStepFullLineage = (stepId: string) =>
+  useQuery({
+    queryKey: ['stepFullLineage', stepId],
+    queryFn: () => api.getStepFullLineage(stepId),
+    enabled: !!stepId,
+  });
+
 // Semantic Model queries
 export const useSemanticModel = () =>
   useQuery({
@@ -158,6 +172,89 @@ export const useCreateProcessStep = () => {
   });
 };
 
+// Delete mutations
+export const useDeletePerspective = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deletePerspective(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['perspectives'] });
+    },
+  });
+};
+
+export const useDeleteSystem = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteSystem(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['systems'] });
+    },
+  });
+};
+
+export const useDeleteEntity = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteEntity(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['entities'] });
+    },
+  });
+};
+
+export const useDeleteAttribute = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteAttribute(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attributes'] });
+    },
+  });
+};
+
+export const useDeleteMeasure = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteMeasure(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['measures'] });
+    },
+  });
+};
+
+export const useDeleteMetric = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteMetric(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['metrics'] });
+    },
+  });
+};
+
+export const useDeleteProcess = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteProcess(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['processes'] });
+    },
+  });
+};
+
+export const useDeleteProcessStep = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ processId, stepId }: { processId: string; stepId: string }) =>
+      api.deleteProcessStep(processId, stepId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['processFlow', variables.processId] });
+      queryClient.invalidateQueries({ queryKey: ['processes'] });
+    },
+  });
+};
+
 // Scenarios queries and mutations
 export const useScenarioStatus = () =>
   useQuery({
@@ -173,6 +270,141 @@ export const useLoadScenario = () => {
     onSuccess: () => {
       // Invalidate all queries to refetch data with new scenario
       queryClient.invalidateQueries();
+    },
+  });
+};
+
+// Impact analysis
+export const useImpactAnalysis = (attributeId: string) =>
+  useQuery({
+    queryKey: ['impactAnalysis', attributeId],
+    queryFn: () => api.analyzeImpact(attributeId),
+    enabled: !!attributeId,
+  });
+
+// Measure usage
+export const useMeasureUsage = (measureId: string) =>
+  useQuery({
+    queryKey: ['measureUsage', measureId],
+    queryFn: () => api.getMeasureUsage(measureId),
+    enabled: !!measureId,
+  });
+
+// AI mutation hooks
+export const useExplainMetric = () =>
+  useMutation({
+    mutationFn: (metricId: string) => api.explainMetric(metricId),
+  });
+
+export const useFindGaps = () =>
+  useMutation({
+    mutationFn: (focusArea?: string) => api.findGaps(focusArea),
+  });
+
+export const useSuggestMeasures = () =>
+  useMutation({
+    mutationFn: (requirement: string) => api.suggestMeasures(requirement),
+  });
+
+export const useAnalyzeProcesses = () =>
+  useMutation({
+    mutationFn: () => api.analyzeProcesses(),
+  });
+
+// TMDL Ingestion hooks
+export const useAvailableModels = () =>
+  useQuery({
+    queryKey: ['availableModels'],
+    queryFn: api.listAvailableModels,
+  });
+
+export const usePreviewTmdl = () =>
+  useMutation({
+    mutationFn: ({ modelPath, modelName }: { modelPath: string; modelName: string }) =>
+      api.previewTmdlIngestion(modelPath, modelName),
+  });
+
+export const useLoadTmdlModel = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ modelPath, modelName }: { modelPath: string; modelName: string }) =>
+      api.loadTmdlModel(modelPath, modelName),
+    onSuccess: () => {
+      // Invalidate all queries to refetch data with imported model
+      queryClient.invalidateQueries();
+    },
+  });
+};
+
+// Process creation
+export const useCreateProcess = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { id: string; name: string; description?: string; steps?: any[] }) =>
+      api.createProcess(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['processes'] });
+    },
+  });
+};
+
+// Discovery / Import hooks
+export const useImportCsv = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (formData: FormData) => api.importCsv(formData),
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+    },
+  });
+};
+
+export const useImportExcel = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (formData: FormData) => api.importExcel(formData),
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+    },
+  });
+};
+
+// Workshop session hooks
+export const useWorkshopSessions = () =>
+  useQuery({
+    queryKey: ['workshopSessions'],
+    queryFn: api.getWorkshopSessions,
+  });
+
+export const useCreateWorkshopSession = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) => api.createWorkshopSession(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workshopSessions'] });
+    },
+  });
+};
+
+export const useUpdateWorkshopSession = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) =>
+      api.updateWorkshopSession(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workshopSessions'] });
+    },
+  });
+};
+
+export const useAddWorkshopFinding = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, finding }: { sessionId: string; finding: any }) =>
+      api.addWorkshopFinding(sessionId, finding),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workshopSessions'] });
     },
   });
 };

@@ -7,13 +7,13 @@ interface ProcessStepCardProps {
     sequence: number;
     perspective_id: string;
     actor?: string;
-    crystallizes_observation_ids?: string[];
+    crystallizes_attribute_ids?: string[];
   };
-  hasMappedObservations?: boolean;
+  hasMappedAttributes?: boolean;
   onClick?: () => void;
 }
 
-export function ProcessStepCard({ step, hasMappedObservations, onClick }: ProcessStepCardProps) {
+export function ProcessStepCard({ step, hasMappedAttributes, onClick }: ProcessStepCardProps) {
   const perspectiveColors = {
     operational: { bg: 'bg-green-50', border: 'border-green-500', text: 'text-green-700' },
     management: { bg: 'bg-yellow-50', border: 'border-yellow-500', text: 'text-yellow-700' },
@@ -26,18 +26,18 @@ export function ProcessStepCard({ step, hasMappedObservations, onClick }: Proces
     text: 'text-gray-700',
   };
 
-  const hasCrystallization = (step.crystallizes_observation_ids?.length || 0) > 0;
+  const hasCrystallization = (step.crystallizes_attribute_ids?.length || 0) > 0;
 
   // Determine mapping status
   let MappingIcon = AlertCircle;
   let mappingColor = 'text-yellow-500';
   let mappingTooltip = 'Partial mapping';
 
-  if (hasMappedObservations === true) {
+  if (hasMappedAttributes === true) {
     MappingIcon = CheckCircle;
     mappingColor = 'text-green-500';
     mappingTooltip = 'Fully mapped to semantic model';
-  } else if (hasMappedObservations === false) {
+  } else if (hasMappedAttributes === false) {
     MappingIcon = XCircle;
     mappingColor = 'text-red-500';
     mappingTooltip = 'Not mapped to semantic model';
@@ -66,7 +66,7 @@ export function ProcessStepCard({ step, hasMappedObservations, onClick }: Proces
           )}
           {hasCrystallization && (
             <p className="text-xs text-purple-600 mt-1">
-              {step.crystallizes_observation_ids?.length} observation{step.crystallizes_observation_ids?.length !== 1 ? 's' : ''} freeze here
+              {step.crystallizes_attribute_ids?.length} attribute{step.crystallizes_attribute_ids?.length !== 1 ? 's' : ''} freeze here
             </p>
           )}
         </div>

@@ -35,7 +35,7 @@ export function SemanticModelView() {
       case 'tables':
         return tablesLoading ? <TableSkeletonLoader /> : <SemanticModelsTable tables={transformedTables} />;
       case 'gap-analysis':
-        return mappingLoading ? <TableSkeletonLoader /> : <GapAnalysisDashboard mappingStatus={mappingStatus ? { ...mappingStatus, orphaned_attributes: mappingStatus.orphaned_observations || [], orphaned_measures: [], unmapped_columns: [] } : { orphaned_attributes: [], orphaned_measures: [], unmapped_columns: [] }} />;
+        return mappingLoading ? <TableSkeletonLoader /> : <GapAnalysisDashboard mappingStatus={mappingStatus ? { ...mappingStatus, orphaned_attributes: mappingStatus.orphaned_attributes || [], orphaned_measures: [], unmapped_columns: [] } : { orphaned_attributes: [], orphaned_measures: [], unmapped_columns: [] }} />;
       default:
         return null;
     }
@@ -98,9 +98,9 @@ export function SemanticModelView() {
                 <span className={activeView === 'gap-analysis' ? 'text-xl' : 'text-lg'}>📋</span>
                 Gap Analysis
               </span>
-              {mappingStatus && mappingStatus.orphaned_observations && mappingStatus.orphaned_observations.length > 0 && (
+              {mappingStatus && mappingStatus.orphaned_attributes && mappingStatus.orphaned_attributes.length > 0 && (
                 <span className="px-2 py-1 text-xs bg-red-500 text-white rounded-full shadow-lg animate-pulse">
-                  {mappingStatus.orphaned_observations.length}
+                  {mappingStatus.orphaned_attributes.length}
                 </span>
               )}
             </button>

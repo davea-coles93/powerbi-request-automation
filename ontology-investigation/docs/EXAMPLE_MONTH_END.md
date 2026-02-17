@@ -23,10 +23,10 @@ What does finance need to know at month-end?
 
 ---
 
-## Tracing Backwards: Metrics → Measures → Observations
+## Tracing Backwards: Metrics → Measures → attributes
 
 ```
-METRIC                      MEASURE                           OBSERVATIONS
+METRIC                      MEASURE                           attributeS
 ─────────────────────────────────────────────────────────────────────────────
 Cost of Goods Sold    ←──  Material cost consumed       ←──  Goods issues (materials)
                            (qty × std cost)                   Standard costs
@@ -54,9 +54,9 @@ Accruals (GR/IR)      ←──  GR value without matching    ←──  Goods r
 
 ---
 
-## Observations Detail
+## attributes Detail
 
-| Observation | Entity | System | Source Actor | Reliability | Volatility |
+| attribute | Entity | System | Source Actor | Reliability | Volatility |
 |-------------|--------|--------|--------------|-------------|------------|
 | Production order created | Production Order | ERP | Production Planner | High | Point-in-time |
 | Production confirmations | Production Order | MES | Floor Operator / Auto | High | Accumulating |
@@ -199,8 +199,8 @@ MONTH-END CLOSE
 ├── Perspective: Operational
 ├── Actor: Production Manager
 ├── Action: Confirm all completed production orders, no further confirmations for prior period
-├── Consumes Observations: Production confirmations (review)
-├── Produces Observations: None (cutoff is a control, not data creation)
+├── Consumes attributes: Production confirmations (review)
+├── Produces attributes: None (cutoff is a control, not data creation)
 ├── Uses Metrics: None
 ├── Crystallizes: [Production confirmations, Production goods movements]
 ├── Depends On: []
@@ -213,8 +213,8 @@ MONTH-END CLOSE
 ├── Perspective: Operational
 ├── Actor: Warehouse Manager
 ├── Action: Complete all goods movements, freeze stock for counting
-├── Consumes Observations: Goods movements (review)
-├── Produces Observations: System stock snapshot
+├── Consumes attributes: Goods movements (review)
+├── Produces attributes: System stock snapshot
 ├── Uses Metrics: None
 ├── Crystallizes: [Goods movements]
 ├── Depends On: [Step 1]
@@ -227,8 +227,8 @@ MONTH-END CLOSE
 ├── Perspective: Operational
 ├── Actor: Warehouse Team
 ├── Action: Count physical inventory
-├── Consumes Observations: System stock snapshot
-├── Produces Observations: Inventory count results
+├── Consumes attributes: System stock snapshot
+├── Produces attributes: Inventory count results
 ├── Uses Metrics: None
 ├── Crystallizes: []
 ├── Depends On: [Step 2]
@@ -241,8 +241,8 @@ MONTH-END CLOSE
 ├── Perspective: Management
 ├── Actor: Inventory Controller
 ├── Action: Compare counts to system, investigate variances, post adjustments
-├── Consumes Observations: Inventory count results, System stock snapshot
-├── Produces Observations: Inventory adjustments
+├── Consumes attributes: Inventory count results, System stock snapshot
+├── Produces attributes: Inventory adjustments
 ├── Uses Metrics: Inventory Accuracy
 ├── Crystallizes: [Inventory count results]
 ├── Depends On: [Step 3]
@@ -255,8 +255,8 @@ MONTH-END CLOSE
 ├── Perspective: Financial
 ├── Actor: AP Accountant
 ├── Action: Match goods receipts to invoices, identify unmatched, post accruals
-├── Consumes Observations: Goods receipts, Invoice receipts
-├── Produces Observations: Accrual postings
+├── Consumes attributes: Goods receipts, Invoice receipts
+├── Produces attributes: Accrual postings
 ├── Uses Metrics: Accruals (GR/IR)
 ├── Crystallizes: [Goods receipts, Invoice receipts]
 ├── Depends On: [Step 2]
@@ -269,8 +269,8 @@ MONTH-END CLOSE
 ├── Perspective: Financial
 ├── Actor: Cost Accountant
 ├── Action: Value work in progress orders, post variances
-├── Consumes Observations: Production confirmations, Goods issues, Labor time
-├── Produces Observations: WIP valuation postings
+├── Consumes attributes: Production confirmations, Goods issues, Labor time
+├── Produces attributes: WIP valuation postings
 ├── Uses Metrics: WIP Valuation
 ├── Crystallizes: []
 ├── Depends On: [Step 1, Step 4]
@@ -283,8 +283,8 @@ MONTH-END CLOSE
 ├── Perspective: Financial
 ├── Actor: Cost Accountant
 ├── Action: Run inventory valuation, post to GL
-├── Consumes Observations: All goods movements, Inventory adjustments
-├── Produces Observations: Inventory valuation postings
+├── Consumes attributes: All goods movements, Inventory adjustments
+├── Produces attributes: Inventory valuation postings
 ├── Uses Metrics: Inventory Valuation, COGS
 ├── Crystallizes: [Inventory adjustments]
 ├── Depends On: [Step 4, Step 6]
@@ -297,8 +297,8 @@ MONTH-END CLOSE
 ├── Perspective: Financial
 ├── Actor: Cost Accountant
 ├── Action: Settle completed production orders to receivers
-├── Consumes Observations: Production confirmations, All cost postings
-├── Produces Observations: Settlement postings
+├── Consumes attributes: Production confirmations, All cost postings
+├── Produces attributes: Settlement postings
 ├── Uses Metrics: Production variances
 ├── Crystallizes: []
 ├── Depends On: [Step 7]
@@ -311,10 +311,10 @@ MONTH-END CLOSE
 ├── Perspective: Financial
 ├── Actor: Finance Manager
 ├── Action: Review all metrics, approve period close
-├── Consumes Observations: All valuation postings
-├── Produces Observations: Period close confirmation
+├── Consumes attributes: All valuation postings
+├── Produces attributes: Period close confirmation
 ├── Uses Metrics: [All financial metrics]
-├── Crystallizes: [All observations for period]
+├── Crystallizes: [All attributes for period]
 ├── Depends On: [Step 5, Step 7, Step 8]
 └── Deadline: Day 5
 ```
@@ -396,9 +396,9 @@ If mapping this ontology to an actual customer's semantic model:
 | Production Order | Entity | FactProductionOrders | ✓ Mapped |
 | Material | Entity | DimMaterial | ✓ Mapped |
 | Invoice | Entity | FactAPInvoices | ✓ Mapped |
-| Production confirmations | Observation | FactProductionOrders[ConfirmedQty] | ✓ Mapped |
-| Labor time recordings | Observation | *None* | ⚠ Gap - data in separate system |
-| Machine run data | Observation | *None* | ⚠ Gap - SCADA not integrated |
+| Production confirmations | attribute | FactProductionOrders[ConfirmedQty] | ✓ Mapped |
+| Labor time recordings | attribute | *None* | ⚠ Gap - data in separate system |
+| Machine run data | attribute | *None* | ⚠ Gap - SCADA not integrated |
 | COGS | Metric | [Total COGS] | ✓ Mapped |
 | Yield Rate | Metric | *None* | ⚠ Gap - measure needed |
 | Inventory Accuracy | Metric | *None* | ⚠ Gap - no count data |

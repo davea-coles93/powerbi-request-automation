@@ -5,7 +5,7 @@ from app.db.repositories import (
     PerspectiveRepository,
     SystemRepository,
     EntityRepository,
-    ObservationRepository,
+    AttributeRepository,
     MeasureRepository,
     MetricRepository,
     ProcessRepository,
@@ -14,7 +14,7 @@ from app.models import (
     Perspective,
     System,
     Entity,
-    Observation,
+    Attribute,
     Measure,
     Metric,
     Process,
@@ -27,7 +27,7 @@ def api_data(
     sample_perspective,
     sample_system,
     sample_entity,
-    sample_observation,
+    sample_attribute,
     sample_measure,
     sample_metric,
     sample_process,
@@ -36,7 +36,7 @@ def api_data(
     PerspectiveRepository(test_db).create(Perspective(**sample_perspective))
     SystemRepository(test_db).create(System(**sample_system))
     EntityRepository(test_db).create(Entity(**sample_entity))
-    ObservationRepository(test_db).create(Observation(**sample_observation))
+    AttributeRepository(test_db).create(Attribute(**sample_attribute))
     MeasureRepository(test_db).create(Measure(**sample_measure))
     MetricRepository(test_db).create(Metric(**sample_metric))
     ProcessRepository(test_db).create(Process(**sample_process))
@@ -99,15 +99,15 @@ def test_get_entities(client, api_data):
     assert data[0]["id"] == "test_entity"
 
 
-def test_get_observations(client, api_data):
-    """Test getting all observations."""
-    response = client.get("/api/observations")
+def test_get_attributes(client, api_data):
+    """Test getting all attributes."""
+    response = client.get("/api/attributes")
     assert response.status_code == 200
 
     data = response.json()
     assert isinstance(data, list)
     assert len(data) == 1
-    assert data[0]["id"] == "test_observation"
+    assert data[0]["id"] == "test_attribute"
     assert data[0]["reliability"] == "High"
 
 
@@ -152,7 +152,7 @@ def test_trace_metric(client, api_data):
     data = response.json()
     assert data["metric"]["id"] == "test_metric"
     assert len(data["measures"]) == 1
-    assert len(data["observations"]) == 1
+    assert len(data["attributes"]) == 1
     assert len(data["systems"]) == 1
     assert len(data["entities"]) == 1
 
@@ -172,7 +172,7 @@ def test_get_perspective_view(client, api_data):
     assert data["perspective"]["id"] == "test_perspective"
     assert "metrics" in data
     assert "measures" in data
-    assert "observations" in data
+    assert "attributes" in data
     assert "entities" in data
 
 
@@ -206,10 +206,11 @@ def test_get_crystallization_points(client, api_data):
     assert response.status_code == 200
 
     data = response.json()
-    assert isinstance(data, list)
-    assert len(data) == 1
-    assert data[0]["step_id"] == "step1"
-    assert len(data[0]["observations"]) == 1
+    assert data["process_id"] == "test_process"
+    points = data["crystallization_points"]
+    assert len(points) == 1
+    assert points[0]["step_id"] == "step1"
+    assert len(points[0]["crystallized_attributes"]) == 1
 
 
 def test_get_crystallization_points_not_found(client, api_data):
@@ -306,4 +307,4 @@ def test_openapi_schema(client):
     schema = response.json()
     assert "openapi" in schema
     assert "info" in schema
-    assert schema["info"]["title"] == "Business Ontology API"
+    assert schema["info"]["title"] == "Business Ontology Framework"

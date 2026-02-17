@@ -7,7 +7,7 @@ from app.models import (
     System,
     Entity,
     EntityLens,
-    Observation,
+    Attribute,
     Measure,
     Metric,
     Process,
@@ -62,10 +62,10 @@ def test_entity_lens():
     lens = EntityLens(
         perspective_id="operational",
         interpretation="Work instruction",
-        key_attributes=["order_number"]
+        derived_attributes=[{"name": "order_number"}]
     )
     assert lens.perspective_id == "operational"
-    assert len(lens.key_attributes) == 1
+    assert len(lens.derived_attributes) == 1
 
 
 def test_entity_model():
@@ -78,7 +78,7 @@ def test_entity_model():
             EntityLens(
                 perspective_id="operational",
                 interpretation="Work instruction",
-                key_attributes=["order_number"]
+                derived_attributes=[{"name": "order_number"}]
             )
         ]
     )
@@ -86,9 +86,9 @@ def test_entity_model():
     assert len(entity.lenses) == 1
 
 
-def test_observation_model():
-    """Test Observation model validation."""
-    obs = Observation(
+def test_attribute_model():
+    """Test Attribute model validation."""
+    attr = Attribute(
         id="qty_produced",
         name="Quantity Produced",
         description="Actual quantity produced",
@@ -98,16 +98,16 @@ def test_observation_model():
         reliability="High",
         volatility="Point-in-time"
     )
-    assert obs.id == "qty_produced"
-    assert obs.reliability == "High"
-    assert obs.volatility == "Point-in-time"
+    assert attr.id == "qty_produced"
+    assert attr.reliability == "High"
+    assert attr.volatility == "Point-in-time"
 
 
-def test_observation_reliability_validation():
-    """Test Observation reliability validation."""
+def test_attribute_reliability_validation():
+    """Test Attribute reliability validation."""
     valid_levels = ["High", "Medium", "Low"]
     for level in valid_levels:
-        obs = Observation(
+        attr = Attribute(
             id="test",
             name="Test",
             system_id="test",
@@ -116,14 +116,14 @@ def test_observation_reliability_validation():
             reliability=level,
             volatility="Point-in-time"
         )
-        assert obs.reliability == level
+        assert attr.reliability == level
 
 
-def test_observation_volatility_validation():
-    """Test Observation volatility validation."""
+def test_attribute_volatility_validation():
+    """Test Attribute volatility validation."""
     valid_types = ["Point-in-time", "Accumulating", "Continuous"]
     for vol_type in valid_types:
-        obs = Observation(
+        attr = Attribute(
             id="test",
             name="Test",
             system_id="test",
@@ -132,7 +132,7 @@ def test_observation_volatility_validation():
             reliability="High",
             volatility=vol_type
         )
-        assert obs.volatility == vol_type
+        assert attr.volatility == vol_type
 
 
 def test_measure_model():
@@ -142,11 +142,11 @@ def test_measure_model():
         name="Total Cost",
         description="Sum of costs",
         logic="sum(material_cost) + sum(labor_cost)",
-        input_observation_ids=["material_cost", "labor_cost"],
+        input_attribute_ids=["material_cost", "labor_cost"],
         perspective_ids=["management"]
     )
     assert measure.id == "total_cost"
-    assert len(measure.input_observation_ids) == 2
+    assert len(measure.input_attribute_ids) == 2
 
 
 def test_metric_model():
@@ -172,11 +172,11 @@ def test_process_step_model():
         perspective_id="operational",
         actor="Operator",
         depends_on_step_ids=[],
-        crystallizes_observation_ids=["qty_produced"]
+        crystallizes_attribute_ids=["qty_produced"]
     )
     assert step.id == "step1"
     assert step.sequence == 1
-    assert len(step.crystallizes_observation_ids) == 1
+    assert len(step.crystallizes_attribute_ids) == 1
 
 
 def test_process_model():
@@ -192,7 +192,7 @@ def test_process_model():
                 sequence=1,
                 perspective_id="operational",
                 depends_on_step_ids=[],
-                crystallizes_observation_ids=[]
+                crystallizes_attribute_ids=[]
             ),
             ProcessStep(
                 id="step2",
@@ -200,7 +200,7 @@ def test_process_model():
                 sequence=2,
                 perspective_id="operational",
                 depends_on_step_ids=["step1"],
-                crystallizes_observation_ids=["qty_on_hand"]
+                crystallizes_attribute_ids=["qty_on_hand"]
             )
         ]
     )
@@ -217,7 +217,7 @@ def test_process_step_dependencies():
         sequence=1,
         perspective_id="operational",
         depends_on_step_ids=[],
-        crystallizes_observation_ids=[]
+        crystallizes_attribute_ids=[]
     )
     step2 = ProcessStep(
         id="step2",
@@ -225,7 +225,7 @@ def test_process_step_dependencies():
         sequence=2,
         perspective_id="management",
         depends_on_step_ids=["step1"],
-        crystallizes_observation_ids=[]
+        crystallizes_attribute_ids=[]
     )
 
     assert step1.depends_on_step_ids == []

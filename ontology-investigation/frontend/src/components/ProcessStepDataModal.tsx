@@ -12,8 +12,8 @@ interface ProcessStepDataModalProps {
       perspective_id: string;
       actor?: string;
     };
-    consumesObservations: Array<{ id: string; name: string; description?: string }>;
-    producesObservations: Array<{ id: string; name: string; description?: string }>;
+    consumesAttributes: Array<{ id: string; name: string; description?: string }>;
+    producesAttributes: Array<{ id: string; name: string; description?: string }>;
     usesMetrics: Array<{ id: string; name: string; description?: string }>;
     crystallizes: Array<{ id: string; name: string; description?: string }>;
   } | null;
@@ -92,8 +92,8 @@ export function ProcessStepDataModal({ isOpen, onClose, stepData }: ProcessStepD
 
           {/* Data Sections */}
           <div className="space-y-6">
-            {renderSection('Consumes Observations', stepData.consumesObservations)}
-            {renderSection('Produces Observations', stepData.producesObservations)}
+            {renderSection('Consumes Attributes', stepData.consumesAttributes)}
+            {renderSection('Produces Attributes', stepData.producesAttributes)}
             {renderSection('Uses Metrics', stepData.usesMetrics)}
             {renderSection('Crystallizes', stepData.crystallizes)}
           </div>

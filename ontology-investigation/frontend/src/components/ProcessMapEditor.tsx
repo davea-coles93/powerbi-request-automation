@@ -2,8 +2,10 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import cytoscape from 'cytoscape';
 import cytoscapeDagre from 'cytoscape-dagre';
-import { useProcessFlow, useUpdateProcessStep, useCreateProcessStep } from '../hooks/useOntology';
+import { Lock, ArrowRight, X, ChevronRight, Layers } from 'lucide-react';
+import { useProcessFlow, useProcesses, useUpdateProcessStep, useCreateProcessStep, useDeleteProcessStep, useCrystallizationPoints } from '../hooks/useOntology';
 import { ProcessStepEditModal, StepFormData } from './ProcessStepEditModal';
+import { StepLineageDrawer } from './StepLineageDrawer';
 
 // Register dagre layout
 cytoscape.use(cytoscapeDagre);
@@ -11,6 +13,11 @@ cytoscape.use(cytoscapeDagre);
 interface ProcessMapEditorProps {
   processId: string;
   perspectiveLevel?: string;
+}
+
+interface DrillDownEntry {
+  id: string;
+  name: string;
 }
 
 interface StepMetadata {
@@ -23,16 +30,28 @@ interface StepMetadata {
   automation_potential?: 'High' | 'Medium' | 'Low' | 'None';
   waste_category?: string;
   manual_effort_percentage?: number;
-  produces_observation_ids?: string[];
-  consumes_observation_ids?: string[];
+  produces_attribute_ids?: string[];
+  consumes_attribute_ids?: string[];
   uses_metric_ids?: string[];
   systems_used_ids?: string[];
+  has_sub_steps?: boolean;
+}
+
+interface HandoffInfo {
+  sourceStep: { id: string; name: string; perspective_id: string };
+  targetStep: { id: string; name: string; perspective_id: string };
 }
 
 const perspectiveColors: Record<string, { bg: string; border: string }> = {
   operational: { bg: '#dcfce7', border: '#22c55e' },
   management: { bg: '#fef9c3', border: '#eab308' },
   financial: { bg: '#dbeafe', border: '#3b82f6' },
+};
+
+const perspectiveLabels: Record<string, { label: string; concern: string }> = {
+  operational: { label: 'Operational', concern: 'What work is being done?' },
+  management: { label: 'Management', concern: 'How are we performing?' },
+  financial: { label: 'Financial', concern: "What's the financial position?" },
 };
 
 const automationColors: Record<string, string> = {
@@ -42,7 +61,14 @@ const automationColors: Record<string, string> = {
   None: '#22c55e',    // green - good as is
 };
 
-export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEditorProps) {
+// Swim lane Y positions for each perspective
+const laneYPositions: Record<string, number> = {
+  operational: 120,
+  management: 340,
+  financial: 560,
+};
+
+export function ProcessMapEditor({ processId }: ProcessMapEditorProps) {
   const [selectedStep, setSelectedStep] = useState<StepMetadata | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -50,12 +76,28 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
   const [connectionMode, setConnectionMode] = useState(false);
   const [welcomeDismissed, setWelcomeDismissed] = useState(false);
   const [firstNodeForConnection, setFirstNodeForConnection] = useState<string | null>(null);
+  const [crystallizationView, setCrystallizationView] = useState(false);
+  const [lineageStepId, setLineageStepId] = useState<string | null>(null);
+  const [activeProcessId, setActiveProcessId] = useState(processId);
+  const [selectedHandoff, setSelectedHandoff] = useState<HandoffInfo | null>(null);
+  const [parentStepId, setParentStepId] = useState<string | null>(null);
+  const [drillDownStack, setDrillDownStack] = useState<DrillDownEntry[]>([]);
   const cyRef = useRef<cytoscape.Core | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { data: flow, isLoading } = useProcessFlow(processId, perspectiveLevel);
+  // Sync activeProcessId with prop
+  useEffect(() => {
+    setActiveProcessId(processId);
+  }, [processId]);
+
+  // Show all perspectives (no perspectiveLevel filter) for swim-lane view
+  // Pass parentStepId to drill into sub-steps
+  const { data: flow, isLoading } = useProcessFlow(activeProcessId, undefined, parentStepId || undefined);
+  const { data: crystallizationData } = useCrystallizationPoints(crystallizationView ? activeProcessId : '');
+  const { data: processes } = useProcesses();
   const updateStepMutation = useUpdateProcessStep();
   const createStepMutation = useCreateProcessStep();
+  const deleteStepMutation = useDeleteProcessStep();
 
   // Calculate summary stats
   const stats = useMemo(() => {
@@ -67,13 +109,7 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
       0
     );
 
-    const automationCounts = {
-      High: 0,
-      Medium: 0,
-      Low: 0,
-      None: 0,
-    };
-
+    const automationCounts = { High: 0, Medium: 0, Low: 0, None: 0 };
     flow.nodes.forEach((node) => {
       if (node.automation_potential) {
         automationCounts[node.automation_potential]++;
@@ -84,99 +120,149 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
       (node) => node.manual_effort_percentage && node.manual_effort_percentage > 80
     ).length;
 
-    return {
-      totalSteps,
-      totalDuration,
-      automationCounts,
-      manualSteps,
-    };
+    // Count cross-perspective edges (handoffs)
+    const nodeMap = new Map(flow.nodes.map(n => [n.id, n]));
+    const handoffCount = flow.edges.filter(e => {
+      const s = nodeMap.get(e.source);
+      const t = nodeMap.get(e.target);
+      return s && t && s.perspective_id !== t.perspective_id;
+    }).length;
+
+    return { totalSteps, totalDuration, automationCounts, manualSteps, handoffCount };
   }, [flow]);
 
-  // Convert flow data to Cytoscape elements
+  // Convert flow data to Cytoscape elements with swim-lane positioning
   const elements = useMemo(() => {
     if (!flow) return [];
 
     const cyElements: any[] = [];
-    const horizontalSpacing = 250;
-    const verticalSpacing = 150;
+    const horizontalSpacing = 280;
+    const xStart = 150;
 
-    // Create nodes
-    flow.nodes.forEach((node, index) => {
-      const colors = perspectiveColors[node.perspective_id] || {
-        bg: '#f3f4f6',
-        border: '#9ca3af',
-      };
+    // Group nodes by perspective
+    const groups: Record<string, typeof flow.nodes> = {};
+    for (const node of flow.nodes) {
+      const pid = node.perspective_id || 'operational';
+      if (!groups[pid]) groups[pid] = [];
+      groups[pid].push(node);
+    }
 
-      // Get automation color if available
-      const automationColor = node.automation_potential
-        ? automationColors[node.automation_potential]
-        : null;
+    // Sort each group by sequence
+    for (const pid of Object.keys(groups)) {
+      groups[pid].sort((a, b) => a.sequence - b.sequence);
+    }
 
-      // Build rich label with metadata
-      let labelText = node.label;
-
-      // Add metadata badges
-      const badges: string[] = [];
-      if (node.estimated_duration_minutes) {
-        badges.push(`⏱️ ${node.estimated_duration_minutes}m`);
-      }
-      if (node.automation_potential) {
-        const automationEmoji = {
-          High: '🔴',
-          Medium: '🟠',
-          Low: '🟡',
-          None: '🟢',
-        }[node.automation_potential];
-        badges.push(`${automationEmoji} ${node.automation_potential}`);
-      }
-      if (node.waste_category) {
-        badges.push(`🗑️ ${node.waste_category.split(' ')[0]}`);
-      }
-
-      if (badges.length > 0) {
-        labelText += '\n' + badges.join(' | ');
-      }
-
-      if (node.actor) {
-        labelText += '\n👤 ' + node.actor;
-      }
-
+    // Create lane compound nodes (only for perspectives that have steps)
+    const perspectiveOrder = ['operational', 'management', 'financial'];
+    for (const pid of perspectiveOrder) {
+      if (!groups[pid]?.length) continue;
+      const info = perspectiveLabels[pid] || { label: pid, concern: '' };
+      const colors = perspectiveColors[pid] || { bg: '#f3f4f6', border: '#9ca3af' };
       cyElements.push({
         group: 'nodes',
         data: {
-          id: node.id,
-          label: labelText,
-          actor: node.actor,
-          sequence: node.sequence,
-          perspective_id: node.perspective_id,
-          estimated_duration_minutes: node.estimated_duration_minutes,
-          automation_potential: node.automation_potential,
-          waste_category: node.waste_category,
-          manual_effort_percentage: node.manual_effort_percentage,
+          id: `lane-${pid}`,
+          label: `${info.label.toUpperCase()}  —  ${info.concern}`,
         },
-        position: {
-          x: 100 + (node.sequence - 1) * horizontalSpacing,
-          y: 100 + (index % 3) * verticalSpacing,
-        },
-        classes: `step-node ${node.perspective_id}-node`,
+        classes: `lane-node lane-${pid}`,
         style: {
           'background-color': colors.bg,
-          'border-color': automationColor || colors.border,
-          'border-width': automationColor ? 4 : 2,
+          'background-opacity': 0.25,
+          'border-width': 2,
+          'border-color': colors.border,
+          'border-style': 'solid',
         },
       });
-    });
+    }
 
-    // Create edges
+    // Create step nodes positioned within their lane
+    for (const pid of perspectiveOrder) {
+      const laneNodes = groups[pid] || [];
+      const laneY = laneYPositions[pid] || 120;
+
+      laneNodes.forEach((node, laneIndex) => {
+        const colors = perspectiveColors[node.perspective_id] || {
+          bg: '#f3f4f6',
+          border: '#9ca3af',
+        };
+
+        const automationColor = node.automation_potential
+          ? automationColors[node.automation_potential]
+          : null;
+
+        // Build rich label with metadata
+        let labelText = node.label;
+        if (node.has_sub_steps) {
+          labelText += ' [+]';
+        }
+        const badges: string[] = [];
+        if (node.estimated_duration_minutes) {
+          badges.push(`⏱️ ${node.estimated_duration_minutes}m`);
+        }
+        if (node.automation_potential) {
+          const automationEmoji = {
+            High: '🔴', Medium: '🟠', Low: '🟡', None: '🟢',
+          }[node.automation_potential];
+          badges.push(`${automationEmoji} ${node.automation_potential}`);
+        }
+        if (node.waste_category) {
+          badges.push(`🗑️ ${node.waste_category.split(' ')[0]}`);
+        }
+        if (badges.length > 0) {
+          labelText += '\n' + badges.join(' | ');
+        }
+        if (node.actor) {
+          labelText += '\n👤 ' + node.actor;
+        }
+
+        const hasSubSteps = !!node.has_sub_steps;
+        cyElements.push({
+          group: 'nodes',
+          data: {
+            id: node.id,
+            parent: `lane-${pid}`,
+            label: labelText,
+            actor: node.actor,
+            sequence: node.sequence,
+            perspective_id: node.perspective_id,
+            estimated_duration_minutes: node.estimated_duration_minutes,
+            automation_potential: node.automation_potential,
+            waste_category: node.waste_category,
+            manual_effort_percentage: node.manual_effort_percentage,
+            has_sub_steps: hasSubSteps,
+          },
+          position: {
+            x: xStart + laneIndex * horizontalSpacing,
+            y: laneY,
+          },
+          classes: `step-node ${node.perspective_id}-node${hasSubSteps ? ' has-sub-steps' : ''}`,
+          style: {
+            'background-color': colors.bg,
+            'border-color': automationColor || colors.border,
+            'border-width': automationColor ? 4 : 2,
+          },
+        });
+      });
+    }
+
+    // Create edges - classify cross-perspective as handoffs
+    const nodeMap = new Map(flow.nodes.map(n => [n.id, n]));
     flow.edges.forEach((edge, index) => {
+      const sourceNode = nodeMap.get(edge.source);
+      const targetNode = nodeMap.get(edge.target);
+      const isCrossPerspective = sourceNode && targetNode &&
+        sourceNode.perspective_id !== targetNode.perspective_id;
+
       cyElements.push({
         group: 'edges',
         data: {
           id: `edge-${index}`,
           source: edge.source,
           target: edge.target,
+          sourcePerspective: sourceNode?.perspective_id,
+          targetPerspective: targetNode?.perspective_id,
         },
-        classes: 'flow-edge',
+        classes: isCrossPerspective ? 'handoff-edge' : 'flow-edge',
       });
     });
 
@@ -187,18 +273,17 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
   useEffect(() => {
     if (!containerRef.current || elements.length === 0) return;
 
-    // Destroy existing instance
     if (cyRef.current) {
       cyRef.current.destroy();
     }
 
-    // Create new instance
     const cy = cytoscape({
       container: containerRef.current,
       elements: elements,
       style: [
+        // Step nodes
         {
-          selector: 'node',
+          selector: 'node.step-node',
           style: {
             'label': 'data(label)',
             'text-valign': 'center',
@@ -212,6 +297,51 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
             'font-weight': 'normal',
             'color': '#000',
             'padding': '8px',
+          },
+        },
+        // Lane compound nodes
+        {
+          selector: 'node.lane-node',
+          style: {
+            'label': 'data(label)',
+            'text-valign': 'top',
+            'text-halign': 'left',
+            'font-size': '13px',
+            'font-weight': 'bold',
+            'color': '#374151',
+            'text-margin-y': 8,
+            'text-margin-x': 8,
+            'padding': '30px',
+            'shape': 'roundrectangle',
+            'text-wrap': 'wrap',
+            'text-max-width': '600px',
+          },
+        },
+        {
+          selector: '.lane-operational',
+          style: {
+            'background-color': '#dcfce7',
+            'background-opacity': 0.2,
+            'border-color': '#86efac',
+            'border-width': 2,
+          },
+        },
+        {
+          selector: '.lane-management',
+          style: {
+            'background-color': '#fef9c3',
+            'background-opacity': 0.2,
+            'border-color': '#fde047',
+            'border-width': 2,
+          },
+        },
+        {
+          selector: '.lane-financial',
+          style: {
+            'background-color': '#dbeafe',
+            'background-opacity': 0.2,
+            'border-color': '#93c5fd',
+            'border-width': 2,
           },
         },
         {
@@ -235,8 +365,9 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
             'border-color': '#3b82f6',
           },
         },
+        // Same-perspective edges
         {
-          selector: 'edge',
+          selector: 'edge.flow-edge',
           style: {
             'width': 3,
             'line-color': '#94a3b8',
@@ -246,11 +377,33 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
             'arrow-scale': 1.5,
           },
         },
+        // Cross-perspective handoff edges
+        {
+          selector: 'edge.handoff-edge',
+          style: {
+            'width': 4,
+            'line-color': '#8b5cf6',
+            'target-arrow-color': '#8b5cf6',
+            'target-arrow-shape': 'triangle',
+            'curve-style': 'bezier',
+            'arrow-scale': 1.5,
+            'line-style': 'dashed',
+            'line-dash-pattern': [8, 4],
+          },
+        },
         {
           selector: ':selected',
           style: {
             'border-width': 4,
             'border-color': '#8b5cf6',
+          },
+        },
+        // Nodes with sub-steps get a double border to indicate drill-down
+        {
+          selector: '.has-sub-steps',
+          style: {
+            'border-style': 'double',
+            'border-width': 5,
           },
         },
         {
@@ -261,58 +414,63 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
             'border-style': 'dashed',
           },
         },
+        {
+          selector: '.crystallization-node',
+          style: {
+            'border-width': 5,
+            'border-color': '#3b82f6',
+            'border-style': 'double',
+            'background-color': '#dbeafe',
+          },
+        },
       ],
       layout: {
         name: 'preset',
       },
-      minZoom: 0.5,
+      minZoom: 0.3,
       maxZoom: 2,
     });
 
     // Handle node clicks
-    cy.on('tap', 'node', (evt) => {
+    cy.on('tap', 'node.step-node', (evt) => {
       const node = evt.target;
       const data = node.data();
+
+      // Clear handoff selection when clicking a node
+      setSelectedHandoff(null);
 
       // Connection mode: create edges between nodes
       if (connectionMode) {
         if (!firstNodeForConnection) {
-          // First click: select source node
           setFirstNodeForConnection(data.id);
           node.addClass('connection-source');
         } else if (firstNodeForConnection === data.id) {
-          // Clicked same node: deselect
           setFirstNodeForConnection(null);
           cy.$('.connection-source').removeClass('connection-source');
         } else {
-          // Second click: create edge
           const sourceNode = flow?.nodes.find(n => n.id === firstNodeForConnection);
           const targetNode = flow?.nodes.find(n => n.id === data.id);
 
           if (sourceNode && targetNode) {
-            // Persist edge to backend by updating target step's depends_on_step_ids
             const targetStep = flow?.nodes.find(n => n.id === data.id);
             if (targetStep) {
-              // Check if dependency already exists
               const currentDependencies = (targetStep as any).depends_on_step_ids || [];
               if (currentDependencies.includes(firstNodeForConnection)) {
                 toast.error('Connection already exists!');
               } else {
                 const updatedDependencies = [...currentDependencies, firstNodeForConnection];
-
                 toast.loading('Creating connection...', { id: 'edge-creation' });
-
                 updateStepMutation.mutate(
                   {
-                    processId: processId,
+                    processId: activeProcessId,
                     stepId: data.id,
-                    data: {
-                      depends_on_step_ids: updatedDependencies,
-                    },
+                    data: { depends_on_step_ids: updatedDependencies },
                   },
                   {
                     onSuccess: () => {
                       toast.success(`Connected "${sourceNode.label}" to "${targetNode.label}"`, { id: 'edge-creation' });
+                      // Turn off connection mode after a successful connection
+                      setConnectionMode(false);
                     },
                     onError: (error) => {
                       console.error('Error creating edge:', error);
@@ -323,8 +481,6 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
               }
             }
           }
-
-          // Clear selection
           setFirstNodeForConnection(null);
           cy.$('.connection-source').removeClass('connection-source');
         }
@@ -337,6 +493,7 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
         name: data.label,
         actor: data.actor,
         sequence: data.sequence,
+        perspective_id: data.perspective_id,
         estimated_duration_minutes: data.estimated_duration_minutes,
         automation_potential: data.automation_potential,
         waste_category: data.waste_category,
@@ -348,21 +505,92 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
       }
     });
 
+    // Handle double-click for sub-step drill-down
+    cy.on('dbltap', 'node.step-node', (evt) => {
+      const node = evt.target;
+      const data = node.data();
+
+      if (data.has_sub_steps) {
+        // Drill into sub-steps
+        setDrillDownStack(prev => [...prev, { id: data.id, name: data.label.split('\n')[0].replace(' [+]', '') }]);
+        setParentStepId(data.id);
+        setSelectedStep(null);
+        setSelectedHandoff(null);
+      }
+    });
+
+    // Handle edge clicks - show handoff info for cross-perspective edges
+    cy.on('tap', 'edge.handoff-edge', (evt) => {
+      const edge = evt.target;
+      const data = edge.data();
+      const sourceNode = flow?.nodes.find(n => n.id === data.source);
+      const targetNode = flow?.nodes.find(n => n.id === data.target);
+
+      if (sourceNode && targetNode) {
+        setSelectedStep(null);
+        setSelectedHandoff({
+          sourceStep: {
+            id: sourceNode.id,
+            name: sourceNode.label,
+            perspective_id: sourceNode.perspective_id,
+          },
+          targetStep: {
+            id: targetNode.id,
+            name: targetNode.label,
+            perspective_id: targetNode.perspective_id,
+          },
+        });
+      }
+    });
+
     // Handle background clicks
     cy.on('tap', (evt) => {
       if (evt.target === cy) {
         setSelectedStep(null);
+        setSelectedHandoff(null);
       }
     });
 
     cyRef.current = cy;
 
+    // Escape key handler: cancel connection mode
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (connectionMode) {
+          setConnectionMode(false);
+          setFirstNodeForConnection(null);
+          cy.$('.connection-source').removeClass('connection-source');
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+
     return () => {
+      document.removeEventListener('keydown', handleKeyDown);
       if (cyRef.current) {
         cyRef.current.destroy();
       }
     };
-  }, [elements, editMode, connectionMode, firstNodeForConnection, flow]);
+  }, [elements, editMode, connectionMode, firstNodeForConnection, flow, activeProcessId]);
+
+  // Apply crystallization view overlay
+  useEffect(() => {
+    if (!cyRef.current) return;
+    const cy = cyRef.current;
+
+    cy.$('.crystallization-node').removeClass('crystallization-node');
+
+    if (crystallizationView && crystallizationData?.crystallization_points) {
+      const crystStepIds = new Set(
+        crystallizationData.crystallization_points.map((cp: any) => cp.step_id)
+      );
+      cy.nodes('.step-node').forEach((node) => {
+        if (crystStepIds.has(node.id())) {
+          node.addClass('crystallization-node');
+        }
+      });
+    }
+  }, [crystallizationView, crystallizationData]);
 
   if (isLoading) {
     return <div className="p-4">Loading process map...</div>;
@@ -377,8 +605,25 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
       {/* Header with controls */}
       <div className="p-4 border-b bg-gray-50">
         <div className="flex items-center justify-between mb-2">
-          <div>
-            <h2 className="text-xl font-bold">{flow.process.name}</h2>
+          <div className="flex items-center gap-4">
+            {/* Process Selector */}
+            {processes && processes.length > 1 ? (
+              <select
+                value={activeProcessId}
+                onChange={(e) => {
+                  setActiveProcessId(e.target.value);
+                  setSelectedStep(null);
+                  setSelectedHandoff(null);
+                }}
+                className="text-xl font-bold bg-white border border-gray-300 rounded-lg px-3 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                {processes.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            ) : (
+              <h2 className="text-xl font-bold">{flow.process.name}</h2>
+            )}
             {flow.process.description && (
               <p className="text-sm text-gray-600">{flow.process.description}</p>
             )}
@@ -410,6 +655,17 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
               }`}
             >
               {connectionMode ? '🔗 Connect Mode: ON' : '🔗 Connect Steps'}
+            </button>
+            <button
+              onClick={() => setCrystallizationView(!crystallizationView)}
+              className={`px-4 py-2 rounded font-semibold flex items-center gap-1 ${
+                crystallizationView
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              <Lock className="w-4 h-4" />
+              {crystallizationView ? 'Crystallization: ON' : 'Crystallization'}
             </button>
             <button
               className="px-4 py-2 bg-blue-600 text-white rounded font-semibold hover:bg-blue-700"
@@ -460,39 +716,146 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
               <span className="font-semibold text-gray-700">✋ High Manual:</span>
               <span className="text-lg font-bold text-orange-600">{stats.manualSteps}</span>
             </div>
+            {stats.handoffCount > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-gray-700">↕️ Handoffs:</span>
+                <span className="text-lg font-bold text-purple-600">{stats.handoffCount}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Connection mode indicator */}
+        {connectionMode && (
+          <div className="flex items-center gap-3 bg-green-50 border border-green-300 rounded-lg p-2 mb-2">
+            <span className="text-green-700 font-semibold text-sm">
+              {firstNodeForConnection
+                ? '🎯 Now click a target step to create the connection (or press Escape to cancel)'
+                : '👆 Click a source step to start connecting'}
+            </span>
+            {firstNodeForConnection && (
+              <button
+                onClick={() => {
+                  setFirstNodeForConnection(null);
+                  if (cyRef.current) {
+                    cyRef.current.$('.connection-source').removeClass('connection-source');
+                  }
+                }}
+                className="px-2 py-1 bg-gray-200 rounded text-xs font-semibold hover:bg-gray-300"
+              >
+                Clear Selection
+              </button>
+            )}
           </div>
         )}
 
         {/* Legend */}
-        <div className="flex gap-4 text-xs">
+        <div className="flex gap-4 text-xs flex-wrap">
           <div className="flex items-center gap-2">
-            <span className="font-semibold">Automation Priority:</span>
+            <span className="font-semibold">Swim Lanes:</span>
             <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded" style={{ backgroundColor: '#ef4444' }}></div>
-              <span>High</span>
+              <div className="w-3 h-3 rounded border-2 border-green-400 bg-green-50"></div>
+              <span>Operational</span>
             </div>
+            <ArrowRight className="w-3 h-3 text-gray-400" />
             <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded" style={{ backgroundColor: '#f97316' }}></div>
-              <span>Medium</span>
+              <div className="w-3 h-3 rounded border-2 border-yellow-400 bg-yellow-50"></div>
+              <span>Management</span>
             </div>
+            <ArrowRight className="w-3 h-3 text-gray-400" />
             <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded" style={{ backgroundColor: '#eab308' }}></div>
-              <span>Low</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded" style={{ backgroundColor: '#22c55e' }}></div>
-              <span>None</span>
+              <div className="w-3 h-3 rounded border-2 border-blue-400 bg-blue-50"></div>
+              <span>Financial</span>
             </div>
           </div>
+          <div className="flex items-center gap-2 border-l pl-4">
+            <span className="font-semibold">Edges:</span>
+            <div className="flex items-center gap-1">
+              <div className="w-6 h-0.5 bg-gray-400"></div>
+              <span>Within lane</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-6 h-0.5 bg-purple-500 border-dashed border-t-2 border-purple-500" style={{ borderStyle: 'dashed' }}></div>
+              <span className="text-purple-600 font-medium">Handoff</span>
+            </div>
+          </div>
+          {crystallizationView && (
+            <div className="flex items-center gap-2 border-l pl-4">
+              <span className="font-semibold">Crystallization:</span>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded border-2 border-blue-500 bg-blue-100"></div>
+                <span>Freezes data</span>
+              </div>
+              {crystallizationData?.crystallization_points && (
+                <span className="text-blue-600 font-semibold">
+                  ({crystallizationData.crystallization_points.length} step{crystallizationData.crystallization_points.length !== 1 ? 's' : ''})
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Breadcrumb for sub-step navigation */}
+      {drillDownStack.length > 0 && (
+        <div className="px-4 py-2 bg-indigo-50 border-b border-indigo-200 flex items-center gap-1 text-sm">
+          <Layers className="w-4 h-4 text-indigo-600 mr-1" />
+          <button
+            onClick={() => {
+              setParentStepId(null);
+              setDrillDownStack([]);
+              setSelectedStep(null);
+            }}
+            className="text-indigo-600 hover:text-indigo-800 font-semibold hover:underline"
+          >
+            {flow?.process.name || 'Process'}
+          </button>
+          {drillDownStack.map((entry, index) => (
+            <span key={entry.id} className="flex items-center gap-1">
+              <ChevronRight className="w-4 h-4 text-gray-400" />
+              {index === drillDownStack.length - 1 ? (
+                <span className="font-semibold text-gray-800">{entry.name}</span>
+              ) : (
+                <button
+                  onClick={() => {
+                    // Navigate to this level
+                    const newStack = drillDownStack.slice(0, index + 1);
+                    setDrillDownStack(newStack);
+                    setParentStepId(entry.id);
+                    setSelectedStep(null);
+                  }}
+                  className="text-indigo-600 hover:text-indigo-800 font-semibold hover:underline"
+                >
+                  {entry.name}
+                </button>
+              )}
+            </span>
+          ))}
+          <button
+            onClick={() => {
+              if (drillDownStack.length <= 1) {
+                setParentStepId(null);
+                setDrillDownStack([]);
+              } else {
+                const newStack = drillDownStack.slice(0, -1);
+                setDrillDownStack(newStack);
+                setParentStepId(newStack[newStack.length - 1].id);
+              }
+              setSelectedStep(null);
+            }}
+            className="ml-auto px-3 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded text-xs font-semibold"
+          >
+            Back Up
+          </button>
+        </div>
+      )}
 
       {/* Cytoscape container */}
       <div className="flex-1 relative">
         <div ref={containerRef} className="absolute inset-0" />
 
         {/* Zoom Controls */}
-        <div className="absolute top-4 right-4 flex flex-col gap-2 bg-white border-2 border-gray-300 rounded-lg shadow-lg p-2">
+        <div className="absolute top-4 right-4 flex flex-col gap-2 bg-white border-2 border-gray-300 rounded-lg shadow-lg p-2 z-10">
           <button
             onClick={() => {
               if (cyRef.current) {
@@ -532,42 +895,112 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
       </div>
 
       {/* Instructions overlay when no step selected */}
-      {!selectedStep && !showEditModal && !showAddModal && !welcomeDismissed && (
+      {!selectedStep && !selectedHandoff && !showEditModal && !showAddModal && !welcomeDismissed && (
         <div className="absolute bottom-4 right-4 bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-300 rounded-lg shadow-lg p-6 w-96">
           <div className="flex items-start justify-between mb-3">
-            <h3 className="font-bold text-lg text-blue-900">👋 Welcome to Process Map Editor</h3>
+            <h3 className="font-bold text-lg text-blue-900">👋 Process Map with Swim Lanes</h3>
             <button
               onClick={() => setWelcomeDismissed(true)}
               className="text-gray-400 hover:text-gray-600 transition-colors"
               aria-label="Close welcome message"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="w-5 h-5" />
             </button>
           </div>
           <div className="space-y-3 text-sm text-gray-700">
             <div className="flex items-start gap-2">
+              <span className="text-green-600">↕️</span>
+              <p>Steps are grouped into <strong>perspective lanes</strong>: Operational (top), Management (middle), Financial (bottom)</p>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="text-purple-600">↗️</span>
+              <p><strong>Purple dashed edges</strong> are handoffs — data crossing between perspectives. Click them for details.</p>
+            </div>
+            <div className="flex items-start gap-2">
               <span className="text-blue-600">👆</span>
-              <p><strong>Click any step</strong> to view details and connections</p>
+              <p><strong>Click any step</strong> to view details, connections, and full lineage</p>
             </div>
             <div className="flex items-start gap-2">
               <span className="text-purple-600">✏️</span>
-              <p><strong>Enable Edit Mode</strong> to modify step properties, time estimates, and automation potential</p>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="text-green-600">➕</span>
-              <p><strong>Add Step</strong> to create new process steps</p>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="text-orange-600">🔍</span>
-              <p><strong>Use zoom controls</strong> (top right) to navigate large process maps</p>
+              <p><strong>Enable Edit Mode</strong> to modify step properties</p>
             </div>
           </div>
-          <div className="mt-4 p-3 bg-white rounded border border-blue-200">
-            <p className="text-xs text-gray-600">
-              <strong>Tip:</strong> Steps with red borders have <span className="text-red-600 font-semibold">High</span> automation potential and should be prioritized for improvement.
+        </div>
+      )}
+
+      {/* Handoff annotation panel */}
+      {selectedHandoff && (
+        <div className="absolute bottom-4 right-4 bg-white border-2 border-purple-300 rounded-lg shadow-lg p-4 w-96">
+          <div className="flex items-start justify-between mb-3">
+            <h3 className="font-bold text-lg text-purple-900">↕️ Perspective Handoff</h3>
+            <button
+              onClick={() => setSelectedHandoff(null)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {/* Source */}
+            <div className="flex items-center gap-2">
+              <span className={`px-2 py-1 rounded text-xs font-bold ${
+                selectedHandoff.sourceStep.perspective_id === 'operational' ? 'bg-green-100 text-green-800' :
+                selectedHandoff.sourceStep.perspective_id === 'management' ? 'bg-yellow-100 text-yellow-800' :
+                'bg-blue-100 text-blue-800'
+              }`}>
+                {perspectiveLabels[selectedHandoff.sourceStep.perspective_id]?.label || selectedHandoff.sourceStep.perspective_id}
+              </span>
+              <span className="text-sm font-medium">{selectedHandoff.sourceStep.name}</span>
+            </div>
+
+            {/* Arrow */}
+            <div className="flex items-center gap-2 pl-4">
+              <div className="w-0.5 h-4 bg-purple-400"></div>
+              <span className="text-xs text-purple-600 font-medium">Data flows across boundary</span>
+            </div>
+
+            {/* Target */}
+            <div className="flex items-center gap-2">
+              <span className={`px-2 py-1 rounded text-xs font-bold ${
+                selectedHandoff.targetStep.perspective_id === 'operational' ? 'bg-green-100 text-green-800' :
+                selectedHandoff.targetStep.perspective_id === 'management' ? 'bg-yellow-100 text-yellow-800' :
+                'bg-blue-100 text-blue-800'
+              }`}>
+                {perspectiveLabels[selectedHandoff.targetStep.perspective_id]?.label || selectedHandoff.targetStep.perspective_id}
+              </span>
+              <span className="text-sm font-medium">{selectedHandoff.targetStep.name}</span>
+            </div>
+          </div>
+
+          <div className="mt-4 p-3 bg-purple-50 rounded border border-purple-200">
+            <p className="text-xs text-purple-700">
+              This is a <strong>perspective handoff</strong> — where work transitions from{' '}
+              <em>{perspectiveLabels[selectedHandoff.sourceStep.perspective_id]?.concern}</em> to{' '}
+              <em>{perspectiveLabels[selectedHandoff.targetStep.perspective_id]?.concern}</em>.
+              These boundaries are where data quality risks and manual effort tend to concentrate.
             </p>
+          </div>
+
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={() => {
+                setLineageStepId(selectedHandoff.sourceStep.id);
+                setSelectedHandoff(null);
+              }}
+              className="flex-1 px-3 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded font-semibold text-sm"
+            >
+              Lineage: Source
+            </button>
+            <button
+              onClick={() => {
+                setLineageStepId(selectedHandoff.targetStep.id);
+                setSelectedHandoff(null);
+              }}
+              className="flex-1 px-3 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded font-semibold text-sm"
+            >
+              Lineage: Target
+            </button>
           </div>
         </div>
       )}
@@ -578,15 +1011,26 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
           <div className="flex items-start justify-between mb-3">
             <div>
               <h3 className="font-bold text-lg">{selectedStep.name}</h3>
-              {selectedStep.actor && (
-                <p className="text-sm text-gray-600">👤 {selectedStep.actor}</p>
-              )}
+              <div className="flex items-center gap-2 mt-1">
+                {selectedStep.actor && (
+                  <span className="text-sm text-gray-600">👤 {selectedStep.actor}</span>
+                )}
+                {selectedStep.perspective_id && (
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                    selectedStep.perspective_id === 'operational' ? 'bg-green-100 text-green-800' :
+                    selectedStep.perspective_id === 'management' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-blue-100 text-blue-800'
+                  }`}>
+                    {perspectiveLabels[selectedStep.perspective_id]?.label || selectedStep.perspective_id}
+                  </span>
+                )}
+              </div>
             </div>
             <button
               onClick={() => setSelectedStep(null)}
               className="text-gray-400 hover:text-gray-600"
             >
-              ✕
+              <X className="w-4 h-4" />
             </button>
           </div>
 
@@ -636,7 +1080,7 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
                       {incoming.map((edge, i) => {
                         const sourceNode = flow.nodes.find(n => n.id === edge.source);
                         return sourceNode ? (
-                          <div key={i} className="text-blue-600 hover:underline cursor-pointer"
+                          <div key={i} className="text-blue-600 hover:underline cursor-pointer flex items-center gap-1"
                             onClick={() => {
                               const node = flow.nodes.find(n => n.id === edge.source);
                               if (node) {
@@ -655,6 +1099,9 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
                             }}
                           >
                             • {sourceNode.label}
+                            {sourceNode.perspective_id !== selectedStep.perspective_id && (
+                              <span className="px-1 py-0.5 bg-purple-100 text-purple-700 rounded text-[10px] font-medium">handoff</span>
+                            )}
                           </div>
                         ) : null;
                       })}
@@ -675,7 +1122,7 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
                       {outgoing.map((edge, i) => {
                         const targetNode = flow.nodes.find(n => n.id === edge.target);
                         return targetNode ? (
-                          <div key={i} className="text-blue-600 hover:underline cursor-pointer"
+                          <div key={i} className="text-blue-600 hover:underline cursor-pointer flex items-center gap-1"
                             onClick={() => {
                               const node = flow.nodes.find(n => n.id === edge.target);
                               if (node) {
@@ -694,6 +1141,9 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
                             }}
                           >
                             • {targetNode.label}
+                            {targetNode.perspective_id !== selectedStep.perspective_id && (
+                              <span className="px-1 py-0.5 bg-purple-100 text-purple-700 rounded text-[10px] font-medium">handoff</span>
+                            )}
                           </div>
                         ) : null;
                       })}
@@ -706,8 +1156,36 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
             </div>
           </div>
 
+          {/* Crystallization info */}
+          {crystallizationView && crystallizationData?.crystallization_points && (() => {
+            const cp = crystallizationData.crystallization_points.find(
+              (p: any) => p.step_id === selectedStep.id
+            );
+            if (!cp) return null;
+            return (
+              <div className="border-t pt-3 mb-3">
+                <h4 className="font-semibold text-sm text-blue-700 mb-2 flex items-center gap-1">
+                  <Lock className="w-3 h-3" /> Crystallizes Attributes
+                </h4>
+                <div className="flex flex-wrap gap-1">
+                  {cp.crystallized_attributes.map((obs: any) => (
+                    <span key={obs.id || obs.name} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                      {obs.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Quick Actions */}
           <div className="border-t pt-3 space-y-2">
+            <button
+              onClick={() => setLineageStepId(selectedStep.id)}
+              className="w-full px-4 py-2 bg-indigo-600 text-white rounded font-semibold hover:bg-indigo-700"
+            >
+              View Full Lineage
+            </button>
             {editMode && (
               <button
                 onClick={() => setShowEditModal(true)}
@@ -728,7 +1206,7 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
                     };
                     createStepMutation.mutate(
                       {
-                        processId: processId,
+                        processId: activeProcessId,
                         data: duplicatedStep,
                       },
                       {
@@ -752,8 +1230,22 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
               <button
                 onClick={() => {
                   if (confirm(`Are you sure you want to delete "${selectedStep.name}"? This cannot be undone.`)) {
-                    // TODO: Implement delete functionality
-                    toast('Delete functionality - API endpoint needed');
+                    deleteStepMutation.mutate(
+                      {
+                        processId: activeProcessId,
+                        stepId: selectedStep.id,
+                      },
+                      {
+                        onSuccess: () => {
+                          toast.success('Step deleted successfully!');
+                          setSelectedStep(null);
+                        },
+                        onError: (error) => {
+                          console.error('Error deleting step:', error);
+                          toast.error('Failed to delete step.');
+                        },
+                      }
+                    );
                   }
                 }}
                 className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded font-semibold text-sm"
@@ -772,15 +1264,15 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
           step={{
             ...selectedStep,
             perspective_id: selectedStep.perspective_id || 'operational',
-            produces_observation_ids: selectedStep.produces_observation_ids || [],
-            consumes_observation_ids: selectedStep.consumes_observation_ids || [],
+            produces_attribute_ids: selectedStep.produces_attribute_ids || [],
+            consumes_attribute_ids: selectedStep.consumes_attribute_ids || [],
             uses_metric_ids: selectedStep.uses_metric_ids || [],
             systems_used_ids: selectedStep.systems_used_ids || [],
           } as StepFormData}
           onSave={(updatedStep) => {
             updateStepMutation.mutate(
               {
-                processId: processId,
+                processId: activeProcessId,
                 stepId: updatedStep.id,
                 data: updatedStep,
               },
@@ -792,7 +1284,7 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
                 },
                 onError: (error) => {
                   console.error('Error updating step:', error);
-                  toast.error('Error updating step. Backend endpoint needs to be implemented.');
+                  toast.error('Error updating step.');
                 },
               }
             );
@@ -808,7 +1300,7 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
             id: `step_${Date.now()}`,
             name: 'New Step',
             sequence: flow.nodes.length + 1,
-            perspective_id: perspectiveLevel || 'operational',
+            perspective_id: 'operational',
             produces_attribute_ids: [],
             consumes_attribute_ids: [],
             uses_metric_ids: [],
@@ -817,7 +1309,7 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
           onSave={(newStep) => {
             createStepMutation.mutate(
               {
-                processId: processId,
+                processId: activeProcessId,
                 data: newStep,
               },
               {
@@ -833,6 +1325,14 @@ export function ProcessMapEditor({ processId, perspectiveLevel }: ProcessMapEdit
             );
           }}
           onCancel={() => setShowAddModal(false)}
+        />
+      )}
+
+      {/* Step Lineage Drawer */}
+      {lineageStepId && (
+        <StepLineageDrawer
+          stepId={lineageStepId}
+          onClose={() => setLineageStepId(null)}
         />
       )}
     </div>

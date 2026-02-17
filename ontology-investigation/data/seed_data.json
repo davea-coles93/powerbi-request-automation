@@ -1,7 +1,7 @@
 {
   "notes": {
     "scope": "This ontology represents the MANUFACTURING business unit. Each business unit (Sales, Supply Chain, Product Development, etc.) would have its own separate ontology instance with the same 3-perspective framework (Operational, Management, Financial). Cross-unit integration happens via shared attributes flowing between units.",
-    "material_classification": "This seed data demonstrates how material classification (Metal vs Non-Metal) affects the entire business ontology. Materials are classified via a Core Attribute 'Material Type', which each Perspective interprets differently. Metals use spot pricing and have scrap recovery value. Non-metals use standard costing and incur disposal costs. This split creates different observations, measures, metrics, and even different process steps in month-end close.",
+    "material_classification": "This seed data demonstrates how material classification (Metal vs Non-Metal) affects the entire business ontology. Materials are classified via a Core Attribute 'Material Type', which each Perspective interprets differently. Metals use spot pricing and have scrap recovery value. Non-metals use standard costing and incur disposal costs. This split creates different attributes, measures, metrics, and even different process steps in month-end close.",
     "enhancements": "Enhanced with Quality Management, Maintenance, Equipment, Supplier, and Work Center management. Added new systems (CMMS, QMS), new entities (Work Center, Equipment, Quality Inspection, Supplier), new measures (OEE, First-Pass Yield, etc.), and additional process steps for quality and equipment performance review."
   },
   "perspectives": [
@@ -897,7 +897,7 @@
       ]
     }
   ],
-  "observations": [
+  "attributes": [
     {
       "id": "production_confirmations",
       "name": "Production Confirmations",
@@ -906,7 +906,16 @@
       "system_id": "mes",
       "source_actor": "Floor Operator / Automated",
       "reliability": "High",
-      "volatility": "Accumulating"
+      "volatility": "Accumulating",
+      "source_table": "AFKO",
+      "source_column": "GAMNG",
+      "source_connection": "SAP ECC PRD",
+      "constraints": [
+        {
+          "type": "required",
+          "description": "Required for month-end close cutoff"
+        }
+      ]
     },
     {
       "id": "goods_issues",
@@ -916,7 +925,10 @@
       "system_id": "erp",
       "source_actor": "System (backflush)",
       "reliability": "High",
-      "volatility": "Accumulating"
+      "volatility": "Accumulating",
+      "source_table": "MSEG",
+      "source_column": "MENGE",
+      "source_connection": "SAP ECC PRD"
     },
     {
       "id": "labor_time_recordings",
@@ -946,7 +958,17 @@
       "system_id": "wms",
       "source_actor": "Warehouse (manual)",
       "reliability": "Medium",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "source_table": "ISEG",
+      "source_column": "MENGE",
+      "source_connection": "SAP ECC PRD",
+      "constraints": [
+        {
+          "type": "range",
+          "min": 0,
+          "description": "Count quantities must be non-negative"
+        }
+      ]
     },
     {
       "id": "system_stock",
@@ -987,7 +1009,19 @@
       "source_actor": "Cost Accountant",
       "reliability": "High",
       "volatility": "Point-in-time",
-      "notes": "Updated periodically, stable within period"
+      "notes": "Updated periodically, stable within period",
+      "source_table": "MBEW",
+      "source_column": "STPRS",
+      "source_connection": "SAP ECC PRD",
+      "constraints": [
+        {
+          "type": "range",
+          "min": 0,
+          "max": 999999,
+          "unit": "USD",
+          "description": "Standard cost must be a non-negative value"
+        }
+      ]
     },
     {
       "id": "labor_rates",
@@ -1121,7 +1155,7 @@
       "description": "Total material cost issued to production",
       "logic": "Sum of material quantities issued multiplied by standard cost",
       "formula": "SUM(issue_qty × std_cost)",
-      "input_observation_ids": [
+      "input_attribute_ids": [
         "goods_issues",
         "standard_costs"
       ],
@@ -1136,7 +1170,7 @@
       "description": "Total labor cost applied to production",
       "logic": "Sum of labor hours multiplied by labor rates",
       "formula": "SUM(hours × labor_rate)",
-      "input_observation_ids": [
+      "input_attribute_ids": [
         "labor_time_recordings",
         "labor_rates"
       ],
@@ -1151,7 +1185,7 @@
       "description": "Overhead costs absorbed into production",
       "logic": "Machine hours or labor hours multiplied by overhead rate",
       "formula": "SUM(activity_hours × overhead_rate)",
-      "input_observation_ids": [
+      "input_attribute_ids": [
         "labor_time_recordings",
         "overhead_rates"
       ],
@@ -1166,7 +1200,7 @@
       "description": "Total quantity confirmed as produced",
       "logic": "Sum of confirmed quantities",
       "formula": "SUM(confirmed_qty)",
-      "input_observation_ids": [
+      "input_attribute_ids": [
         "production_confirmations"
       ],
       "input_measure_ids": [],
@@ -1181,7 +1215,7 @@
       "description": "Total quantity scrapped",
       "logic": "Sum of scrap postings",
       "formula": "SUM(scrap_qty)",
-      "input_observation_ids": [
+      "input_attribute_ids": [
         "scrap_postings"
       ],
       "input_measure_ids": [],
@@ -1195,7 +1229,7 @@
       "description": "Difference between counted and system stock",
       "logic": "Counted quantity minus system quantity",
       "formula": "counted_qty - system_qty",
-      "input_observation_ids": [
+      "input_attribute_ids": [
         "inventory_counts",
         "system_stock"
       ],
@@ -1210,7 +1244,7 @@
       "description": "Value of goods received without matching invoice",
       "logic": "GR value minus matched IR value",
       "formula": "SUM(gr_value) - SUM(matched_ir_value)",
-      "input_observation_ids": [
+      "input_attribute_ids": [
         "goods_receipts",
         "invoice_receipts"
       ],
@@ -1225,7 +1259,7 @@
       "description": "Total value of inventory on hand",
       "logic": "Sum of quantity multiplied by standard cost",
       "formula": "SUM(qty × std_cost)",
-      "input_observation_ids": [
+      "input_attribute_ids": [
         "system_stock",
         "standard_costs"
       ],
@@ -1240,7 +1274,7 @@
       "description": "Quantity × Current Spot Price (only for metals)",
       "logic": "Sum of metal material quantities multiplied by current spot price",
       "formula": "SUM(qty × spot_price) WHERE Material_Type = 'Metal'",
-      "input_observation_ids": [
+      "input_attribute_ids": [
         "system_stock",
         "metal_spot_prices"
       ],
@@ -1255,7 +1289,7 @@
       "description": "Quantity × Standard Cost (only for non-metals)",
       "logic": "Sum of non-metal material quantities multiplied by standard cost",
       "formula": "SUM(qty × std_cost) WHERE Material_Type <> 'Metal'",
-      "input_observation_ids": [
+      "input_attribute_ids": [
         "system_stock",
         "standard_costs"
       ],
@@ -1270,7 +1304,7 @@
       "description": "Metal scrap quantity × Scrap metal price (positive)",
       "logic": "Revenue from selling metal scrap to recyclers",
       "formula": "SUM(scrap_qty × scrap_metal_price) WHERE Material_Type = 'Metal'",
-      "input_observation_ids": [
+      "input_attribute_ids": [
         "metal_scrap_recovery",
         "metal_spot_prices"
       ],
@@ -1285,7 +1319,7 @@
       "description": "Non-metal scrap quantity × Disposal rate (negative)",
       "logic": "Cost of disposing of non-metal waste",
       "formula": "SUM(scrap_qty × disposal_rate) WHERE Material_Type <> 'Metal'",
-      "input_observation_ids": [
+      "input_attribute_ids": [
         "disposal_cost_postings"
       ],
       "input_measure_ids": [],
@@ -1299,7 +1333,7 @@
       "description": "(Current Spot - Standard Cost) × Quantity",
       "logic": "Difference between current market value and standard cost for metals",
       "formula": "SUM((spot_price - std_cost) × qty) WHERE Material_Type = 'Metal'",
-      "input_observation_ids": [
+      "input_attribute_ids": [
         "system_stock",
         "metal_spot_prices",
         "standard_costs"
@@ -1315,7 +1349,7 @@
       "description": "Combines metal and non-metal values using different methods",
       "logic": "Sum of metal inventory at spot prices plus non-metal inventory at standard cost",
       "formula": "metal_inventory_value + non_metal_inventory_value",
-      "input_observation_ids": [],
+      "input_attribute_ids": [],
       "input_measure_ids": [
         "metal_inventory_value",
         "non_metal_inventory_value"
@@ -1330,7 +1364,7 @@
       "description": "Availability × Performance × Quality - comprehensive equipment productivity metric",
       "logic": "Product of availability rate, performance rate, and quality rate",
       "formula": "(runtime / scheduled_time) × (actual_output / expected_output) × (good_output / total_output)",
-      "input_observation_ids": [
+      "input_attribute_ids": [
         "equipment_runtime",
         "equipment_downtime",
         "production_confirmations",
@@ -1348,7 +1382,7 @@
       "description": "Percentage of production passing quality inspection on first attempt",
       "logic": "Count of items passing first inspection divided by total items inspected",
       "formula": "COUNT(inspection WHERE result = 'Pass' AND attempt = 1) / COUNT(inspection)",
-      "input_observation_ids": [
+      "input_attribute_ids": [
         "quality_inspections",
         "production_confirmations"
       ],
@@ -1364,7 +1398,7 @@
       "description": "Total hours equipment was down for maintenance or failures",
       "logic": "Sum of downtime event durations",
       "formula": "SUM(downtime_duration_hours)",
-      "input_observation_ids": [
+      "input_attribute_ids": [
         "equipment_downtime"
       ],
       "input_measure_ids": [],
@@ -1379,7 +1413,7 @@
       "description": "Weighted quality score based on defect rates and inspection results",
       "logic": "100 - (defect_rate × 100), weighted by delivery volume",
       "formula": "100 - (SUM(defects) / SUM(receipts) × 100)",
-      "input_observation_ids": [
+      "input_attribute_ids": [
         "quality_inspections",
         "goods_receipts"
       ],
@@ -1394,7 +1428,7 @@
       "description": "Percentage of inspections that pass without defects",
       "logic": "Count of passing inspections divided by total inspections",
       "formula": "COUNT(inspection WHERE result = 'Pass') / COUNT(inspection) × 100",
-      "input_observation_ids": [
+      "input_attribute_ids": [
         "quality_inspections"
       ],
       "input_measure_ids": [],
@@ -3037,42 +3071,42 @@
           "id": "quantity",
           "name": "Quantity",
           "data_type": "Decimal",
-          "mapped_observation_id": "production_confirmations",
+          "mapped_attribute_id": "production_confirmations",
           "source_field": "ConfirmedQuantity"
         },
         {
           "id": "scrap_qty",
           "name": "ScrapQuantity",
           "data_type": "Decimal",
-          "mapped_observation_id": "scrap_postings",
+          "mapped_attribute_id": "scrap_postings",
           "source_field": "ScrapQty"
         },
         {
           "id": "material_cost",
           "name": "MaterialCost",
           "data_type": "Decimal",
-          "mapped_observation_id": "goods_issues",
+          "mapped_attribute_id": "goods_issues",
           "source_field": "Value"
         },
         {
           "id": "labor_hours",
           "name": "LaborHours",
           "data_type": "Decimal",
-          "mapped_observation_id": "labor_time_recordings",
+          "mapped_attribute_id": "labor_time_recordings",
           "source_field": "Hours"
         },
         {
           "id": "labor_cost",
           "name": "LaborCost",
           "data_type": "Decimal",
-          "mapped_observation_id": "labor_time_recordings",
+          "mapped_attribute_id": "labor_time_recordings",
           "source_field": "CostAmount"
         },
         {
           "id": "overhead_cost",
           "name": "OverheadCost",
           "data_type": "Decimal",
-          "mapped_observation_id": "overhead_rates"
+          "mapped_attribute_id": "overhead_rates"
         }
       ],
       "measures": [
@@ -3170,21 +3204,21 @@
           "id": "system_qty",
           "name": "SystemQuantity",
           "data_type": "Decimal",
-          "mapped_observation_id": "system_stock",
+          "mapped_attribute_id": "system_stock",
           "source_field": "Quantity"
         },
         {
           "id": "counted_qty",
           "name": "CountedQuantity",
           "data_type": "Decimal",
-          "mapped_observation_id": "inventory_counts",
+          "mapped_attribute_id": "inventory_counts",
           "source_field": "CountedQty"
         },
         {
           "id": "unit_cost",
           "name": "UnitCost",
           "data_type": "Decimal",
-          "mapped_observation_id": "standard_costs",
+          "mapped_attribute_id": "standard_costs",
           "source_field": "Cost"
         },
         {
@@ -3258,14 +3292,14 @@
           "id": "gr_value",
           "name": "GR_Value",
           "data_type": "Decimal",
-          "mapped_observation_id": "goods_receipts",
+          "mapped_attribute_id": "goods_receipts",
           "source_field": "Value"
         },
         {
           "id": "ir_value",
           "name": "IR_Value",
           "data_type": "Decimal",
-          "mapped_observation_id": "invoice_receipts",
+          "mapped_attribute_id": "invoice_receipts",
           "source_field": "Value"
         }
       ],
@@ -3322,28 +3356,28 @@
           "id": "result",
           "name": "Result",
           "data_type": "String",
-          "mapped_observation_id": "quality_inspections",
+          "mapped_attribute_id": "quality_inspections",
           "source_field": "Result"
         },
         {
           "id": "defect_count",
           "name": "DefectCount",
           "data_type": "Integer",
-          "mapped_observation_id": "quality_inspections",
+          "mapped_attribute_id": "quality_inspections",
           "source_field": "DefectCount"
         },
         {
           "id": "defect_type",
           "name": "DefectType",
           "data_type": "String",
-          "mapped_observation_id": "quality_inspections",
+          "mapped_attribute_id": "quality_inspections",
           "source_field": "DefectType"
         },
         {
           "id": "quantity_inspected",
           "name": "QuantityInspected",
           "data_type": "Decimal",
-          "mapped_observation_id": "quality_inspections",
+          "mapped_attribute_id": "quality_inspections",
           "source_field": "QuantityInspected"
         }
       ],
@@ -3416,28 +3450,28 @@
           "id": "runtime_hours",
           "name": "RuntimeHours",
           "data_type": "Decimal",
-          "mapped_observation_id": "equipment_runtime",
+          "mapped_attribute_id": "equipment_runtime",
           "source_field": "RuntimeHours"
         },
         {
           "id": "downtime_hours",
           "name": "DowntimeHours",
           "data_type": "Decimal",
-          "mapped_observation_id": "equipment_downtime",
+          "mapped_attribute_id": "equipment_downtime",
           "source_field": "DowntimeDuration"
         },
         {
           "id": "scheduled_hours",
           "name": "ScheduledHours",
           "data_type": "Decimal",
-          "mapped_observation_id": "work_center_capacity",
+          "mapped_attribute_id": "work_center_capacity",
           "source_field": "ScheduledHours"
         },
         {
           "id": "actual_output",
           "name": "ActualOutput",
           "data_type": "Decimal",
-          "mapped_observation_id": "production_confirmations",
+          "mapped_attribute_id": "production_confirmations",
           "source_field": "Quantity"
         },
         {

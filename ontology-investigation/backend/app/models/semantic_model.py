@@ -31,8 +31,8 @@ class Column(BaseModel):
     is_foreign_key: bool = Field(default=False, description="Is this a foreign key?")
     source_system_id: Optional[str] = Field(default=None, description="Source system")
     source_field: Optional[str] = Field(default=None, description="Source field path")
-    mapped_observation_id: Optional[str] = Field(
-        default=None, description="Linked observation ID"
+    mapped_attribute_id: Optional[str] = Field(
+        default=None, description="Linked attribute ID"
     )
     description: Optional[str] = Field(default=None, description="Column description")
 
@@ -106,14 +106,46 @@ class MappingStatus(BaseModel):
     mapped_columns: int
     total_measures: int
     mapped_measures: int
-    orphaned_observations: List[str] = Field(
-        default_factory=list, description="Observations not mapped to columns"
+    orphaned_attributes: List[str] = Field(
+        default_factory=list, description="Attributes not mapped to columns"
     )
     orphaned_tables: List[str] = Field(
         default_factory=list, description="Tables not mapped to entities"
     )
     missing_columns: List[dict] = Field(
-        default_factory=list, description="Observations needing columns"
+        default_factory=list, description="Attributes needing columns"
+    )
+
+    # Extended ontology-level gap analysis fields
+    total_attributes: Optional[int] = Field(
+        default=None, description="Total attributes in ontology"
+    )
+    attributes_used_by_measures: Optional[int] = Field(
+        default=None, description="Attributes referenced by at least one measure"
+    )
+    attributes_with_complete_flow: Optional[int] = Field(
+        default=None, description="Attributes flowing through to semantic model DAX"
+    )
+    attributes_with_broken_flow: List[str] = Field(
+        default_factory=list, description="Attribute names not reaching semantic model"
+    )
+    total_business_measures: Optional[int] = Field(
+        default=None, description="Total ontology measures"
+    )
+    implemented_measures: Optional[int] = Field(
+        default=None, description="Ontology measures with a DAX implementation"
+    )
+    unimplemented_measures: List[str] = Field(
+        default_factory=list, description="Ontology measure names without DAX"
+    )
+    measures_without_attributes: List[str] = Field(
+        default_factory=list, description="Measure names with no input attributes"
+    )
+    semantic_tables_with_measures: Optional[int] = Field(
+        default=None, description="Semantic tables that have DAX measures"
+    )
+    semantic_tables_without_measures: List[str] = Field(
+        default_factory=list, description="Semantic table names without DAX measures"
     )
 
 

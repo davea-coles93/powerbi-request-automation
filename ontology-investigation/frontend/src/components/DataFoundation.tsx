@@ -1,17 +1,58 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { MetricsTable } from './MetricsTable';
 import { MeasuresTable } from './MeasuresTable';
 import { AttributesTable } from './AttributesTable';
 import { EntitiesTable } from './EntitiesTable';
 import { SystemsTable } from './SystemsTable';
+import { OntologyERD } from './OntologyERD';
 import { Breadcrumbs } from './Breadcrumbs';
 import { TableSkeletonLoader } from './SkeletonLoader';
 import { useMetrics, useMeasures, useAttributes, useEntities, useSystems } from '../hooks/useOntology';
 
 type View = 'metrics' | 'measures' | 'attributes' | 'entities' | 'systems';
 
-export function DataFoundation() {
+interface DataFoundationProps {
+  onEditMetric?: (metric: any) => void;
+  onDeleteMetric?: (metric: any) => void;
+  onNewMetric?: () => void;
+  onViewLineage?: (metricId: string) => void;
+  onEditMeasure?: (measure: any) => void;
+  onDeleteMeasure?: (measure: any) => void;
+  onNewMeasure?: () => void;
+  onViewMeasureUsage?: (measure: any) => void;
+  onEditAttribute?: (attribute: any) => void;
+  onDeleteAttribute?: (attribute: any) => void;
+  onNewAttribute?: () => void;
+  onEditEntity?: (entity: any) => void;
+  onDeleteEntity?: (entity: any) => void;
+  onNewEntity?: () => void;
+  onEditSystem?: (system: any) => void;
+  onDeleteSystem?: (system: any) => void;
+  onNewSystem?: () => void;
+}
+
+export function DataFoundation({
+  onEditMetric,
+  onDeleteMetric,
+  onNewMetric,
+  onViewLineage,
+  onEditMeasure,
+  onDeleteMeasure,
+  onNewMeasure,
+  onViewMeasureUsage,
+  onEditAttribute,
+  onDeleteAttribute,
+  onNewAttribute,
+  onEditEntity,
+  onDeleteEntity,
+  onNewEntity,
+  onEditSystem,
+  onDeleteSystem,
+  onNewSystem,
+}: DataFoundationProps) {
   const [activeView, setActiveView] = useState<View>('metrics');
+  const [viewMode, setViewMode] = useState<'table' | 'schema'>('table');
+  const [perspectiveFilter, setPerspectiveFilter] = useState<string | null>(null);
 
   // Fetch data
   const { data: metrics, isLoading: metricsLoading } = useMetrics();
@@ -19,6 +60,22 @@ export function DataFoundation() {
   const { data: attributes, isLoading: attributesLoading } = useAttributes();
   const { data: entities, isLoading: entitiesLoading } = useEntities();
   const { data: systems, isLoading: systemsLoading } = useSystems();
+
+  // Filter data by perspective (client-side)
+  const filteredMetrics = useMemo(() => {
+    if (!perspectiveFilter || !metrics) return metrics || [];
+    return metrics.filter((m: any) => m.perspective_ids?.includes(perspectiveFilter));
+  }, [metrics, perspectiveFilter]);
+
+  const filteredMeasures = useMemo(() => {
+    if (!perspectiveFilter || !measures) return measures || [];
+    return measures.filter((m: any) => m.perspective_ids?.includes(perspectiveFilter));
+  }, [measures, perspectiveFilter]);
+
+  const filteredAttributes = useMemo(() => {
+    if (!perspectiveFilter || !attributes) return attributes || [];
+    return attributes.filter((a: any) => a.perspective_ids?.includes(perspectiveFilter));
+  }, [attributes, perspectiveFilter]);
 
   const getViewLabel = (view: View): string => {
     switch (view) {
@@ -34,15 +91,58 @@ export function DataFoundation() {
   const renderContent = () => {
     switch (activeView) {
       case 'metrics':
-        return metricsLoading ? <TableSkeletonLoader /> : <MetricsTable metrics={metrics || []} />;
+        return metricsLoading ? <TableSkeletonLoader /> : (
+          <MetricsTable
+            metrics={filteredMetrics}
+            measures={measures || []}
+            onEditMetric={onEditMetric}
+            onDeleteMetric={onDeleteMetric}
+            onNewMetric={onNewMetric}
+            onViewLineage={onViewLineage}
+          />
+        );
       case 'measures':
-        return measuresLoading ? <TableSkeletonLoader /> : <MeasuresTable measures={measures || []} />;
+        return measuresLoading ? <TableSkeletonLoader /> : (
+          <MeasuresTable
+            measures={filteredMeasures}
+            attributes={attributes || []}
+            onMeasureClick={onEditMeasure}
+            onDeleteMeasure={onDeleteMeasure}
+            onNewMeasure={onNewMeasure}
+            onViewUsage={onViewMeasureUsage}
+          />
+        );
       case 'attributes':
-        return attributesLoading ? <TableSkeletonLoader /> : <AttributesTable attributes={attributes || []} />;
+        return attributesLoading ? <TableSkeletonLoader /> : (
+          <AttributesTable
+            attributes={filteredAttributes}
+            systems={systems || []}
+            entities={entities || []}
+            measures={measures || []}
+            metrics={metrics || []}
+            onAttributeClick={onEditAttribute}
+            onDeleteAttribute={onDeleteAttribute}
+            onNewAttribute={onNewAttribute}
+          />
+        );
       case 'entities':
-        return entitiesLoading ? <TableSkeletonLoader /> : <EntitiesTable entities={entities || []} />;
+        return entitiesLoading ? <TableSkeletonLoader /> : (
+          <EntitiesTable
+            entities={entities || []}
+            onEditEntity={onEditEntity}
+            onDeleteEntity={onDeleteEntity}
+            onNewEntity={onNewEntity}
+          />
+        );
       case 'systems':
-        return systemsLoading ? <TableSkeletonLoader /> : <SystemsTable systems={systems || []} />;
+        return systemsLoading ? <TableSkeletonLoader /> : (
+          <SystemsTable
+            systems={systems || []}
+            onEditSystem={onEditSystem}
+            onDeleteSystem={onDeleteSystem}
+            onNewSystem={onNewSystem}
+          />
+        );
       default:
         return null;
     }
@@ -161,16 +261,98 @@ export function DataFoundation() {
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto bg-gradient-to-br from-gray-50 to-white">
         <div className="p-6 bg-white/80 backdrop-blur-sm border-b border-gray-200/80 shadow-sm">
-          <Breadcrumbs
-            items={[
-              { label: 'Home', onClick: () => {} },
-              { label: 'Data Foundation', onClick: () => {} },
-              { label: getViewLabel(activeView) },
-            ]}
-          />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Breadcrumbs
+                items={[
+                  { label: 'Home', onClick: () => {} },
+                  { label: 'Data Foundation', onClick: () => {} },
+                  { label: viewMode === 'schema' ? 'Schema View' : getViewLabel(activeView) },
+                ]}
+              />
+              {/* View mode toggle */}
+              <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    viewMode === 'table'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Table View
+                </button>
+                <button
+                  onClick={() => setViewMode('schema')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    viewMode === 'schema'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Schema View
+                </button>
+              </div>
+            </div>
+            {viewMode === 'table' && ['metrics', 'measures', 'attributes'].includes(activeView) && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-gray-500 mr-1">Filter:</span>
+                <button
+                  onClick={() => setPerspectiveFilter(null)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    perspectiveFilter === null
+                      ? 'bg-gray-800 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setPerspectiveFilter('operational')}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    perspectiveFilter === 'operational'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-green-50 text-green-700 hover:bg-green-100'
+                  }`}
+                >
+                  Operational
+                </button>
+                <button
+                  onClick={() => setPerspectiveFilter('management')}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    perspectiveFilter === 'management'
+                      ? 'bg-yellow-500 text-white'
+                      : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+                  }`}
+                >
+                  Management
+                </button>
+                <button
+                  onClick={() => setPerspectiveFilter('financial')}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    perspectiveFilter === 'financial'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                  }`}
+                >
+                  Financial
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         <div className="p-6">
-          {renderContent()}
+          {viewMode === 'schema' ? (
+            <OntologyERD
+              entities={entities || []}
+              attributes={attributes || []}
+              measures={measures || []}
+              metrics={metrics || []}
+              systems={systems || []}
+            />
+          ) : (
+            renderContent()
+          )}
         </div>
       </div>
     </div>

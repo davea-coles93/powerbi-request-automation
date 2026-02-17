@@ -66,29 +66,3 @@ def get_mapping_status(db: Session = Depends(get_db)):
     service = SemanticModelService(db)
     return service.analyze_mapping_gaps()
 
-
-# TODO: Implement these endpoints for full CRUD
-# @router.post("/tables", response_model=Table)
-# def create_table(table: Table, db: Session = Depends(get_db)):
-#     """Create a new table in semantic model."""
-#     pass
-
-# @router.put("/tables/{table_id}", response_model=Table)
-# def update_table(table_id: str, table: Table, db: Session = Depends(get_db)):
-#     """Update a table."""
-#     pass
-
-# @router.delete("/tables/{table_id}")
-# def delete_table(table_id: str, db: Session = Depends(get_db)):
-#     """Delete a table."""
-#     pass
-
-# @router.post("/import")
-# async def import_pbix(file: UploadFile, db: Session = Depends(get_db)):
-#     """Import semantic model from PBIX file."""
-#     pass
-
-# @router.get("/export")
-# def export_pbix_template(db: Session = Depends(get_db)):
-#     """Export semantic model as PBIX template."""
-#     pass

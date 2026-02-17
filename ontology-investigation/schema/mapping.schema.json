@@ -12,7 +12,7 @@
     },
     "ontology_type": {
       "type": "string",
-      "enum": ["entity", "observation", "measure"],
+      "enum": ["entity", "attribute", "measure"],
       "description": "Type of ontology element being mapped"
     },
     "ontology_id": {

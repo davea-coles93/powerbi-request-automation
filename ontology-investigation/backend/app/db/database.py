@@ -62,6 +62,11 @@ class AttributeDB(Base):
     reliability = Column(String)
     volatility = Column(String)
     notes = Column(Text)
+    source_table = Column(String)
+    source_column = Column(String)
+    source_connection = Column(String)
+    constraints = Column(JSON)
+    perspective_ids = Column(JSON)
 
 
 class MeasureDB(Base):
@@ -122,9 +127,49 @@ class SemanticTableDB(Base):
     measures = Column(JSON, default=list)
 
 
+class WorkshopSessionDB(Base):
+    __tablename__ = "workshop_sessions"
+
+    id = Column(String, primary_key=True)
+    name = Column(String, nullable=False)
+    date = Column(String)
+    participants = Column(JSON, default=list)
+    session_type = Column(String)
+    notes = Column(Text)
+    findings = Column(JSON, default=list)
+
+
 def init_db():
-    """Create all tables."""
+    """Create all tables and migrate schema if needed."""
     Base.metadata.create_all(bind=engine)
+    _migrate_schema()
+
+
+def _migrate_schema():
+    """Add any missing columns to existing tables.
+
+    SQLAlchemy's create_all() only creates new tables; it won't ALTER existing
+    ones to add new columns.  This lightweight migration inspects each mapped
+    table and issues ALTER TABLE ADD COLUMN for anything missing.
+    """
+    from sqlalchemy import inspect as sa_inspect, text
+
+    inspector = sa_inspect(engine)
+    with engine.connect() as conn:
+        for table_cls in Base.__subclasses__():
+            table_name = table_cls.__tablename__
+            if not inspector.has_table(table_name):
+                continue
+
+            existing_cols = {c["name"] for c in inspector.get_columns(table_name)}
+            for col in table_cls.__table__.columns:
+                if col.name not in existing_cols:
+                    # Determine SQLite type
+                    col_type = col.type.compile(engine.dialect)
+                    conn.execute(
+                        text(f"ALTER TABLE {table_name} ADD COLUMN {col.name} {col_type}")
+                    )
+        conn.commit()
 
 
 def get_db():

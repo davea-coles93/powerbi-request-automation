@@ -46,7 +46,7 @@ test.describe('API Endpoints', () => {
     const data = await response.json();
     expect(data).toHaveProperty('metric');
     expect(data).toHaveProperty('measures');
-    expect(data).toHaveProperty('observations');
+    expect(data).toHaveProperty('attributes');
     expect(data).toHaveProperty('systems');
     expect(data).toHaveProperty('entities');
 
@@ -64,7 +64,7 @@ test.describe('API Endpoints', () => {
     expect(data).toHaveProperty('perspective');
     expect(data).toHaveProperty('metrics');
     expect(data).toHaveProperty('measures');
-    expect(data).toHaveProperty('observations');
+    expect(data).toHaveProperty('attributes');
 
     expect(data.perspective.id).toBe('financial');
   });

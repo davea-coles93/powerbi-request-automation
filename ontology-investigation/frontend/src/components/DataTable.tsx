@@ -1,14 +1,19 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
   getSortedRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
+  getExpandedRowModel,
   flexRender,
   ColumnDef,
   SortingState,
+  VisibilityState,
+  ExpandedState,
+  Row,
 } from '@tanstack/react-table';
+import { SlidersHorizontal, ChevronRight } from 'lucide-react';
 
 interface DataTableProps<T> {
   data: T[];
@@ -17,6 +22,8 @@ interface DataTableProps<T> {
   onRowClick?: (row: T) => void;
   enableSearch?: boolean;
   enablePagination?: boolean;
+  enableColumnVisibility?: boolean;
+  renderSubComponent?: (props: { row: Row<T> }) => React.ReactNode;
 }
 
 export function DataTable<T>({
@@ -26,9 +33,26 @@ export function DataTable<T>({
   onRowClick,
   enableSearch = true,
   enablePagination = true,
+  enableColumnVisibility = true,
+  renderSubComponent,
 }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [expanded, setExpanded] = useState<ExpandedState>({});
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+  const columnMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (columnMenuRef.current && !columnMenuRef.current.contains(e.target as Node)) {
+        setShowColumnMenu(false);
+      }
+    };
+    if (showColumnMenu) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showColumnMenu]);
 
   const table = useReactTable({
     data,
@@ -36,13 +60,19 @@ export function DataTable<T>({
     state: {
       sorting,
       globalFilter,
+      columnVisibility,
+      expanded,
     },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
+    onColumnVisibilityChange: setColumnVisibility,
+    onExpandedChange: setExpanded,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: enablePagination ? getPaginationRowModel() : undefined,
+    getExpandedRowModel: renderSubComponent ? getExpandedRowModel() : undefined,
+    getRowCanExpand: renderSubComponent ? () => true : undefined,
     initialState: {
       pagination: {
         pageSize: 20,
@@ -67,9 +97,46 @@ export function DataTable<T>({
               className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:border-gray-400 transition-colors"
             />
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-xl border border-gray-200">
-            <span className="text-sm font-semibold text-gray-900">{table.getFilteredRowModel().rows.length}</span>
-            <span className="text-sm text-gray-500">results</span>
+          <div className="flex items-center gap-2">
+            {enableColumnVisibility && (
+              <div className="relative" ref={columnMenuRef}>
+                <button
+                  onClick={() => setShowColumnMenu(!showColumnMenu)}
+                  className="p-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-colors shadow-sm"
+                  title="Toggle columns"
+                >
+                  <SlidersHorizontal className="w-4 h-4 text-gray-600" />
+                </button>
+                {showColumnMenu && (
+                  <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 min-w-[180px] py-2">
+                    {table.getAllLeafColumns()
+                      .filter(col => col.id !== 'actions')
+                      .map(column => (
+                        <label
+                          key={column.id}
+                          className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={column.getIsVisible()}
+                            onChange={column.getToggleVisibilityHandler()}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-gray-700">
+                            {typeof column.columnDef.header === 'string'
+                              ? column.columnDef.header
+                              : column.id}
+                          </span>
+                        </label>
+                      ))}
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-xl border border-gray-200">
+              <span className="text-sm font-semibold text-gray-900">{table.getFilteredRowModel().rows.length}</span>
+              <span className="text-sm text-gray-500">results</span>
+            </div>
           </div>
         </div>
       )}
@@ -80,6 +147,7 @@ export function DataTable<T>({
           <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
+                {renderSubComponent && <th className="w-10 px-2 py-4" />}
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
@@ -104,19 +172,47 @@ export function DataTable<T>({
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
             {table.getRowModel().rows.map((row) => (
-              <tr
-                key={row.id}
-                className={`group hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200 ${
-                  onRowClick ? 'cursor-pointer' : ''
-                }`}
-                onClick={() => onRowClick?.(row.original)}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-6 py-4 text-sm text-gray-900">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
+              <>
+                <tr
+                  key={row.id}
+                  className={`group hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200 ${
+                    onRowClick ? 'cursor-pointer' : ''
+                  }`}
+                  onClick={() => onRowClick?.(row.original)}
+                >
+                  {renderSubComponent && (
+                    <td className="w-10 px-2 py-4">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          row.toggleExpanded();
+                        }}
+                        className="p-1 hover:bg-gray-200 rounded transition-colors"
+                      >
+                        <ChevronRight
+                          className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${
+                            row.getIsExpanded() ? 'rotate-90' : ''
+                          }`}
+                        />
+                      </button>
+                    </td>
+                  )}
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id} className="px-6 py-4 text-sm text-gray-900">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+                {renderSubComponent && row.getIsExpanded() && (
+                  <tr key={`${row.id}-expanded`}>
+                    <td colSpan={row.getVisibleCells().length + 1} className="p-0">
+                      <div className="border-l-4 border-blue-400 bg-gray-50 px-6 py-4">
+                        {renderSubComponent({ row })}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </>
             ))}
           </tbody>
         </table>

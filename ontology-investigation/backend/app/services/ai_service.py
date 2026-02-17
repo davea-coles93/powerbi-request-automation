@@ -1,3 +1,4 @@
+import json
 import os
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -20,12 +21,12 @@ class AIService:
         self.db = db
         self.graph_service = GraphService(db) if db else None
 
-        # Initialize Anthropic client if available
+        # Initialize Anthropic async client if available
         self.client = None
         if ANTHROPIC_AVAILABLE:
             api_key = os.getenv("ANTHROPIC_API_KEY")
             if api_key:
-                self.client = anthropic.Anthropic(api_key=api_key)
+                self.client = anthropic.AsyncAnthropic(api_key=api_key)
 
     def is_configured(self) -> bool:
         """Check if AI service is properly configured."""
@@ -51,7 +52,7 @@ class AIService:
             return self._generate_fallback_explanation(trace)
 
         # Call Claude API
-        message = self.client.messages.create(
+        message = await self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=1024,
             messages=[
@@ -95,7 +96,7 @@ Be concise and business-focused, not technical.""",
         # Get all current elements
         metrics = self.graph_service.metrics.get_all()
         measures = self.graph_service.measures.get_all()
-        observations = self.graph_service.observations.get_all()
+        attributes = self.graph_service.attributes.get_all()
 
         gaps = []
         recommendations = []
@@ -109,26 +110,26 @@ Be concise and business-focused, not technical.""",
                     "issue": "Metric has no measures defined",
                 })
 
-        # Check for measures without observations
+        # Check for measures without attributes
         for measure in measures:
-            if not measure.input_observation_ids and not measure.input_measure_ids:
+            if not measure.input_attribute_ids and not measure.input_measure_ids:
                 gaps.append({
                     "type": "measure_without_inputs",
                     "element": measure.name,
-                    "issue": "Measure has no input observations or measures",
+                    "issue": "Measure has no input attributes or measures",
                 })
 
-        # Check for orphan observations (not used by any measure)
-        used_observation_ids = set()
+        # Check for orphan attributes (not used by any measure)
+        used_attribute_ids = set()
         for measure in measures:
-            used_observation_ids.update(measure.input_observation_ids)
+            used_attribute_ids.update(measure.input_attribute_ids)
 
-        for obs in observations:
-            if obs.id not in used_observation_ids:
+        for attr in attributes:
+            if attr.id not in used_attribute_ids:
                 gaps.append({
-                    "type": "unused_observation",
-                    "element": obs.name,
-                    "issue": "Observation is not used by any measure",
+                    "type": "unused_attribute",
+                    "element": attr.name,
+                    "issue": "Attribute is not used by any measure",
                 })
 
         # Generate recommendations
@@ -147,34 +148,34 @@ Be concise and business-focused, not technical.""",
 
     async def suggest_measures(self, requirement: str) -> dict:
         """
-        Suggest measures and observations for a natural language requirement.
+        Suggest measures and attributes for a natural language requirement.
         """
         if not self.client:
             return {
                 "suggested_measures": [],
-                "suggested_observations": [],
+                "suggested_attributes": [],
                 "rationale": "AI service not configured. Please set ANTHROPIC_API_KEY.",
             }
 
         # Get current ontology context
         current_measures = self.graph_service.measures.get_all() if self.graph_service else []
-        current_observations = (
-            self.graph_service.observations.get_all() if self.graph_service else []
+        current_attributes = (
+            self.graph_service.attributes.get_all() if self.graph_service else []
         )
 
         context = f"""Current measures in the ontology:
 {chr(10).join([f"- {m.name}: {m.description or 'No description'}" for m in current_measures[:20]])}
 
-Current observations in the ontology:
-{chr(10).join([f"- {o.name}: {o.description or 'No description'}" for o in current_observations[:20]])}"""
+Current attributes in the ontology:
+{chr(10).join([f"- {a.name}: {a.description or 'No description'}" for a in current_attributes[:20]])}"""
 
-        message = self.client.messages.create(
+        message = await self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=1024,
             messages=[
                 {
                     "role": "user",
-                    "content": f"""You are a business ontology expert helping design measures and observations.
+                    "content": f"""You are a business ontology expert helping design measures and attributes.
 
 The user has this requirement: "{requirement}"
 
@@ -182,29 +183,123 @@ The user has this requirement: "{requirement}"
 
 Suggest:
 1. New measures that would be needed (name, description, logic)
-2. New observations that would be needed (name, description, what entity it relates to)
+2. New attributes that would be needed (name, description, what entity it relates to)
 3. Brief rationale for your suggestions
 
-Consider what already exists and don't duplicate. Format as JSON with keys: suggested_measures, suggested_observations, rationale""",
+Consider what already exists and don't duplicate. Respond with ONLY valid JSON (no markdown fencing) with keys: suggested_measures, suggested_attributes, rationale""",
                 }
             ],
         )
 
-        # Parse response (in production, use proper JSON parsing)
         response_text = message.content[0].text
 
-        # Simple fallback if parsing fails
-        return {
-            "suggested_measures": [],
-            "suggested_observations": [],
-            "rationale": response_text,
-        }
+        # Try to parse JSON from the response
+        try:
+            # Strip markdown code fences if present
+            cleaned = response_text.strip()
+            if cleaned.startswith("```"):
+                # Remove opening fence (with optional language tag)
+                cleaned = cleaned.split("\n", 1)[1] if "\n" in cleaned else cleaned[3:]
+            if cleaned.endswith("```"):
+                cleaned = cleaned[:-3]
+            parsed = json.loads(cleaned.strip())
+            return {
+                "suggested_measures": parsed.get("suggested_measures", []),
+                "suggested_attributes": parsed.get("suggested_attributes", []),
+                "rationale": parsed.get("rationale", response_text),
+            }
+        except (json.JSONDecodeError, IndexError):
+            # Fallback: return raw text as rationale
+            return {
+                "suggested_measures": [],
+                "suggested_attributes": [],
+                "rationale": response_text,
+            }
+
+    async def analyze_processes(self) -> dict:
+        """
+        Analyze processes for efficiency insights.
+        Returns rule-based insights about manual effort, waste, and system switching.
+        """
+        if not self.graph_service:
+            return {"insights": [], "summary": "No data available."}
+
+        processes = self.graph_service.processes.get_all()
+        systems = self.graph_service.systems.get_all()
+        system_map = {s.id: s.name for s in systems}
+
+        insights = []
+
+        for process in processes:
+            for step in process.steps:
+                # High manual effort steps
+                if step.manual_effort_percentage and step.manual_effort_percentage >= 80:
+                    insights.append({
+                        "type": "high_manual_effort",
+                        "priority": "high",
+                        "description": f"Step '{step.name}' in '{process.name}' is {step.manual_effort_percentage}% manual. Consider automation to reduce execution burden.",
+                        "process_name": process.name,
+                        "step_name": step.name,
+                        "estimated_savings": f"Up to {step.manual_effort_percentage - 20}% effort reduction",
+                    })
+
+                # Waste categories
+                if step.waste_category:
+                    insights.append({
+                        "type": "waste_identified",
+                        "priority": "medium",
+                        "description": f"Step '{step.name}' in '{process.name}' has waste: {step.waste_category}.",
+                        "process_name": process.name,
+                        "step_name": step.name,
+                        "estimated_savings": "Varies by waste type",
+                    })
+
+                # Multi-system steps (system switching)
+                if step.systems_used_ids and len(step.systems_used_ids) >= 3:
+                    system_names = [system_map.get(sid, sid) for sid in step.systems_used_ids]
+                    insights.append({
+                        "type": "system_switching",
+                        "priority": "medium",
+                        "description": f"Step '{step.name}' in '{process.name}' touches {len(step.systems_used_ids)} systems ({', '.join(system_names)}). System consolidation or integration could reduce switching overhead.",
+                        "process_name": process.name,
+                        "step_name": step.name,
+                        "estimated_savings": "Reduced context switching time",
+                    })
+
+                # Low automation potential on high-effort steps
+                if (step.automation_potential in ('High', 'Medium')
+                        and step.manual_effort_percentage
+                        and step.manual_effort_percentage >= 50):
+                    insights.append({
+                        "type": "automation_opportunity",
+                        "priority": "high" if step.automation_potential == 'High' else "medium",
+                        "description": f"Step '{step.name}' in '{process.name}' has {step.automation_potential} automation potential but is {step.manual_effort_percentage}% manual. This is a prime automation candidate.",
+                        "process_name": process.name,
+                        "step_name": step.name,
+                        "estimated_savings": f"Could automate {step.manual_effort_percentage}% of effort",
+                    })
+
+        # Deduplicate - a step might trigger multiple insights, that's fine
+        # Sort by priority
+        priority_order = {"high": 0, "medium": 1, "low": 2}
+        insights.sort(key=lambda x: priority_order.get(x["priority"], 3))
+
+        total_steps = sum(len(p.steps) for p in processes)
+        high_manual = len([i for i in insights if i["type"] == "high_manual_effort"])
+        waste_count = len([i for i in insights if i["type"] == "waste_identified"])
+
+        summary = (
+            f"Analyzed {len(processes)} processes with {total_steps} total steps. "
+            f"Found {high_manual} high-manual-effort steps and {waste_count} waste instances."
+        )
+
+        return {"insights": insights, "summary": summary}
 
     def _prepare_metric_context(self, trace: dict) -> str:
         """Prepare rich context for LLM explanation."""
         metric = trace["metric"]
         measures = trace["measures"]
-        observations = trace["observations"]
+        attributes = trace["attributes"]
         systems = trace["systems"]
 
         context = f"""METRIC: {metric['name']}
@@ -214,8 +309,8 @@ Perspectives: {', '.join(metric.get('perspective_ids', []))}
 CALCULATED BY MEASURES:
 {chr(10).join([f"- {m['name']}: {m.get('logic', 'No logic defined')}" for m in measures])}
 
-SOURCED FROM OBSERVATIONS:
-{chr(10).join([f"- {o['name']} (from {o['system_id']}, reliability: {o.get('reliability', 'Unknown')})" for o in observations])}
+SOURCED FROM ATTRIBUTES:
+{chr(10).join([f"- {a['name']} (from {a['system_id']}, reliability: {a.get('reliability', 'Unknown')})" for a in attributes])}
 
 DATA ORIGINATES IN SYSTEMS:
 {chr(10).join([f"- {s['name']} ({s['type']})" for s in systems])}
@@ -226,17 +321,17 @@ DATA ORIGINATES IN SYSTEMS:
         """Generate a structured explanation without AI."""
         metric = trace["metric"]
         measures = trace["measures"]
-        observations = trace["observations"]
+        attributes = trace["attributes"]
         systems = trace["systems"]
 
         explanation = (
             f"{metric['name']} answers the question: {metric['business_question']} "
-            f"It is calculated from {len(measures)} measure(s) using data from {len(observations)} observation(s)."
+            f"It is calculated from {len(measures)} measure(s) using data from {len(attributes)} attribute(s)."
         )
 
         lineage = (
             f"Data flows from {', '.join([s['name'] for s in systems])} "
-            f"through observations ({', '.join([o['name'] for o in observations])}) "
+            f"through attributes ({', '.join([a['name'] for a in attributes])}) "
             f"into measures ({', '.join([m['name'] for m in measures])})."
         )
 

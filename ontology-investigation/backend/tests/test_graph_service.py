@@ -6,7 +6,7 @@ from app.db.repositories import (
     PerspectiveRepository,
     SystemRepository,
     EntityRepository,
-    ObservationRepository,
+    AttributeRepository,
     MeasureRepository,
     MetricRepository,
     ProcessRepository,
@@ -16,7 +16,7 @@ from app.models import (
     System,
     Entity,
     EntityLens,
-    Observation,
+    Attribute,
     Measure,
     Metric,
     Process,
@@ -30,7 +30,7 @@ def populated_db(
     sample_perspective,
     sample_system,
     sample_entity,
-    sample_observation,
+    sample_attribute,
     sample_measure,
     sample_metric,
     sample_process,
@@ -39,7 +39,7 @@ def populated_db(
     PerspectiveRepository(test_db).create(Perspective(**sample_perspective))
     SystemRepository(test_db).create(System(**sample_system))
     EntityRepository(test_db).create(Entity(**sample_entity))
-    ObservationRepository(test_db).create(Observation(**sample_observation))
+    AttributeRepository(test_db).create(Attribute(**sample_attribute))
     MeasureRepository(test_db).create(Measure(**sample_measure))
     MetricRepository(test_db).create(Metric(**sample_metric))
     ProcessRepository(test_db).create(Process(**sample_process))
@@ -57,8 +57,8 @@ def test_graph_service_trace_metric(populated_db):
     assert trace["metric"]["id"] == "test_metric"
     assert len(trace["measures"]) == 1
     assert trace["measures"][0]["id"] == "test_measure"
-    assert len(trace["observations"]) == 1
-    assert trace["observations"][0]["id"] == "test_observation"
+    assert len(trace["attributes"]) == 1
+    assert trace["attributes"][0]["id"] == "test_attribute"
     assert len(trace["systems"]) == 1
     assert trace["systems"][0]["id"] == "test_system"
     assert len(trace["entities"]) == 1
@@ -83,7 +83,7 @@ def test_graph_service_perspective_view(populated_db):
     assert view["perspective"]["id"] == "test_perspective"
     assert len(view["metrics"]) >= 0
     assert len(view["measures"]) >= 0
-    assert len(view["observations"]) >= 0
+    assert len(view["attributes"]) >= 0
     assert len(view["entities"]) >= 0
 
 
@@ -143,7 +143,7 @@ def test_graph_service_process_flow_with_dependencies(test_db):
                 sequence=1,
                 perspective_id="test_p",
                 depends_on_step_ids=[],
-                crystallizes_observation_ids=[],
+                crystallizes_attribute_ids=[],
             ),
             ProcessStep(
                 id="step2",
@@ -151,7 +151,7 @@ def test_graph_service_process_flow_with_dependencies(test_db):
                 sequence=2,
                 perspective_id="test_p",
                 depends_on_step_ids=["step1"],
-                crystallizes_observation_ids=[],
+                crystallizes_attribute_ids=[],
             ),
             ProcessStep(
                 id="step3",
@@ -159,7 +159,7 @@ def test_graph_service_process_flow_with_dependencies(test_db):
                 sequence=3,
                 perspective_id="test_p",
                 depends_on_step_ids=["step1", "step2"],
-                crystallizes_observation_ids=[],
+                crystallizes_attribute_ids=[],
             ),
         ],
     )
@@ -178,14 +178,16 @@ def test_graph_service_crystallization_points(populated_db):
     """Test getting crystallization points."""
     service = GraphService(populated_db)
 
-    points = service.get_crystallization_points("test_process")
+    result = service.get_crystallization_points("test_process")
 
-    assert points is not None
+    assert result is not None
+    assert result["process_id"] == "test_process"
+    points = result["crystallization_points"]
     assert len(points) == 1
     assert points[0]["step_id"] == "step1"
     assert points[0]["step_name"] == "Step 1"
-    assert len(points[0]["observations"]) == 1
-    assert points[0]["observations"][0]["id"] == "test_observation"
+    assert len(points[0]["crystallized_attributes"]) == 1
+    assert points[0]["crystallized_attributes"][0]["id"] == "test_attribute"
 
 
 def test_graph_service_crystallization_points_not_found(populated_db):
@@ -205,17 +207,17 @@ def test_graph_service_metric_lineage_complete(populated_db):
     # Verify all connections exist
     metric = trace["metric"]
     measures = trace["measures"]
-    observations = trace["observations"]
+    attributes = trace["attributes"]
     systems = trace["systems"]
 
     # Metric should reference the measure
     assert "test_measure" in metric["calculated_by_measure_ids"]
 
-    # Measure should reference the observation
-    assert "test_observation" in measures[0]["input_observation_ids"]
+    # Measure should reference the attribute
+    assert "test_attribute" in measures[0]["input_attribute_ids"]
 
-    # Observation should reference the system
-    assert observations[0]["system_id"] == "test_system"
+    # Attribute should reference the system
+    assert attributes[0]["system_id"] == "test_system"
 
     # System should exist
     assert systems[0]["id"] == "test_system"

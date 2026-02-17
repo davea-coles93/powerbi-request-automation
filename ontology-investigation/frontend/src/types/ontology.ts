@@ -65,6 +65,18 @@ export interface Attribute {
   reliability?: ReliabilityLevel;
   volatility?: Volatility;
   notes?: string;
+  source_table?: string;
+  source_column?: string;
+  source_connection?: string;
+  constraints?: Array<{
+    type: 'range' | 'required' | 'format';
+    min?: number;
+    max?: number;
+    pattern?: string;
+    unit?: string;
+    description: string;
+  }>;
+  perspective_ids?: string[];
 }
 
 // Measure types
@@ -87,6 +99,16 @@ export interface Metric {
   business_question: string;
   calculated_by_measure_ids: string[];
   perspective_ids: string[];
+}
+
+// Observation types (workshop capture on process steps)
+export type ObservationCategory = 'pain_point' | 'decision' | 'insight' | 'question' | 'action_item';
+
+export interface Observation {
+  text: string;
+  author?: string;
+  timestamp?: string;
+  category?: ObservationCategory;
 }
 
 // Process types
@@ -116,6 +138,9 @@ export interface ProcessStep {
   systems_used_ids?: string[];  // Systems accessed during this step
   waste_category?: string;  // Type of waste identified
   manual_effort_percentage?: number;  // 0-100: percentage that is manual vs automated
+
+  // Workshop observations
+  observations?: Observation[];
 }
 
 export interface Process {
@@ -222,8 +247,7 @@ export interface MappingStatus {
   mapped_columns: number;
   total_measures: number;
   mapped_measures: number;
-  orphaned_attributes?: string[];  // For frontend compatibility
-  orphaned_observations?: string[];  // Actual API response
+  orphaned_attributes?: string[];  // API response key
   orphaned_tables: string[];
   missing_columns: string[];
 }
@@ -245,4 +269,74 @@ export interface LoadScenarioResponse {
   success: boolean;
   message: string;
   scenario: ScenarioInfo;
+}
+
+// TMDL Import types
+export interface AvailableModel {
+  path: string;
+  name: string;
+  definition_path: string;
+}
+
+export interface TmdlPreview {
+  entities: number;
+  attributes: number;
+  measures: number;
+  metrics: number;
+  relationships: number;
+  tables: string[];
+  sample_measures: string[];
+}
+
+export interface TmdlLoadResponse {
+  success: boolean;
+  message: string;
+  entities: number;
+  attributes: number;
+  measures: number;
+  metrics: number;
+}
+
+// Discovery / Workshop types
+export type WorkshopSessionType = 'top_down' | 'bottom_up' | 'gap_analysis';
+export type FindingCategory = 'missing_supply' | 'unused_supply' | 'shadow_system' | 'high_manual_effort' | 'data_quality' | 'other';
+
+export interface WorkshopFinding {
+  id: string;
+  category: FindingCategory;
+  description: string;
+  related_entity_ids: string[];
+  related_attribute_ids: string[];
+  priority: 'high' | 'medium' | 'low';
+}
+
+export interface WorkshopSession {
+  id: string;
+  name: string;
+  date: string;
+  participants: string[];
+  session_type: WorkshopSessionType;
+  notes?: string;
+  findings: WorkshopFinding[];
+}
+
+// Import response types
+export interface CsvImportResponse {
+  success: boolean;
+  created: number;
+  errors: string[];
+}
+
+export interface ExcelImportResponse {
+  success: boolean;
+  summary: Record<string, number>;
+  errors: string[];
+}
+
+// Process creation type
+export interface CreateProcessInput {
+  id: string;
+  name: string;
+  description?: string;
+  steps?: ProcessStep[];
 }

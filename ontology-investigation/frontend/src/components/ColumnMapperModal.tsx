@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Link, Unlink, ArrowRight, CheckCircle } from 'lucide-react';
 
-interface Observation {
+interface Attribute {
   id: string;
   name: string;
   description?: string;
@@ -13,12 +13,12 @@ interface Column {
   id: string;
   name: string;
   data_type: string;
-  mapped_observation_id?: string;
+  mapped_attribute_id?: string;
 }
 
 interface ColumnMapping {
   column_id: string;
-  observation_id: string;
+  attribute_id: string;
 }
 
 interface ColumnMapperModalProps {
@@ -27,7 +27,7 @@ interface ColumnMapperModalProps {
   tableId: string;
   tableName: string;
   columns: Column[];
-  availableObservations: Observation[];
+  availableAttributes: Attribute[];
   existingMappings: ColumnMapping[];
   onSave: (mappings: ColumnMapping[]) => void;
 }
@@ -37,29 +37,29 @@ export function ColumnMapperModal({
   onClose,
   tableName,
   columns,
-  availableObservations,
+  availableAttributes,
   existingMappings,
   onSave,
 }: ColumnMapperModalProps) {
   const [mappings, setMappings] = useState<ColumnMapping[]>([]);
   const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
-  const [selectedObservation, setSelectedObservation] = useState<string | null>(null);
+  const [selectedAttribute, setSelectedAttribute] = useState<string | null>(null);
 
   useEffect(() => {
     setMappings(existingMappings);
   }, [existingMappings, isOpen]);
 
   const handleCreateMapping = () => {
-    if (selectedColumn && selectedObservation) {
+    if (selectedColumn && selectedAttribute) {
       // Remove any existing mapping for this column
       const newMappings = mappings.filter((m) => m.column_id !== selectedColumn);
       newMappings.push({
         column_id: selectedColumn,
-        observation_id: selectedObservation,
+        attribute_id: selectedAttribute,
       });
       setMappings(newMappings);
       setSelectedColumn(null);
-      setSelectedObservation(null);
+      setSelectedAttribute(null);
     }
   };
 
@@ -72,21 +72,21 @@ export function ColumnMapperModal({
     onClose();
   };
 
-  const getMappedObservationForColumn = (columnId: string): string | undefined => {
-    return mappings.find((m) => m.column_id === columnId)?.observation_id;
+  const getMappedAttributeForColumn = (columnId: string): string | undefined => {
+    return mappings.find((m) => m.column_id === columnId)?.attribute_id;
   };
 
-  const isObservationMapped = (observationId: string): boolean => {
-    return mappings.some((m) => m.observation_id === observationId);
+  const isAttributeMapped = (attributeId: string): boolean => {
+    return mappings.some((m) => m.attribute_id === attributeId);
   };
 
-  const getObservationById = (id: string): Observation | undefined => {
-    return availableObservations.find((o) => o.id === id);
+  const getAttributeById = (id: string): Attribute | undefined => {
+    return availableAttributes.find((o) => o.id === id);
   };
 
-  const unmappedColumns = columns.filter((col) => !getMappedObservationForColumn(col.id));
-  const unmappedObservations = availableObservations.filter(
-    (obs) => !isObservationMapped(obs.id)
+  const unmappedColumns = columns.filter((col) => !getMappedAttributeForColumn(col.id));
+  const unmappedAttributes = availableAttributes.filter(
+    (obs) => !isAttributeMapped(obs.id)
   );
 
   if (!isOpen) return null;
@@ -97,7 +97,7 @@ export function ColumnMapperModal({
         {/* Header */}
         <div className="border-b px-6 py-4 flex justify-between items-center">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Map Columns to Observations</h2>
+            <h2 className="text-2xl font-bold text-gray-900">Map Columns to Attributes</h2>
             <p className="text-sm text-gray-600 mt-1">
               Table: <span className="font-semibold">{tableName}</span>
             </p>
@@ -130,22 +130,22 @@ export function ColumnMapperModal({
 
         {/* Main Content */}
         <div className="flex-1 overflow-hidden flex">
-          {/* Left Panel - Observations */}
+          {/* Left Panel - Attributes */}
           <div className="w-1/2 border-r flex flex-col">
             <div className="px-6 py-4 bg-blue-50 border-b">
-              <h3 className="font-semibold text-gray-900">Available Observations</h3>
+              <h3 className="font-semibold text-gray-900">Available Attributes</h3>
               <p className="text-xs text-gray-600 mt-1">
-                {unmappedObservations.length} unmapped
+                {unmappedAttributes.length} unmapped
               </p>
             </div>
             <div className="flex-1 overflow-auto p-4 space-y-2">
-              {availableObservations.map((obs) => {
-                const isMapped = isObservationMapped(obs.id);
-                const isSelected = selectedObservation === obs.id;
+              {availableAttributes.map((obs) => {
+                const isMapped = isAttributeMapped(obs.id);
+                const isSelected = selectedAttribute === obs.id;
                 return (
                   <div
                     key={obs.id}
-                    onClick={() => setSelectedObservation(obs.id)}
+                    onClick={() => setSelectedAttribute(obs.id)}
                     className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
                       isSelected
                         ? 'border-blue-500 bg-blue-50'
@@ -186,8 +186,8 @@ export function ColumnMapperModal({
             </div>
             <div className="flex-1 overflow-auto p-4 space-y-2">
               {columns.map((col) => {
-                const mappedObsId = getMappedObservationForColumn(col.id);
-                const mappedObs = mappedObsId ? getObservationById(mappedObsId) : undefined;
+                const mappedAttrId = getMappedAttributeForColumn(col.id);
+                const mappedAttr = mappedAttrId ? getAttributeById(mappedAttrId) : undefined;
                 const isSelected = selectedColumn === col.id;
 
                 return (
@@ -197,7 +197,7 @@ export function ColumnMapperModal({
                     className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
                       isSelected
                         ? 'border-purple-500 bg-purple-50'
-                        : mappedObs
+                        : mappedAttr
                         ? 'border-green-200 bg-green-50'
                         : 'border-gray-200 hover:border-gray-300 bg-white'
                     }`}
@@ -210,11 +210,11 @@ export function ColumnMapperModal({
                             {col.data_type}
                           </span>
                         </div>
-                        {mappedObs ? (
+                        {mappedAttr ? (
                           <div className="mt-2 flex items-center gap-2">
                             <Link className="w-3 h-3 text-green-600" />
                             <span className="text-xs text-green-700 font-medium">
-                              Mapped to: {mappedObs.name}
+                              Mapped to: {mappedAttr.name}
                             </span>
                             <button
                               onClick={(e) => {
@@ -241,7 +241,7 @@ export function ColumnMapperModal({
         </div>
 
         {/* Mapping Action Bar */}
-        {selectedColumn && selectedObservation && (
+        {selectedColumn && selectedAttribute && (
           <div className="border-t bg-blue-50 px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -253,9 +253,9 @@ export function ColumnMapperModal({
                 </div>
                 <ArrowRight className="w-5 h-5 text-gray-400" />
                 <div className="text-sm">
-                  <span className="font-medium text-gray-700">Selected Observation:</span>
+                  <span className="font-medium text-gray-700">Selected Attribute:</span>
                   <span className="ml-2 font-semibold text-blue-700">
-                    {availableObservations.find((o) => o.id === selectedObservation)?.name}
+                    {availableAttributes.find((o) => o.id === selectedAttribute)?.name}
                   </span>
                 </div>
               </div>

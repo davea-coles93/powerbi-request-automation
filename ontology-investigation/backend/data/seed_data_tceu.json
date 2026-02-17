@@ -1,0 +1,1792 @@
+{
+  "scenario_name": "Toyota Connected Europe - Mieruka Replacement Programme",
+  "scenario_description": "Enterprise project governance, resource management, timesheet management, and financial forecasting for TCEU's digital consulting practice. Covers the full lifecycle from lead capture through project closure, plus ongoing resource and licence management.",
+  "perspectives": [
+    {
+      "id": "operational",
+      "name": "Operational",
+      "purpose": "Execute and record business activities",
+      "primary_concern": "Are we delivering sprint commitments? Are blockers cleared? Is the backlog healthy?",
+      "typical_actors": [
+        "Developer",
+        "Scrum Master",
+        "QA Engineer",
+        "DevOps Engineer",
+        "Business Analyst"
+      ],
+      "consumes_from": [],
+      "feeds": [
+        "management"
+      ]
+    },
+    {
+      "id": "management",
+      "name": "Management",
+      "purpose": "Ensure project health and resource optimization",
+      "primary_concern": "Are projects on track? Do we have the right people? What are the risks?",
+      "typical_actors": [
+        "Project Manager",
+        "Program Manager",
+        "Resource Manager",
+        "PMO Lead"
+      ],
+      "consumes_from": [
+        "operational"
+      ],
+      "feeds": [
+        "financial"
+      ]
+    },
+    {
+      "id": "financial",
+      "name": "Financial",
+      "purpose": "Optimize portfolio investment and ensure financial accountability",
+      "primary_concern": "Are we investing in the right projects? What's our forecast accuracy? Are we profitable?",
+      "typical_actors": [
+        "Finance Manager",
+        "CFO",
+        "Portfolio Director",
+        "Executive Leadership"
+      ],
+      "consumes_from": [
+        "management",
+        "operational"
+      ],
+      "feeds": []
+    }
+  ],
+  "systems": [
+    {
+      "id": "mieruka",
+      "name": "Mieruka",
+      "type": "Other",
+      "vendor": "Custom (Toyota Connected)",
+      "reliability_default": "Medium",
+      "integration_status": "Connected",
+      "notes": "Custom project governance tool built on PowerApps. Performance issues cause users to work offline in Excel. Budget tracking, resource allocation, forecasting done here but often stale. Being replaced by this programme."
+    },
+    {
+      "id": "jira",
+      "name": "Jira",
+      "type": "Other",
+      "vendor": "Atlassian",
+      "reliability_default": "High",
+      "integration_status": "Connected",
+      "notes": "Primary project management tool. Stories, sprints, velocity tracked here. API connected but data quality depends on team discipline."
+    },
+    {
+      "id": "excel",
+      "name": "Excel Spreadsheets",
+      "type": "Spreadsheet",
+      "vendor": "Microsoft",
+      "reliability_default": "Low",
+      "integration_status": "Manual Extract",
+      "notes": "Heavy offline usage due to Mieruka performance. Forecasts, resource plans, status reports all maintained in Excel. Version control nightmare, multiple sources of truth."
+    },
+    {
+      "id": "sharepoint",
+      "name": "SharePoint",
+      "type": "Other",
+      "vendor": "Microsoft",
+      "reliability_default": "Medium",
+      "integration_status": "Connected",
+      "notes": "Document management for SOWs, contracts, architecture docs. Metadata not consistently applied, making it hard to link documents to projects automatically."
+    },
+    {
+      "id": "trello",
+      "name": "Trello",
+      "type": "Other",
+      "vendor": "Atlassian",
+      "reliability_default": "Low",
+      "integration_status": "None",
+      "notes": "Used for non-dev work tracking (presales, admin). No integration with other systems, data silos."
+    },
+    {
+      "id": "oracle",
+      "name": "Oracle (Finance)",
+      "type": "ERP",
+      "vendor": "Oracle",
+      "reliability_default": "High",
+      "integration_status": "Connected",
+      "notes": "System of record for actuals, revenue recognition, and project codes. Reliable but complex chart of accounts makes ad-hoc reporting difficult."
+    },
+    {
+      "id": "hibob",
+      "name": "HiBob",
+      "type": "Other",
+      "vendor": "HiBob",
+      "reliability_default": "High",
+      "integration_status": "Connected",
+      "notes": "HR system for time-off, employee data. Well-structured API but limited to HR scope."
+    },
+    {
+      "id": "teams",
+      "name": "Microsoft Teams",
+      "type": "Other",
+      "vendor": "Microsoft",
+      "reliability_default": "Low",
+      "integration_status": "None",
+      "notes": "Conversations and decisions happen here but not captured systematically. Key context lost in chat history."
+    },
+    {
+      "id": "power_bi",
+      "name": "Power BI (Dataverse)",
+      "type": "BI",
+      "vendor": "Microsoft",
+      "reliability_default": "Medium",
+      "integration_status": "Connected",
+      "notes": "Target reporting platform. Currently limited dashboards. Goal is to consolidate all reporting here via the new semantic model."
+    }
+  ],
+  "entities": [
+    {
+      "id": "project",
+      "name": "Project",
+      "description": "A discrete piece of client work with defined scope, timeline, and budget",
+      "core_attributes": [
+        { "name": "Project Code", "data_type": "string", "description": "Unique Oracle project code" },
+        { "name": "Name", "data_type": "string", "description": "Project display name" },
+        { "name": "Start Date", "data_type": "date" },
+        { "name": "End Date", "data_type": "date" },
+        { "name": "Status", "data_type": "string", "description": "Active / On Hold / Closed" }
+      ],
+      "lenses": [
+        {
+          "perspective_id": "operational",
+          "interpretation": "A backlog of work to execute in sprints",
+          "derived_attributes": [
+            { "name": "Sprint Velocity", "data_type": "number", "derivation": "Story points completed per sprint" },
+            { "name": "Backlog Health", "data_type": "string", "derivation": "Groomed vs ungroomed ratio" }
+          ]
+        },
+        {
+          "perspective_id": "management",
+          "interpretation": "A delivery commitment with RAG status and resource needs",
+          "derived_attributes": [
+            { "name": "RAG Status", "data_type": "string" },
+            { "name": "Resource Gap", "data_type": "number", "derivation": "Required FTE - Allocated FTE" },
+            { "name": "Risk Score", "data_type": "number" }
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "A cost centre and revenue stream",
+          "derived_attributes": [
+            { "name": "Budget Variance", "data_type": "number", "derivation": "Budget Approved - Actuals" },
+            { "name": "Forecast Accuracy", "data_type": "number", "derivation": "(Forecast - Actuals) / Forecast" },
+            { "name": "Gross Margin", "data_type": "number", "derivation": "(Revenue - Actuals) / Revenue" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "programme",
+      "name": "Programme",
+      "description": "A collection of related projects managed as a portfolio",
+      "core_attributes": [
+        { "name": "Programme Name", "data_type": "string" },
+        { "name": "Owner", "data_type": "string" },
+        { "name": "Strategic Theme", "data_type": "string" }
+      ],
+      "lenses": [
+        {
+          "perspective_id": "management",
+          "interpretation": "Portfolio of projects to coordinate and prioritise",
+          "derived_attributes": [
+            { "name": "Portfolio Health Score", "data_type": "number" },
+            { "name": "Project Count", "data_type": "number" }
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Investment bucket with aggregate financials",
+          "derived_attributes": [
+            { "name": "Total Budget", "data_type": "number" },
+            { "name": "Total Revenue", "data_type": "number" },
+            { "name": "Aggregate Margin", "data_type": "number" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resource",
+      "name": "Resource",
+      "description": "A person (employee or contractor) who can be allocated to projects",
+      "core_attributes": [
+        { "name": "Name", "data_type": "string" },
+        { "name": "Role", "data_type": "string" },
+        { "name": "Level", "data_type": "string", "description": "Junior / Mid / Senior / Lead" },
+        { "name": "Employment Type", "data_type": "string", "description": "Permanent / Contractor" }
+      ],
+      "lenses": [
+        {
+          "perspective_id": "operational",
+          "interpretation": "A team member executing sprint work",
+          "derived_attributes": [
+            { "name": "Current Sprint Load", "data_type": "number" },
+            { "name": "Availability This Week", "data_type": "number" }
+          ]
+        },
+        {
+          "perspective_id": "management",
+          "interpretation": "A capacity unit to allocate across projects",
+          "derived_attributes": [
+            { "name": "Utilization Rate", "data_type": "number", "derivation": "Allocated Hours / Available Hours" },
+            { "name": "Allocation Conflicts", "data_type": "number" }
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "A cost line with a blended rate",
+          "derived_attributes": [
+            { "name": "Blended Day Rate", "data_type": "number" },
+            { "name": "Monthly Cost", "data_type": "number" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "account",
+      "name": "Account",
+      "description": "A client or internal account that owns projects",
+      "core_attributes": [
+        { "name": "Account Name", "data_type": "string" },
+        { "name": "Account Type", "data_type": "string", "description": "Client / Internal" },
+        { "name": "Status", "data_type": "string" }
+      ],
+      "lenses": [
+        {
+          "perspective_id": "management",
+          "interpretation": "A client relationship to manage",
+          "derived_attributes": [
+            { "name": "Active Projects", "data_type": "number" },
+            { "name": "Resource Count", "data_type": "number" }
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "A revenue source with contract terms",
+          "derived_attributes": [
+            { "name": "Contract Value", "data_type": "number" },
+            { "name": "Revenue YTD", "data_type": "number" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "timesheet",
+      "name": "Timesheet",
+      "description": "Time recording for a resource against a project for a period",
+      "core_attributes": [
+        { "name": "Period", "data_type": "date" },
+        { "name": "Resource ID", "data_type": "string" },
+        { "name": "Project ID", "data_type": "string" }
+      ],
+      "lenses": [
+        {
+          "perspective_id": "operational",
+          "interpretation": "Daily time recording to submit",
+          "derived_attributes": [
+            { "name": "Hours Logged Today", "data_type": "number" },
+            { "name": "Submission Status", "data_type": "string" }
+          ]
+        },
+        {
+          "perspective_id": "management",
+          "interpretation": "Approved time for project tracking",
+          "derived_attributes": [
+            { "name": "Approved Days This Month", "data_type": "number" },
+            { "name": "Pending Approvals", "data_type": "number" }
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Billable hours driving revenue recognition",
+          "derived_attributes": [
+            { "name": "Billable Amount", "data_type": "number", "derivation": "Approved Hours × Rate" },
+            { "name": "Non-Billable Ratio", "data_type": "number" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "budget",
+      "name": "Budget",
+      "description": "Approved spending plan for a project or programme",
+      "core_attributes": [
+        { "name": "Budget Amount", "data_type": "number" },
+        { "name": "Currency", "data_type": "string" },
+        { "name": "Fiscal Year", "data_type": "string" }
+      ],
+      "lenses": [
+        {
+          "perspective_id": "management",
+          "interpretation": "Spending ceiling to manage against",
+          "derived_attributes": [
+            { "name": "Remaining Budget", "data_type": "number", "derivation": "Approved - Spent" },
+            { "name": "Burn Rate", "data_type": "number" }
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Financial commitment requiring variance analysis",
+          "derived_attributes": [
+            { "name": "Budget Variance", "data_type": "number" },
+            { "name": "Forecast to Complete", "data_type": "number" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sow",
+      "name": "Statement of Work",
+      "description": "Contractual document defining project scope, deliverables, and terms",
+      "core_attributes": [
+        { "name": "SOW Reference", "data_type": "string" },
+        { "name": "Client", "data_type": "string" },
+        { "name": "Value", "data_type": "number" },
+        { "name": "Signed Date", "data_type": "date" }
+      ],
+      "lenses": [
+        {
+          "perspective_id": "management",
+          "interpretation": "Scope boundary for project delivery",
+          "derived_attributes": [
+            { "name": "Scope Status", "data_type": "string" },
+            { "name": "Change Requests", "data_type": "number" }
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Revenue commitment and billing basis",
+          "derived_attributes": [
+            { "name": "Billed Amount", "data_type": "number" },
+            { "name": "Unbilled Amount", "data_type": "number" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lead",
+      "name": "Lead",
+      "description": "A potential project opportunity in the presales pipeline",
+      "core_attributes": [
+        { "name": "Lead Name", "data_type": "string" },
+        { "name": "Client", "data_type": "string" },
+        { "name": "Status", "data_type": "string", "description": "Prospect / Qualified / Proposal / Won / Lost" }
+      ],
+      "lenses": [
+        {
+          "perspective_id": "management",
+          "interpretation": "Pipeline opportunity to qualify and staff",
+          "derived_attributes": [
+            { "name": "Probability", "data_type": "number" },
+            { "name": "Expected Start Date", "data_type": "date" },
+            { "name": "Required Roles", "data_type": "string" }
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Potential revenue to forecast",
+          "derived_attributes": [
+            { "name": "Weighted Pipeline Value", "data_type": "number", "derivation": "Estimated Value × Probability" },
+            { "name": "Expected Margin", "data_type": "number" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "licence",
+      "name": "Licence",
+      "description": "Software tool licence assigned to resources or projects",
+      "core_attributes": [
+        { "name": "Tool Name", "data_type": "string" },
+        { "name": "Licence Type", "data_type": "string" },
+        { "name": "Quantity", "data_type": "number" },
+        { "name": "Expiry Date", "data_type": "date" }
+      ],
+      "lenses": [
+        {
+          "perspective_id": "management",
+          "interpretation": "Tool assignment to manage and renew",
+          "derived_attributes": [
+            { "name": "Days Until Expiry", "data_type": "number" },
+            { "name": "Assigned Count", "data_type": "number" }
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Recurring cost to budget for",
+          "derived_attributes": [
+            { "name": "Annual Cost", "data_type": "number" },
+            { "name": "Cost Per User", "data_type": "number" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "risk",
+      "name": "Risk",
+      "description": "An identified risk to a project or programme",
+      "core_attributes": [
+        { "name": "Description", "data_type": "string" },
+        { "name": "Likelihood", "data_type": "string" },
+        { "name": "Impact", "data_type": "string" },
+        { "name": "Status", "data_type": "string", "description": "Open / Mitigated / Closed" }
+      ],
+      "lenses": [
+        {
+          "perspective_id": "management",
+          "interpretation": "A threat to project delivery to mitigate",
+          "derived_attributes": [
+            { "name": "Risk Score", "data_type": "number", "derivation": "Likelihood × Impact" },
+            { "name": "Mitigation Plan", "data_type": "string" }
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Potential financial exposure",
+          "derived_attributes": [
+            { "name": "Financial Exposure", "data_type": "number" },
+            { "name": "Contingency Budget", "data_type": "number" }
+          ]
+        }
+      ]
+    }
+  ],
+  "attributes": [
+    {
+      "id": "attr_project_code",
+      "name": "Project Code",
+      "description": "Oracle-assigned project code. Single source of truth for project identity across systems.",
+      "entity_id": "project",
+      "system_id": "oracle",
+      "source_actor": "Finance Team",
+      "reliability": "High",
+      "volatility": "Point-in-time",
+      "notes": "Created in Oracle when project is approved. Used as join key across Mieruka, Jira, and timesheets."
+    },
+    {
+      "id": "attr_project_stage",
+      "name": "Project Stage",
+      "description": "Current stage gate (e.g. Discovery, Build, UAT, Live). Manually updated in Mieruka.",
+      "entity_id": "project",
+      "system_id": "mieruka",
+      "source_actor": "PM",
+      "reliability": "Medium",
+      "volatility": "Point-in-time",
+      "notes": "Often stale. PMs sometimes skip updates due to Mieruka's slow performance."
+    },
+    {
+      "id": "attr_rag_status",
+      "name": "RAG Status",
+      "description": "Red/Amber/Green health indicator. Manually set by PM based on subjective assessment.",
+      "entity_id": "project",
+      "system_id": "mieruka",
+      "source_actor": "PM",
+      "reliability": "Medium",
+      "volatility": "Point-in-time",
+      "notes": "Subjective. Different PMs have different thresholds. No automated triggers."
+    },
+    {
+      "id": "attr_budget_approved",
+      "name": "Budget Approved",
+      "description": "Approved budget amount for a project. Set during project initiation.",
+      "entity_id": "budget",
+      "system_id": "mieruka",
+      "source_actor": "Finance / PMO",
+      "reliability": "High",
+      "volatility": "Point-in-time",
+      "notes": "Relatively stable once approved. Change requires formal approval process."
+    },
+    {
+      "id": "attr_budget_data",
+      "name": "Budget Breakdown",
+      "description": "Detailed budget lines by category (people, tools, infrastructure). Maintained in Mieruka.",
+      "entity_id": "budget",
+      "system_id": "mieruka",
+      "source_actor": "PM / Finance",
+      "reliability": "Medium",
+      "volatility": "Accumulating",
+      "notes": "Often out of date. Detailed breakdowns sometimes only exist in PM's Excel."
+    },
+    {
+      "id": "attr_actuals",
+      "name": "Actuals (Spend)",
+      "description": "Actual spend posted against project code. Source of truth from Oracle GL.",
+      "entity_id": "project",
+      "system_id": "oracle",
+      "source_actor": "Finance System",
+      "reliability": "High",
+      "volatility": "Accumulating",
+      "notes": "Reliable but only updated after month-end close. 2-3 week lag for current period."
+    },
+    {
+      "id": "attr_terms_of_ref",
+      "name": "Terms of Reference",
+      "description": "Project charter / terms of reference document link.",
+      "entity_id": "project",
+      "system_id": "mieruka",
+      "source_actor": "PM",
+      "reliability": "Medium",
+      "volatility": "Point-in-time",
+      "notes": "Link stored in Mieruka, actual document in SharePoint."
+    },
+    {
+      "id": "attr_sow_doc",
+      "name": "Statement of Work Document",
+      "description": "Signed SOW document stored in SharePoint.",
+      "entity_id": "sow",
+      "system_id": "sharepoint",
+      "source_actor": "PM / Legal",
+      "reliability": "High",
+      "volatility": "Point-in-time",
+      "notes": "Once signed, immutable. Metadata linking to project not always set."
+    },
+    {
+      "id": "attr_architecture_doc",
+      "name": "Architecture Documentation",
+      "description": "Technical architecture documents stored in SharePoint.",
+      "entity_id": "project",
+      "system_id": "sharepoint",
+      "source_actor": "Solution Architect",
+      "reliability": "Medium",
+      "volatility": "Point-in-time",
+      "notes": "Quality varies. Not all projects have formal architecture docs."
+    },
+    {
+      "id": "attr_presales_estimate",
+      "name": "Presales Estimate",
+      "description": "Initial effort and cost estimate created during presales phase.",
+      "entity_id": "lead",
+      "system_id": "excel",
+      "source_actor": "Presales / Solution Architect",
+      "reliability": "Low",
+      "volatility": "Point-in-time",
+      "notes": "Produced in Excel during proposal phase. Often used as baseline even when scope changes."
+    },
+    {
+      "id": "attr_demand_by_role",
+      "name": "Demand by Role",
+      "description": "Required resource roles and quantities for a lead/project.",
+      "entity_id": "lead",
+      "system_id": "excel",
+      "source_actor": "Presales / RM",
+      "reliability": "Low",
+      "volatility": "Point-in-time",
+      "notes": "Tracked in Excel. No automated link to actual resource availability."
+    },
+    {
+      "id": "attr_gm_estimate",
+      "name": "Gross Margin Estimate",
+      "description": "Estimated gross margin for the opportunity.",
+      "entity_id": "lead",
+      "system_id": "excel",
+      "source_actor": "Presales / Finance",
+      "reliability": "Low",
+      "volatility": "Point-in-time",
+      "notes": "Based on presales estimate and assumed rates. Often optimistic."
+    },
+    {
+      "id": "attr_completed_tasks",
+      "name": "Completed Tasks / Stories",
+      "description": "Count and details of completed Jira stories in current/recent sprints.",
+      "entity_id": "project",
+      "system_id": "jira",
+      "source_actor": "Dev Team",
+      "reliability": "High",
+      "volatility": "Accumulating",
+      "notes": "Good quality data when teams follow Jira workflow. Some teams less disciplined."
+    },
+    {
+      "id": "attr_story_points",
+      "name": "Story Points Completed",
+      "description": "Story points completed per sprint. Used for velocity tracking.",
+      "entity_id": "project",
+      "system_id": "jira",
+      "source_actor": "Dev Team",
+      "reliability": "High",
+      "volatility": "Accumulating",
+      "notes": "Depends on consistent estimation across teams. Not all teams use story points."
+    },
+    {
+      "id": "attr_planned_points",
+      "name": "Planned Story Points",
+      "description": "Story points planned for current sprint.",
+      "entity_id": "project",
+      "system_id": "jira",
+      "source_actor": "Scrum Master",
+      "reliability": "High",
+      "volatility": "Point-in-time",
+      "notes": "Set at sprint planning. Good indicator of capacity commitment."
+    },
+    {
+      "id": "attr_backlog_size",
+      "name": "Backlog Size",
+      "description": "Total story points in the product backlog.",
+      "entity_id": "project",
+      "system_id": "jira",
+      "source_actor": "Product Owner",
+      "reliability": "Medium",
+      "volatility": "Accumulating",
+      "notes": "Only meaningful if backlog is groomed. Stale backlogs give misleading numbers."
+    },
+    {
+      "id": "attr_blended_rate",
+      "name": "Blended Day Rate",
+      "description": "Blended daily cost rate for a resource (mix of salary, overheads, margin).",
+      "entity_id": "resource",
+      "system_id": "mieruka",
+      "source_actor": "Finance / RM",
+      "reliability": "Medium",
+      "volatility": "Point-in-time",
+      "notes": "Updated annually. May not reflect actual cost for contractors."
+    },
+    {
+      "id": "attr_people_cost",
+      "name": "People Cost",
+      "description": "Total people cost for a resource including salary, NI, benefits.",
+      "entity_id": "resource",
+      "system_id": "mieruka",
+      "source_actor": "Finance / HR",
+      "reliability": "Medium",
+      "volatility": "Point-in-time",
+      "notes": "Synchronized from HR. Updated when salary changes."
+    },
+    {
+      "id": "attr_contracts",
+      "name": "Contracts",
+      "description": "Contractor/employment contracts stored in SharePoint.",
+      "entity_id": "resource",
+      "system_id": "sharepoint",
+      "source_actor": "HR / Procurement",
+      "reliability": "High",
+      "volatility": "Point-in-time",
+      "notes": "Immutable once signed. Metadata linking to resource not always set."
+    },
+    {
+      "id": "attr_resource_level",
+      "name": "Resource Level / Grade",
+      "description": "Seniority level of a resource (Junior, Mid, Senior, Lead, etc.).",
+      "entity_id": "resource",
+      "system_id": "mieruka",
+      "source_actor": "HR / RM",
+      "reliability": "High",
+      "volatility": "Point-in-time",
+      "notes": "Updated during promotions/reviews."
+    },
+    {
+      "id": "attr_availability",
+      "name": "Resource Availability",
+      "description": "Available capacity (days/hours) for a resource in a given period.",
+      "entity_id": "resource",
+      "system_id": "mieruka",
+      "source_actor": "RM",
+      "reliability": "Medium",
+      "volatility": "Continuous",
+      "notes": "Should account for holidays but HiBob integration is manual."
+    },
+    {
+      "id": "attr_allocation",
+      "name": "Resource Allocation",
+      "description": "Current project allocation for a resource. Mieruka only allows allocation to one project per person.",
+      "entity_id": "resource",
+      "system_id": "mieruka",
+      "source_actor": "RM",
+      "reliability": "Medium",
+      "volatility": "Continuous",
+      "notes": "Major limitation: Mieruka can only allocate one person to one project. Partial allocations require Excel workaround."
+    },
+    {
+      "id": "attr_allocation_excel",
+      "name": "Resource Allocation (Excel Override)",
+      "description": "Detailed resource allocation across multiple projects maintained in Excel due to Mieruka limitations.",
+      "entity_id": "resource",
+      "system_id": "excel",
+      "source_actor": "RM",
+      "reliability": "Low",
+      "volatility": "Continuous",
+      "notes": "The real source of truth for multi-project allocation. Mieruka data is often wrong."
+    },
+    {
+      "id": "attr_fte_allocation",
+      "name": "FTE Allocation (Granular)",
+      "description": "Granular FTE allocation (e.g. 0.5 FTE). Currently only possible in Excel.",
+      "entity_id": "resource",
+      "system_id": "excel",
+      "source_actor": "RM / PM",
+      "reliability": "Low",
+      "volatility": "Continuous",
+      "notes": "Mieruka cannot do partial allocation. Excel is the only place this data exists."
+    },
+    {
+      "id": "attr_account_status",
+      "name": "Account Status",
+      "description": "Current status of the client account (Active, Dormant, Closed).",
+      "entity_id": "account",
+      "system_id": "mieruka",
+      "source_actor": "Account Manager",
+      "reliability": "Medium",
+      "volatility": "Point-in-time"
+    },
+    {
+      "id": "attr_account_type",
+      "name": "Account Type",
+      "description": "Type classification (Client, Internal, Partner).",
+      "entity_id": "account",
+      "system_id": "mieruka",
+      "source_actor": "Admin",
+      "reliability": "High",
+      "volatility": "Point-in-time"
+    },
+    {
+      "id": "attr_start_date",
+      "name": "Account Start Date",
+      "description": "Date the account relationship began.",
+      "entity_id": "account",
+      "system_id": "mieruka",
+      "source_actor": "Admin",
+      "reliability": "High",
+      "volatility": "Point-in-time"
+    },
+    {
+      "id": "attr_end_date",
+      "name": "Account End Date",
+      "description": "Date the account relationship ended (if applicable).",
+      "entity_id": "account",
+      "system_id": "mieruka",
+      "source_actor": "Admin",
+      "reliability": "High",
+      "volatility": "Point-in-time"
+    },
+    {
+      "id": "attr_hours_submitted",
+      "name": "Hours Submitted",
+      "description": "Timesheet hours submitted by the resource for a period.",
+      "entity_id": "timesheet",
+      "system_id": "mieruka",
+      "source_actor": "Resource",
+      "reliability": "Medium",
+      "volatility": "Accumulating",
+      "notes": "Self-reported. Quality depends on whether resources submit daily or batch at end of week."
+    },
+    {
+      "id": "attr_hours_approved",
+      "name": "Hours Approved",
+      "description": "Timesheet hours approved by the PM.",
+      "entity_id": "timesheet",
+      "system_id": "mieruka",
+      "source_actor": "PM",
+      "reliability": "High",
+      "volatility": "Accumulating",
+      "notes": "Once approved, used for billing. Approval bottleneck at month-end."
+    },
+    {
+      "id": "attr_approved_days",
+      "name": "Approved Days",
+      "description": "Total approved working days for the period.",
+      "entity_id": "timesheet",
+      "system_id": "mieruka",
+      "source_actor": "PM",
+      "reliability": "High",
+      "volatility": "Accumulating",
+      "notes": "Derived from approved hours. Used for financial reporting."
+    },
+    {
+      "id": "attr_time_off",
+      "name": "Time Off / Leave",
+      "description": "Approved leave and time-off from HiBob.",
+      "entity_id": "resource",
+      "system_id": "hibob",
+      "source_actor": "HR System",
+      "reliability": "High",
+      "volatility": "Accumulating",
+      "notes": "Reliable source but not automatically reflected in Mieruka availability."
+    },
+    {
+      "id": "attr_timesheet_granularity",
+      "name": "Timesheet Granularity (Jira)",
+      "description": "Time logged against individual Jira stories/tasks.",
+      "entity_id": "timesheet",
+      "system_id": "jira",
+      "source_actor": "Developer",
+      "reliability": "Medium",
+      "volatility": "Accumulating",
+      "notes": "More granular than Mieruka timesheets. Not all teams use Jira time logging."
+    },
+    {
+      "id": "attr_revenue",
+      "name": "Revenue (Actuals)",
+      "description": "Recognized revenue from Oracle GL.",
+      "entity_id": "project",
+      "system_id": "oracle",
+      "source_actor": "Finance System",
+      "reliability": "High",
+      "volatility": "Accumulating",
+      "notes": "System of record. Updated after month-end. Basis for all financial reporting."
+    },
+    {
+      "id": "attr_tool_cost",
+      "name": "Tool / Licence Cost",
+      "description": "Monthly or annual cost of a software licence.",
+      "entity_id": "licence",
+      "system_id": "mieruka",
+      "source_actor": "IT / Finance",
+      "reliability": "Medium",
+      "volatility": "Point-in-time",
+      "notes": "Manually tracked. Not always up to date with latest renewal prices."
+    },
+    {
+      "id": "attr_forecast_spend",
+      "name": "Forecast Spend (Mieruka)",
+      "description": "Forecast future spend for the project. Entered in Mieruka by PM.",
+      "entity_id": "project",
+      "system_id": "mieruka",
+      "source_actor": "PM",
+      "reliability": "Medium",
+      "volatility": "Continuous",
+      "notes": "Often stale. PMs prefer to maintain forecasts in Excel due to Mieruka performance."
+    },
+    {
+      "id": "attr_forecast_excel",
+      "name": "Forecast (Excel)",
+      "description": "Detailed financial forecast maintained in Excel by PM.",
+      "entity_id": "project",
+      "system_id": "excel",
+      "source_actor": "PM",
+      "reliability": "Low",
+      "volatility": "Continuous",
+      "notes": "Often the real forecast. Version control issues mean different stakeholders may have different versions."
+    },
+    {
+      "id": "attr_lead_status",
+      "name": "Lead Status",
+      "description": "Current pipeline status of a lead opportunity.",
+      "entity_id": "lead",
+      "system_id": "jira",
+      "source_actor": "BD / Presales",
+      "reliability": "Medium",
+      "volatility": "Point-in-time",
+      "notes": "Tracked as Jira issues in a presales board."
+    },
+    {
+      "id": "attr_conversion_prob",
+      "name": "Conversion Probability",
+      "description": "Estimated probability of winning the opportunity (0-100%).",
+      "entity_id": "lead",
+      "system_id": "excel",
+      "source_actor": "BD / Presales",
+      "reliability": "Low",
+      "volatility": "Point-in-time",
+      "notes": "Subjective assessment. Used for weighted pipeline calculations."
+    },
+    {
+      "id": "attr_pipeline_value",
+      "name": "Pipeline Value",
+      "description": "Estimated value of the opportunity if won.",
+      "entity_id": "lead",
+      "system_id": "excel",
+      "source_actor": "BD / Presales",
+      "reliability": "Low",
+      "volatility": "Point-in-time",
+      "notes": "Based on presales estimate. May change significantly during negotiation."
+    },
+    {
+      "id": "attr_licence_count",
+      "name": "Licence Count",
+      "description": "Number of active licences for a tool.",
+      "entity_id": "licence",
+      "system_id": "mieruka",
+      "source_actor": "IT Admin",
+      "reliability": "Medium",
+      "volatility": "Point-in-time",
+      "notes": "Manually tracked. May not reflect actual usage."
+    },
+    {
+      "id": "attr_licence_expiry",
+      "name": "Licence Expiry Date",
+      "description": "When the licence agreement expires.",
+      "entity_id": "licence",
+      "system_id": "mieruka",
+      "source_actor": "IT Admin",
+      "reliability": "High",
+      "volatility": "Point-in-time"
+    },
+    {
+      "id": "attr_risk_description",
+      "name": "Risk Description",
+      "description": "Documented project risks with likelihood and impact assessment.",
+      "entity_id": "risk",
+      "system_id": "excel",
+      "source_actor": "PM",
+      "reliability": "Low",
+      "volatility": "Continuous",
+      "notes": "Risk registers maintained in Excel per project. No central risk view."
+    },
+    {
+      "id": "attr_change_history",
+      "name": "Change History",
+      "description": "Audit trail of project changes (scope, timeline, budget).",
+      "entity_id": "project",
+      "system_id": "mieruka",
+      "source_actor": "PM / System",
+      "reliability": "Medium",
+      "volatility": "Accumulating",
+      "notes": "Mieruka tracks some changes but not all. Significant changes often only documented in email."
+    },
+    {
+      "id": "attr_resource_change_hist",
+      "name": "Resource Change History",
+      "description": "History of resource allocation changes on an account.",
+      "entity_id": "account",
+      "system_id": "mieruka",
+      "source_actor": "RM / System",
+      "reliability": "Medium",
+      "volatility": "Accumulating",
+      "notes": "Useful for understanding account staffing trends."
+    },
+    {
+      "id": "attr_status_report",
+      "name": "Status Report",
+      "description": "Weekly/monthly project status report produced by PM.",
+      "entity_id": "project",
+      "system_id": "excel",
+      "source_actor": "PM",
+      "reliability": "Medium",
+      "volatility": "Accumulating",
+      "notes": "Produced manually in Excel/PowerPoint. Time-consuming and often inconsistent format."
+    },
+    {
+      "id": "attr_escalation_decisions",
+      "name": "Escalation Decisions",
+      "description": "Key escalation decisions and outcomes from risk management.",
+      "entity_id": "risk",
+      "system_id": "teams",
+      "source_actor": "PM / Leadership",
+      "reliability": "Low",
+      "volatility": "Accumulating",
+      "notes": "Decisions made in Teams meetings often not formally documented. Key context gets lost."
+    }
+  ],
+  "measures": [
+    {
+      "id": "meas_sprint_velocity",
+      "name": "Sprint Velocity",
+      "description": "Average story points completed per sprint over the last 3 sprints",
+      "logic": "Rolling 3-sprint average of completed story points",
+      "formula": "AVG(attr_story_points, last 3 sprints)",
+      "input_attribute_ids": ["attr_story_points", "attr_completed_tasks"],
+      "input_measure_ids": [],
+      "perspective_ids": ["operational"]
+    },
+    {
+      "id": "meas_sprint_completion_rate",
+      "name": "Sprint Completion Rate",
+      "description": "Percentage of planned story points actually completed in a sprint",
+      "logic": "Completed points divided by planned points",
+      "formula": "attr_story_points / attr_planned_points × 100",
+      "input_attribute_ids": ["attr_story_points", "attr_planned_points"],
+      "input_measure_ids": [],
+      "perspective_ids": ["operational"]
+    },
+    {
+      "id": "meas_backlog_completion",
+      "name": "Backlog Completion Rate",
+      "description": "Percentage of total backlog that has been completed",
+      "logic": "Completed stories as fraction of total backlog",
+      "formula": "attr_completed_tasks / (attr_completed_tasks + attr_backlog_size) × 100",
+      "input_attribute_ids": ["attr_completed_tasks", "attr_backlog_size"],
+      "input_measure_ids": [],
+      "perspective_ids": ["operational"]
+    },
+    {
+      "id": "meas_budget_variance",
+      "name": "Budget Variance",
+      "description": "Difference between approved budget and actual spend",
+      "logic": "Budget minus actuals. Positive = under budget.",
+      "formula": "attr_budget_approved - attr_actuals",
+      "input_attribute_ids": ["attr_budget_approved", "attr_actuals"],
+      "input_measure_ids": [],
+      "perspective_ids": ["financial", "management"]
+    },
+    {
+      "id": "meas_budget_burn_rate",
+      "name": "Budget Burn Rate",
+      "description": "Monthly rate of budget consumption",
+      "logic": "Actuals divided by months elapsed since project start",
+      "formula": "attr_actuals / months_elapsed",
+      "input_attribute_ids": ["attr_actuals"],
+      "input_measure_ids": [],
+      "perspective_ids": ["financial", "management"]
+    },
+    {
+      "id": "meas_forecast_accuracy",
+      "name": "Forecast Accuracy",
+      "description": "How close the forecast was to actual spend",
+      "logic": "Absolute difference between forecast and actuals as percentage of actuals",
+      "formula": "1 - ABS(attr_forecast_spend - attr_actuals) / attr_actuals",
+      "input_attribute_ids": ["attr_forecast_spend", "attr_actuals"],
+      "input_measure_ids": [],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "meas_resource_utilization",
+      "name": "Resource Utilization",
+      "description": "Ratio of allocated/billed time to available time",
+      "logic": "Approved hours divided by available capacity",
+      "formula": "attr_hours_approved / attr_availability × 100",
+      "input_attribute_ids": ["attr_hours_approved", "attr_availability", "attr_time_off"],
+      "input_measure_ids": [],
+      "perspective_ids": ["management"]
+    },
+    {
+      "id": "meas_billable_days",
+      "name": "Billable Days",
+      "description": "Total approved billable days for a project/resource",
+      "logic": "Sum of approved timesheet days",
+      "formula": "SUM(attr_approved_days)",
+      "input_attribute_ids": ["attr_approved_days"],
+      "input_measure_ids": [],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "meas_people_cost_total",
+      "name": "Total People Cost",
+      "description": "Total cost of resources allocated to a project",
+      "logic": "Sum of (blended rate × allocated days) for each resource",
+      "formula": "SUM(attr_blended_rate × attr_approved_days)",
+      "input_attribute_ids": ["attr_blended_rate", "attr_approved_days"],
+      "input_measure_ids": [],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "meas_gross_margin",
+      "name": "Gross Margin",
+      "description": "Project profitability as percentage of revenue",
+      "logic": "Revenue minus total cost, divided by revenue",
+      "formula": "(attr_revenue - attr_actuals) / attr_revenue × 100",
+      "input_attribute_ids": ["attr_revenue", "attr_actuals"],
+      "input_measure_ids": [],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "meas_revenue_per_project",
+      "name": "Revenue per Project",
+      "description": "Total recognized revenue for a project",
+      "logic": "Oracle revenue actuals for the project code",
+      "formula": "SUM(attr_revenue) WHERE project_code",
+      "input_attribute_ids": ["attr_revenue", "attr_project_code"],
+      "input_measure_ids": [],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "meas_weighted_pipeline",
+      "name": "Weighted Pipeline Value",
+      "description": "Total pipeline value weighted by conversion probability",
+      "logic": "Sum of (pipeline value × probability) for all active leads",
+      "formula": "SUM(attr_pipeline_value × attr_conversion_prob / 100)",
+      "input_attribute_ids": ["attr_pipeline_value", "attr_conversion_prob"],
+      "input_measure_ids": [],
+      "perspective_ids": ["financial", "management"]
+    },
+    {
+      "id": "meas_lead_conversion_rate",
+      "name": "Lead Conversion Rate",
+      "description": "Percentage of leads that convert to active projects",
+      "logic": "Won leads divided by total qualified leads",
+      "formula": "COUNT(attr_lead_status = 'Won') / COUNT(attr_lead_status IN ('Won','Lost')) × 100",
+      "input_attribute_ids": ["attr_lead_status"],
+      "input_measure_ids": [],
+      "perspective_ids": ["management"]
+    },
+    {
+      "id": "meas_licence_cost_total",
+      "name": "Total Licence Cost",
+      "description": "Aggregate cost of all software licences",
+      "logic": "Sum of individual licence costs",
+      "formula": "SUM(attr_tool_cost × attr_licence_count)",
+      "input_attribute_ids": ["attr_tool_cost", "attr_licence_count"],
+      "input_measure_ids": [],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "meas_resource_capacity",
+      "name": "Resource Capacity",
+      "description": "Available capacity after accounting for leave and existing allocations",
+      "logic": "Total availability minus time-off minus current allocation",
+      "formula": "attr_availability - attr_time_off - attr_allocation",
+      "input_attribute_ids": ["attr_availability", "attr_time_off", "attr_allocation"],
+      "input_measure_ids": [],
+      "perspective_ids": ["management"]
+    },
+    {
+      "id": "meas_timesheet_approval_rate",
+      "name": "Timesheet Approval Rate",
+      "description": "Percentage of submitted hours that are approved",
+      "logic": "Approved hours divided by submitted hours",
+      "formula": "attr_hours_approved / attr_hours_submitted × 100",
+      "input_attribute_ids": ["attr_hours_approved", "attr_hours_submitted"],
+      "input_measure_ids": [],
+      "perspective_ids": ["management"]
+    },
+    {
+      "id": "meas_forecast_vs_budget",
+      "name": "Forecast vs Budget",
+      "description": "How the current forecast compares to original budget",
+      "logic": "Forecast as percentage of budget",
+      "formula": "attr_forecast_spend / attr_budget_approved × 100",
+      "input_attribute_ids": ["attr_forecast_spend", "attr_budget_approved"],
+      "input_measure_ids": [],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "meas_risk_exposure",
+      "name": "Risk Exposure Score",
+      "description": "Aggregate risk score across open risks for a project",
+      "logic": "Sum of (likelihood × impact) for all open risks",
+      "formula": "SUM(risk_score) WHERE status = 'Open'",
+      "input_attribute_ids": ["attr_risk_description"],
+      "input_measure_ids": [],
+      "perspective_ids": ["management"]
+    }
+  ],
+  "metrics": [
+    {
+      "id": "kpi_project_delivery",
+      "name": "Project Delivery Performance",
+      "description": "Composite indicator of how well projects are being delivered against sprint commitments",
+      "business_question": "Are we delivering what we committed to in sprints?",
+      "calculated_by_measure_ids": ["meas_sprint_velocity", "meas_sprint_completion_rate", "meas_backlog_completion"],
+      "perspective_ids": ["operational", "management"]
+    },
+    {
+      "id": "kpi_resource_utilization",
+      "name": "Resource Utilization Rate",
+      "description": "How effectively are consulting resources being utilized across projects",
+      "business_question": "Are our people fully utilized, or do we have idle capacity?",
+      "calculated_by_measure_ids": ["meas_resource_utilization", "meas_resource_capacity"],
+      "perspective_ids": ["management"]
+    },
+    {
+      "id": "kpi_budget_adherence",
+      "name": "Budget Adherence",
+      "description": "How well projects are tracking against their approved budgets",
+      "business_question": "Are we spending within approved budgets?",
+      "calculated_by_measure_ids": ["meas_budget_variance", "meas_budget_burn_rate", "meas_forecast_vs_budget"],
+      "perspective_ids": ["financial", "management"]
+    },
+    {
+      "id": "kpi_forecast_accuracy",
+      "name": "Forecast Accuracy",
+      "description": "How accurate are financial forecasts compared to actual outcomes",
+      "business_question": "Can we trust our forecasts for planning decisions?",
+      "calculated_by_measure_ids": ["meas_forecast_accuracy"],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "kpi_revenue_margin",
+      "name": "Revenue & Gross Margin",
+      "description": "Revenue generation and profitability at project and portfolio level",
+      "business_question": "Are we profitable? What's our margin per project?",
+      "calculated_by_measure_ids": ["meas_gross_margin", "meas_revenue_per_project", "meas_people_cost_total"],
+      "perspective_ids": ["financial"]
+    },
+    {
+      "id": "kpi_pipeline_health",
+      "name": "Pipeline Health",
+      "description": "Health and conversion rate of the presales pipeline",
+      "business_question": "Do we have enough pipeline to sustain future revenue?",
+      "calculated_by_measure_ids": ["meas_weighted_pipeline", "meas_lead_conversion_rate"],
+      "perspective_ids": ["management", "financial"]
+    },
+    {
+      "id": "kpi_timesheet_compliance",
+      "name": "Timesheet Compliance",
+      "description": "How reliably are timesheets being submitted and approved on time",
+      "business_question": "Are timesheets being submitted and approved promptly?",
+      "calculated_by_measure_ids": ["meas_billable_days", "meas_timesheet_approval_rate"],
+      "perspective_ids": ["management"]
+    },
+    {
+      "id": "kpi_risk_exposure",
+      "name": "Portfolio Risk Exposure",
+      "description": "Aggregate risk level across the project portfolio",
+      "business_question": "What is our total risk exposure and are we managing it?",
+      "calculated_by_measure_ids": ["meas_risk_exposure"],
+      "perspective_ids": ["management"]
+    }
+  ],
+  "processes": [
+    {
+      "id": "proc_lead_to_project",
+      "name": "Lead to Project Pipeline",
+      "description": "End-to-end process from opportunity identification through to project kickoff",
+      "steps": [
+        {
+          "id": "step_lead_capture",
+          "sequence": 1,
+          "name": "Capture Lead / Opportunity",
+          "description": "BD or account manager identifies a new opportunity and creates a lead in Jira presales board",
+          "perspective_id": "management",
+          "actor": "Business Development",
+          "consumes_attribute_ids": [],
+          "produces_attribute_ids": ["attr_lead_status", "attr_pipeline_value"],
+          "uses_metric_ids": [],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": [],
+          "perspective_level": "management",
+          "estimated_duration_minutes": 30,
+          "automation_potential": "Medium",
+          "systems_used_ids": ["jira", "excel"],
+          "waste_category": "Manual Data Entry",
+          "manual_effort_percentage": 80
+        },
+        {
+          "id": "step_presales_estimate",
+          "sequence": 2,
+          "name": "Create Presales Estimate",
+          "description": "Solution architect and presales create effort estimate, demand by role, and gross margin estimate in Excel",
+          "perspective_id": "management",
+          "actor": "Presales / Solution Architect",
+          "consumes_attribute_ids": ["attr_lead_status"],
+          "produces_attribute_ids": ["attr_presales_estimate", "attr_demand_by_role", "attr_gm_estimate"],
+          "uses_metric_ids": [],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": ["step_lead_capture"],
+          "perspective_level": "management",
+          "estimated_duration_minutes": 480,
+          "automation_potential": "Low",
+          "systems_used_ids": ["excel"],
+          "waste_category": null,
+          "manual_effort_percentage": 95
+        },
+        {
+          "id": "step_qualify_lead",
+          "sequence": 3,
+          "name": "Qualify & Assess Probability",
+          "description": "BD assesses conversion probability and updates pipeline value based on client engagement",
+          "perspective_id": "management",
+          "actor": "Business Development",
+          "consumes_attribute_ids": ["attr_presales_estimate", "attr_demand_by_role"],
+          "produces_attribute_ids": ["attr_conversion_prob"],
+          "uses_metric_ids": ["kpi_pipeline_health"],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": ["step_presales_estimate"],
+          "perspective_level": "management",
+          "estimated_duration_minutes": 60,
+          "automation_potential": "Low",
+          "systems_used_ids": ["excel", "jira"],
+          "waste_category": null,
+          "manual_effort_percentage": 90
+        },
+        {
+          "id": "step_create_sow",
+          "sequence": 4,
+          "name": "Create & Sign SOW",
+          "description": "PM drafts SOW using presales estimate, gets client sign-off, stores in SharePoint",
+          "perspective_id": "management",
+          "actor": "Project Manager / Legal",
+          "consumes_attribute_ids": ["attr_presales_estimate", "attr_gm_estimate"],
+          "produces_attribute_ids": ["attr_sow_doc"],
+          "uses_metric_ids": [],
+          "crystallizes_attribute_ids": ["attr_presales_estimate"],
+          "depends_on_step_ids": ["step_qualify_lead"],
+          "perspective_level": "management",
+          "estimated_duration_minutes": 960,
+          "automation_potential": "Low",
+          "systems_used_ids": ["sharepoint", "excel"],
+          "waste_category": null,
+          "manual_effort_percentage": 85
+        },
+        {
+          "id": "step_setup_project",
+          "sequence": 5,
+          "name": "Set Up Project in Systems",
+          "description": "Finance creates Oracle project code, PM creates Mieruka project, Jira board is set up",
+          "perspective_id": "management",
+          "actor": "PM / Finance",
+          "consumes_attribute_ids": ["attr_sow_doc"],
+          "produces_attribute_ids": ["attr_project_code", "attr_project_stage", "attr_budget_approved"],
+          "uses_metric_ids": [],
+          "crystallizes_attribute_ids": ["attr_sow_doc"],
+          "depends_on_step_ids": ["step_create_sow"],
+          "perspective_level": "management",
+          "estimated_duration_minutes": 120,
+          "automation_potential": "High",
+          "systems_used_ids": ["oracle", "mieruka", "jira"],
+          "waste_category": "System Switching",
+          "manual_effort_percentage": 90
+        },
+        {
+          "id": "step_allocate_resources",
+          "sequence": 6,
+          "name": "Allocate Initial Resources",
+          "description": "RM allocates resources based on demand by role. Must use both Mieruka (official) and Excel (actual granular allocation)",
+          "perspective_id": "management",
+          "actor": "Resource Manager",
+          "consumes_attribute_ids": ["attr_demand_by_role", "attr_availability", "attr_time_off"],
+          "produces_attribute_ids": ["attr_allocation", "attr_allocation_excel", "attr_fte_allocation"],
+          "uses_metric_ids": ["kpi_resource_utilization"],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": ["step_setup_project"],
+          "perspective_level": "management",
+          "estimated_duration_minutes": 180,
+          "automation_potential": "High",
+          "systems_used_ids": ["mieruka", "excel", "hibob"],
+          "waste_category": "System Switching",
+          "manual_effort_percentage": 85
+        }
+      ]
+    },
+    {
+      "id": "proc_project_delivery",
+      "name": "Project Delivery Cycle",
+      "description": "Ongoing sprint-based delivery, status reporting, and project monitoring",
+      "steps": [
+        {
+          "id": "step_sprint_planning",
+          "sequence": 1,
+          "name": "Sprint Planning",
+          "description": "Scrum master and team plan sprint backlog, set planned story points",
+          "perspective_id": "operational",
+          "actor": "Scrum Master / Dev Team",
+          "consumes_attribute_ids": ["attr_backlog_size"],
+          "produces_attribute_ids": ["attr_planned_points"],
+          "uses_metric_ids": ["kpi_project_delivery"],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": [],
+          "perspective_level": "operational",
+          "estimated_duration_minutes": 120,
+          "automation_potential": "None",
+          "systems_used_ids": ["jira"],
+          "waste_category": null,
+          "manual_effort_percentage": 100
+        },
+        {
+          "id": "step_execute_sprint",
+          "sequence": 2,
+          "name": "Execute Sprint Work",
+          "description": "Development team completes stories, updates Jira, logs time",
+          "perspective_id": "operational",
+          "actor": "Dev Team",
+          "consumes_attribute_ids": ["attr_planned_points"],
+          "produces_attribute_ids": ["attr_completed_tasks", "attr_story_points", "attr_timesheet_granularity"],
+          "uses_metric_ids": [],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": ["step_sprint_planning"],
+          "perspective_level": "operational",
+          "estimated_duration_minutes": 4800,
+          "automation_potential": "None",
+          "systems_used_ids": ["jira"],
+          "waste_category": null,
+          "manual_effort_percentage": 100
+        },
+        {
+          "id": "step_submit_timesheets",
+          "sequence": 3,
+          "name": "Submit Timesheets",
+          "description": "Resources submit weekly timesheets in Mieruka against project codes",
+          "perspective_id": "operational",
+          "actor": "All Resources",
+          "consumes_attribute_ids": ["attr_project_code"],
+          "produces_attribute_ids": ["attr_hours_submitted"],
+          "uses_metric_ids": [],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": ["step_execute_sprint"],
+          "perspective_level": "operational",
+          "estimated_duration_minutes": 15,
+          "automation_potential": "High",
+          "systems_used_ids": ["mieruka"],
+          "waste_category": "Manual Data Entry",
+          "manual_effort_percentage": 100
+        },
+        {
+          "id": "step_approve_timesheets",
+          "sequence": 4,
+          "name": "Approve Timesheets",
+          "description": "PM reviews and approves submitted timesheets",
+          "perspective_id": "management",
+          "actor": "Project Manager",
+          "consumes_attribute_ids": ["attr_hours_submitted"],
+          "produces_attribute_ids": ["attr_hours_approved", "attr_approved_days"],
+          "uses_metric_ids": ["kpi_timesheet_compliance"],
+          "crystallizes_attribute_ids": ["attr_hours_submitted"],
+          "depends_on_step_ids": ["step_submit_timesheets"],
+          "perspective_level": "management",
+          "estimated_duration_minutes": 30,
+          "automation_potential": "Medium",
+          "systems_used_ids": ["mieruka"],
+          "waste_category": "Manual Verification",
+          "manual_effort_percentage": 80
+        },
+        {
+          "id": "step_update_rag",
+          "sequence": 5,
+          "name": "Update RAG Status",
+          "description": "PM updates project RAG status in Mieruka based on sprint results and risks",
+          "perspective_id": "management",
+          "actor": "Project Manager",
+          "consumes_attribute_ids": ["attr_story_points", "attr_planned_points", "attr_risk_description"],
+          "produces_attribute_ids": ["attr_rag_status"],
+          "uses_metric_ids": ["kpi_project_delivery", "kpi_risk_exposure"],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": ["step_approve_timesheets"],
+          "perspective_level": "management",
+          "estimated_duration_minutes": 20,
+          "automation_potential": "High",
+          "systems_used_ids": ["mieruka", "jira"],
+          "waste_category": "Manual Data Entry",
+          "manual_effort_percentage": 90
+        },
+        {
+          "id": "step_produce_status_report",
+          "sequence": 6,
+          "name": "Produce Status Report",
+          "description": "PM manually compiles status report from Jira, Mieruka, and Excel data",
+          "perspective_id": "management",
+          "actor": "Project Manager",
+          "consumes_attribute_ids": ["attr_rag_status", "attr_story_points", "attr_budget_data", "attr_risk_description"],
+          "produces_attribute_ids": ["attr_status_report"],
+          "uses_metric_ids": ["kpi_project_delivery", "kpi_budget_adherence"],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": ["step_update_rag"],
+          "perspective_level": "management",
+          "estimated_duration_minutes": 90,
+          "automation_potential": "High",
+          "systems_used_ids": ["excel", "jira", "mieruka"],
+          "waste_category": "System Switching",
+          "manual_effort_percentage": 95
+        },
+        {
+          "id": "step_update_forecast",
+          "sequence": 7,
+          "name": "Update Financial Forecast",
+          "description": "PM updates spending forecast based on current burn rate and remaining scope",
+          "perspective_id": "financial",
+          "actor": "Project Manager",
+          "consumes_attribute_ids": ["attr_actuals", "attr_budget_approved", "attr_allocation_excel"],
+          "produces_attribute_ids": ["attr_forecast_spend", "attr_forecast_excel"],
+          "uses_metric_ids": ["kpi_budget_adherence", "kpi_forecast_accuracy"],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": ["step_produce_status_report"],
+          "perspective_level": "financial",
+          "estimated_duration_minutes": 60,
+          "automation_potential": "High",
+          "systems_used_ids": ["excel", "mieruka", "oracle"],
+          "waste_category": "System Switching",
+          "manual_effort_percentage": 90
+        }
+      ]
+    },
+    {
+      "id": "proc_month_end",
+      "name": "Month-End Financial Reporting",
+      "description": "Monthly financial close, variance analysis, and portfolio reporting",
+      "steps": [
+        {
+          "id": "step_close_timesheets",
+          "sequence": 1,
+          "name": "Close Timesheet Period",
+          "description": "Ensure all timesheets submitted and approved for the period",
+          "perspective_id": "management",
+          "actor": "PMO / Resource Manager",
+          "consumes_attribute_ids": ["attr_hours_submitted", "attr_hours_approved"],
+          "produces_attribute_ids": [],
+          "uses_metric_ids": ["kpi_timesheet_compliance"],
+          "crystallizes_attribute_ids": ["attr_hours_approved", "attr_approved_days"],
+          "depends_on_step_ids": [],
+          "perspective_level": "management",
+          "estimated_duration_minutes": 120,
+          "automation_potential": "Medium",
+          "systems_used_ids": ["mieruka"],
+          "waste_category": "Manual Verification",
+          "manual_effort_percentage": 70
+        },
+        {
+          "id": "step_post_actuals",
+          "sequence": 2,
+          "name": "Post Actuals to Oracle",
+          "description": "Finance posts approved timesheets and costs to Oracle GL",
+          "perspective_id": "financial",
+          "actor": "Finance Team",
+          "consumes_attribute_ids": ["attr_approved_days", "attr_blended_rate"],
+          "produces_attribute_ids": ["attr_actuals", "attr_revenue"],
+          "uses_metric_ids": [],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": ["step_close_timesheets"],
+          "perspective_level": "financial",
+          "estimated_duration_minutes": 240,
+          "automation_potential": "Medium",
+          "systems_used_ids": ["oracle", "mieruka"],
+          "waste_category": "System Switching",
+          "manual_effort_percentage": 60
+        },
+        {
+          "id": "step_variance_analysis",
+          "sequence": 3,
+          "name": "Budget Variance Analysis",
+          "description": "Finance compares actuals to budget and forecast, identifies variances",
+          "perspective_id": "financial",
+          "actor": "Finance Manager",
+          "consumes_attribute_ids": ["attr_actuals", "attr_budget_approved", "attr_forecast_spend"],
+          "produces_attribute_ids": [],
+          "uses_metric_ids": ["kpi_budget_adherence", "kpi_forecast_accuracy"],
+          "crystallizes_attribute_ids": ["attr_actuals"],
+          "depends_on_step_ids": ["step_post_actuals"],
+          "perspective_level": "financial",
+          "estimated_duration_minutes": 180,
+          "automation_potential": "High",
+          "systems_used_ids": ["oracle", "excel"],
+          "waste_category": "System Switching",
+          "manual_effort_percentage": 85
+        },
+        {
+          "id": "step_portfolio_report",
+          "sequence": 4,
+          "name": "Compile Portfolio Report",
+          "description": "PMO compiles portfolio-level report for leadership with project RAGs, financials, and risks",
+          "perspective_id": "financial",
+          "actor": "PMO Lead",
+          "consumes_attribute_ids": ["attr_rag_status", "attr_actuals", "attr_revenue", "attr_risk_description"],
+          "produces_attribute_ids": [],
+          "uses_metric_ids": ["kpi_revenue_margin", "kpi_budget_adherence", "kpi_risk_exposure", "kpi_pipeline_health"],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": ["step_variance_analysis"],
+          "perspective_level": "financial",
+          "estimated_duration_minutes": 360,
+          "automation_potential": "High",
+          "systems_used_ids": ["excel", "mieruka", "oracle", "power_bi"],
+          "waste_category": "System Switching",
+          "manual_effort_percentage": 90
+        }
+      ]
+    },
+    {
+      "id": "proc_resource_management",
+      "name": "Resource Allocation & Capacity Planning",
+      "description": "Ongoing process of matching resource capacity to project demand",
+      "steps": [
+        {
+          "id": "step_review_capacity",
+          "sequence": 1,
+          "name": "Review Resource Capacity",
+          "description": "RM checks availability across all resources, accounting for leave and current allocations",
+          "perspective_id": "management",
+          "actor": "Resource Manager",
+          "consumes_attribute_ids": ["attr_availability", "attr_time_off", "attr_allocation", "attr_allocation_excel"],
+          "produces_attribute_ids": [],
+          "uses_metric_ids": ["kpi_resource_utilization"],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": [],
+          "perspective_level": "management",
+          "estimated_duration_minutes": 60,
+          "automation_potential": "High",
+          "systems_used_ids": ["mieruka", "excel", "hibob"],
+          "waste_category": "System Switching",
+          "manual_effort_percentage": 85
+        },
+        {
+          "id": "step_match_demand",
+          "sequence": 2,
+          "name": "Match Demand to Capacity",
+          "description": "RM cross-references project demand (from pipeline and active projects) with available capacity",
+          "perspective_id": "management",
+          "actor": "Resource Manager",
+          "consumes_attribute_ids": ["attr_demand_by_role", "attr_fte_allocation"],
+          "produces_attribute_ids": [],
+          "uses_metric_ids": ["kpi_resource_utilization", "kpi_pipeline_health"],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": ["step_review_capacity"],
+          "perspective_level": "management",
+          "estimated_duration_minutes": 90,
+          "automation_potential": "High",
+          "systems_used_ids": ["excel", "mieruka"],
+          "waste_category": "Manual Data Entry",
+          "manual_effort_percentage": 90
+        },
+        {
+          "id": "step_update_allocations",
+          "sequence": 3,
+          "name": "Update Resource Allocations",
+          "description": "RM updates allocations in both Mieruka (one project limit) and Excel (actual split)",
+          "perspective_id": "management",
+          "actor": "Resource Manager",
+          "consumes_attribute_ids": [],
+          "produces_attribute_ids": ["attr_allocation", "attr_allocation_excel", "attr_fte_allocation"],
+          "uses_metric_ids": [],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": ["step_match_demand"],
+          "perspective_level": "management",
+          "estimated_duration_minutes": 45,
+          "automation_potential": "High",
+          "systems_used_ids": ["mieruka", "excel"],
+          "waste_category": "System Switching",
+          "manual_effort_percentage": 95
+        },
+        {
+          "id": "step_review_costs",
+          "sequence": 4,
+          "name": "Review Resource Costs",
+          "description": "Finance reviews blended rates and people costs, updates as needed for new hires or rate changes",
+          "perspective_id": "financial",
+          "actor": "Finance Manager",
+          "consumes_attribute_ids": ["attr_blended_rate", "attr_people_cost", "attr_resource_level"],
+          "produces_attribute_ids": [],
+          "uses_metric_ids": ["kpi_revenue_margin"],
+          "crystallizes_attribute_ids": [],
+          "depends_on_step_ids": ["step_update_allocations"],
+          "perspective_level": "financial",
+          "estimated_duration_minutes": 60,
+          "automation_potential": "Medium",
+          "systems_used_ids": ["mieruka", "oracle"],
+          "waste_category": "Manual Verification",
+          "manual_effort_percentage": 70
+        }
+      ]
+    }
+  ],
+  "semantic_tables": [
+    {
+      "id": "tbl_dim_project",
+      "name": "DimProject",
+      "table_type": "Dimension",
+      "mapped_entity_id": "project",
+      "source_system_id": "oracle",
+      "description": "Project dimension with codes, stages, and status",
+      "columns": [
+        { "id": "col_proj_code", "name": "ProjectCode", "data_type": "String", "is_key": true, "source_system_id": "oracle", "source_field": "project_code", "mapped_attribute_id": "attr_project_code" },
+        { "id": "col_proj_name", "name": "ProjectName", "data_type": "String", "source_system_id": "mieruka" },
+        { "id": "col_proj_stage", "name": "ProjectStage", "data_type": "String", "source_system_id": "mieruka", "mapped_attribute_id": "attr_project_stage" },
+        { "id": "col_rag_status", "name": "RAGStatus", "data_type": "String", "source_system_id": "mieruka", "mapped_attribute_id": "attr_rag_status" },
+        { "id": "col_account_id", "name": "AccountID", "data_type": "String", "is_foreign_key": true },
+        { "id": "col_programme_id", "name": "ProgrammeID", "data_type": "String", "is_foreign_key": true }
+      ],
+      "measures": [
+        { "id": "dax_gross_margin", "name": "Gross Margin %", "expression": "DIVIDE([Total Revenue] - [Total Actuals], [Total Revenue], 0)", "format_string": "0.0%", "mapped_measure_id": "meas_gross_margin" },
+        { "id": "dax_budget_variance", "name": "Budget Variance", "expression": "[Budget Approved] - [Total Actuals]", "format_string": "#,##0", "mapped_measure_id": "meas_budget_variance" }
+      ]
+    },
+    {
+      "id": "tbl_dim_resource",
+      "name": "DimResource",
+      "table_type": "Dimension",
+      "mapped_entity_id": "resource",
+      "source_system_id": "mieruka",
+      "description": "Resource dimension with roles, levels, and rates",
+      "columns": [
+        { "id": "col_res_id", "name": "ResourceID", "data_type": "String", "is_key": true, "source_system_id": "mieruka" },
+        { "id": "col_res_name", "name": "ResourceName", "data_type": "String", "source_system_id": "mieruka" },
+        { "id": "col_res_role", "name": "Role", "data_type": "String", "source_system_id": "mieruka" },
+        { "id": "col_res_level", "name": "Level", "data_type": "String", "source_system_id": "mieruka", "mapped_attribute_id": "attr_resource_level" },
+        { "id": "col_blended_rate", "name": "BlendedDayRate", "data_type": "Decimal", "source_system_id": "mieruka", "mapped_attribute_id": "attr_blended_rate" }
+      ],
+      "measures": [
+        { "id": "dax_utilization", "name": "Utilization Rate", "expression": "DIVIDE(SUM(FactTimesheet[ApprovedDays]), SUM(DimResource[AvailableDays]), 0)", "format_string": "0.0%", "mapped_measure_id": "meas_resource_utilization" }
+      ]
+    },
+    {
+      "id": "tbl_dim_account",
+      "name": "DimAccount",
+      "table_type": "Dimension",
+      "mapped_entity_id": "account",
+      "source_system_id": "mieruka",
+      "description": "Client account dimension",
+      "columns": [
+        { "id": "col_acc_id", "name": "AccountID", "data_type": "String", "is_key": true, "source_system_id": "mieruka" },
+        { "id": "col_acc_name", "name": "AccountName", "data_type": "String", "source_system_id": "mieruka" },
+        { "id": "col_acc_type", "name": "AccountType", "data_type": "String", "source_system_id": "mieruka", "mapped_attribute_id": "attr_account_type" },
+        { "id": "col_acc_status", "name": "Status", "data_type": "String", "source_system_id": "mieruka", "mapped_attribute_id": "attr_account_status" }
+      ],
+      "measures": []
+    },
+    {
+      "id": "tbl_dim_date",
+      "name": "DimDate",
+      "table_type": "Dimension",
+      "description": "Standard date dimension for time intelligence",
+      "columns": [
+        { "id": "col_date_key", "name": "DateKey", "data_type": "Integer", "is_key": true },
+        { "id": "col_date", "name": "Date", "data_type": "Date" },
+        { "id": "col_year", "name": "Year", "data_type": "Integer" },
+        { "id": "col_month", "name": "Month", "data_type": "String" },
+        { "id": "col_quarter", "name": "Quarter", "data_type": "String" },
+        { "id": "col_fiscal_year", "name": "FiscalYear", "data_type": "String" }
+      ],
+      "measures": []
+    },
+    {
+      "id": "tbl_fact_timesheet",
+      "name": "FactTimesheet",
+      "table_type": "Fact",
+      "mapped_entity_id": "timesheet",
+      "source_system_id": "mieruka",
+      "description": "Timesheet fact table with submitted and approved hours",
+      "columns": [
+        { "id": "col_ts_id", "name": "TimesheetID", "data_type": "String", "is_key": true },
+        { "id": "col_ts_resource", "name": "ResourceID", "data_type": "String", "is_foreign_key": true },
+        { "id": "col_ts_project", "name": "ProjectCode", "data_type": "String", "is_foreign_key": true },
+        { "id": "col_ts_date", "name": "DateKey", "data_type": "Integer", "is_foreign_key": true },
+        { "id": "col_ts_submitted", "name": "HoursSubmitted", "data_type": "Decimal", "mapped_attribute_id": "attr_hours_submitted" },
+        { "id": "col_ts_approved", "name": "HoursApproved", "data_type": "Decimal", "mapped_attribute_id": "attr_hours_approved" },
+        { "id": "col_ts_approved_days", "name": "ApprovedDays", "data_type": "Decimal", "mapped_attribute_id": "attr_approved_days" }
+      ],
+      "measures": [
+        { "id": "dax_billable_days", "name": "Total Billable Days", "expression": "SUM(FactTimesheet[ApprovedDays])", "format_string": "#,##0.0", "mapped_measure_id": "meas_billable_days" },
+        { "id": "dax_approval_rate", "name": "Approval Rate", "expression": "DIVIDE(SUM(FactTimesheet[HoursApproved]), SUM(FactTimesheet[HoursSubmitted]), 0)", "format_string": "0.0%", "mapped_measure_id": "meas_timesheet_approval_rate" }
+      ]
+    },
+    {
+      "id": "tbl_fact_budget",
+      "name": "FactBudget",
+      "table_type": "Fact",
+      "mapped_entity_id": "budget",
+      "source_system_id": "mieruka",
+      "description": "Budget and forecast fact table",
+      "columns": [
+        { "id": "col_bud_id", "name": "BudgetID", "data_type": "String", "is_key": true },
+        { "id": "col_bud_project", "name": "ProjectCode", "data_type": "String", "is_foreign_key": true },
+        { "id": "col_bud_approved", "name": "BudgetApproved", "data_type": "Decimal", "mapped_attribute_id": "attr_budget_approved" },
+        { "id": "col_bud_forecast", "name": "ForecastSpend", "data_type": "Decimal", "mapped_attribute_id": "attr_forecast_spend" },
+        { "id": "col_bud_actuals", "name": "Actuals", "data_type": "Decimal", "mapped_attribute_id": "attr_actuals" }
+      ],
+      "measures": [
+        { "id": "dax_forecast_accuracy", "name": "Forecast Accuracy", "expression": "1 - DIVIDE(ABS(SUM(FactBudget[ForecastSpend]) - SUM(FactBudget[Actuals])), SUM(FactBudget[Actuals]), 0)", "format_string": "0.0%", "mapped_measure_id": "meas_forecast_accuracy" },
+        { "id": "dax_burn_rate", "name": "Monthly Burn Rate", "expression": "DIVIDE(SUM(FactBudget[Actuals]), DATEDIFF(MIN(DimDate[Date]), MAX(DimDate[Date]), MONTH), 0)", "format_string": "#,##0", "mapped_measure_id": "meas_budget_burn_rate" }
+      ]
+    },
+    {
+      "id": "tbl_fact_revenue",
+      "name": "FactRevenue",
+      "table_type": "Fact",
+      "mapped_entity_id": "project",
+      "source_system_id": "oracle",
+      "description": "Revenue recognition fact table from Oracle",
+      "columns": [
+        { "id": "col_rev_id", "name": "RevenueID", "data_type": "String", "is_key": true },
+        { "id": "col_rev_project", "name": "ProjectCode", "data_type": "String", "is_foreign_key": true },
+        { "id": "col_rev_date", "name": "DateKey", "data_type": "Integer", "is_foreign_key": true },
+        { "id": "col_rev_amount", "name": "RevenueAmount", "data_type": "Decimal", "mapped_attribute_id": "attr_revenue" }
+      ],
+      "measures": [
+        { "id": "dax_total_revenue", "name": "Total Revenue", "expression": "SUM(FactRevenue[RevenueAmount])", "format_string": "#,##0", "mapped_measure_id": "meas_revenue_per_project" }
+      ]
+    },
+    {
+      "id": "tbl_fact_pipeline",
+      "name": "FactPipeline",
+      "table_type": "Fact",
+      "mapped_entity_id": "lead",
+      "source_system_id": "excel",
+      "description": "Presales pipeline tracking",
+      "columns": [
+        { "id": "col_pipe_id", "name": "LeadID", "data_type": "String", "is_key": true },
+        { "id": "col_pipe_status", "name": "LeadStatus", "data_type": "String", "mapped_attribute_id": "attr_lead_status" },
+        { "id": "col_pipe_value", "name": "PipelineValue", "data_type": "Decimal", "mapped_attribute_id": "attr_pipeline_value" },
+        { "id": "col_pipe_prob", "name": "ConversionProbability", "data_type": "Decimal", "mapped_attribute_id": "attr_conversion_prob" }
+      ],
+      "measures": [
+        { "id": "dax_weighted_pipeline", "name": "Weighted Pipeline", "expression": "SUMX(FactPipeline, FactPipeline[PipelineValue] * FactPipeline[ConversionProbability])", "format_string": "#,##0", "mapped_measure_id": "meas_weighted_pipeline" }
+      ]
+    }
+  ]
+}

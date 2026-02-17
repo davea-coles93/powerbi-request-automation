@@ -8,14 +8,14 @@ IntegrationStatus = Literal["Connected", "Planned", "Manual Extract", "None"]
 
 
 class System(BaseModel):
-    """A system where observations are captured/stored."""
+    """A system where attributes are captured/stored."""
 
     id: str = Field(..., description="Unique identifier")
     name: str = Field(..., description="Display name")
     type: SystemType = Field(..., description="Category of system")
     vendor: Optional[str] = Field(default=None, description="System vendor")
     reliability_default: Optional[ReliabilityLevel] = Field(
-        default=None, description="Default reliability level for observations"
+        default=None, description="Default reliability level for attributes"
     )
     integration_status: Optional[IntegrationStatus] = Field(
         default=None, description="Current integration status"

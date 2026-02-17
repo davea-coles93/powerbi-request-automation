@@ -167,7 +167,7 @@ Entity: Production Order
 ### The Chain
 
 ```
-Observation (data born) → Measure (calculation) → Metric (business KPI)
+attribute (data born) → Measure (calculation) → Metric (business KPI)
 ```
 
 **Example:**
@@ -175,11 +175,11 @@ Observation (data born) → Measure (calculation) → Metric (business KPI)
 
 ### Definitions
 
-**Observation**: Raw data that is captured/born at a point of activity
+**attribute**: Raw data that is captured/born at a point of activity
 - What gets recorded when work happens
 - Has a source (who/what creates it) and a system (where it lives)
 
-**Measure**: A calculation applied to observations (and other measures)
+**Measure**: A calculation applied to attributes (and other measures)
 - The derived calculation that transforms data into insight
 - Has a defined logic/formula
 
@@ -190,9 +190,9 @@ Observation (data born) → Measure (calculation) → Metric (business KPI)
 ### Why This Terminology
 
 Standard BI terminology uses "metric" and "measure" almost interchangeably. We distinguish them because:
-- **Metrics justify everything else** - we capture observations and build measures *because* we need metrics
+- **Metrics justify everything else** - we capture attributes and build measures *because* we need metrics
 - **Measures are reusable** - one measure might feed multiple metrics
-- **Observations are facts** - measures interpret them, metrics give them business meaning
+- **attributes are facts** - measures interpret them, metrics give them business meaning
 
 ---
 
@@ -200,7 +200,7 @@ Standard BI terminology uses "metric" and "measure" almost interchangeably. We d
 
 ### Why Systems Matter
 
-The system where an observation lives tells you:
+The system where an attribute lives tells you:
 - Integration planning (what do we need to connect to?)
 - Data quality assessment (ERP vs Excel vs manual)
 - Gap analysis (is this captured anywhere, or just in someone's head?)
@@ -219,16 +219,16 @@ SYSTEM
 └── Notes
 ```
 
-Systems attach to Observations, not Entities. The same Entity (Production Order) might have observations from multiple systems (ERP for creation, MES for progress).
+Systems attach to attributes, not Entities. The same Entity (Production Order) might have attributes from multiple systems (ERP for creation, MES for progress).
 
 ---
 
-## Observations
+## attributes
 
 ### Properties
 
 ```
-OBSERVATION
+attribute
 ├── ID
 ├── Name
 ├── Entity (what it describes)
@@ -248,7 +248,7 @@ OBSERVATION
 
 ### Volatility Types
 
-- **Point-in-time**: Snapshot value, replaced by next observation (inventory count)
+- **Point-in-time**: Snapshot value, replaced by next attribute (inventory count)
 - **Accumulating**: Grows through period, fixed at close (labor hours for month)
 - **Continuous**: Constantly changing, no natural close (current stock level)
 
@@ -262,7 +262,7 @@ OBSERVATION
 MEASURE
 ├── ID
 ├── Name
-├── Input Observations []
+├── Input attributes []
 ├── Input Measures [] (measures can feed other measures)
 ├── Logic (description of calculation)
 ├── Delivers Metrics []
@@ -293,7 +293,7 @@ METRIC
 The ontology is navigated **backwards from metrics**:
 1. "I need to know Gross Margin" (Metric)
 2. "What measures calculate it?" (Measures)
-3. "What observations feed those?" (Observations)
+3. "What attributes feed those?" (attributes)
 4. "Where does that data come from?" (Systems, Actors)
 
 This is the **requirements flow**. The data flow is the reverse.
@@ -321,23 +321,23 @@ PROCESS
     ├── Name
     ├── Perspective (where this step executes)
     ├── Actor (who/what performs it)
-    ├── Consumes Observations []
-    ├── Produces Observations []
+    ├── Consumes attributes []
+    ├── Produces attributes []
     ├── Uses Metrics []
-    ├── Crystallizes Observations []
+    ├── Crystallizes attributes []
     └── Depends On Steps []
 ```
 
 ### Crystallization
 
-Observations don't inherently crystallize - they crystallize **because of process steps**.
+attributes don't inherently crystallize - they crystallize **because of process steps**.
 
-"Production confirmations" become frozen facts when "Production Cutoff" step executes. The same observation type might crystallize at different times for different processes (monthly close vs weekly flash).
+"Production confirmations" become frozen facts when "Production Cutoff" step executes. The same attribute type might crystallize at different times for different processes (monthly close vs weekly flash).
 
 ```
 Process Step: Production Cutoff
 ├── Crystallizes: [Production Confirmations, Production Goods Movements]
-└── After this step, these observations are frozen for this period
+└── After this step, these attributes are frozen for this period
 ```
 
 ---
@@ -360,7 +360,7 @@ Keeping these separate supports:
 MAPPING LAYER
 ├── Semantic Model Mappings
 │   ├── Entity → Table
-│   ├── Observation → Column
+│   ├── attribute → Column
 │   └── Measure → DAX Measure
 │
 ├── Power Automate Mappings
@@ -406,7 +406,7 @@ SYSTEM
 ├── Integration Status: Connected | Planned | Manual Extract | None
 └── Notes
 
-OBSERVATION
+attribute
 ├── ID
 ├── Name
 ├── Entity
@@ -419,7 +419,7 @@ OBSERVATION
 MEASURE
 ├── ID
 ├── Name
-├── Input Observations []
+├── Input attributes []
 ├── Input Measures []
 ├── Logic
 ├── Delivers Metrics []
@@ -440,10 +440,10 @@ PROCESS
     ├── Name
     ├── Perspective
     ├── Actor
-    ├── Consumes Observations []
-    ├── Produces Observations []
+    ├── Consumes attributes []
+    ├── Produces attributes []
     ├── Uses Metrics []
-    ├── Crystallizes Observations []
+    ├── Crystallizes attributes []
     └── Depends On Steps []
 
 MAPPING (separate layer)
@@ -451,8 +451,8 @@ MAPPING (separate layer)
 │   ├── Entity ID
 │   ├── Semantic Table
 │   └── Status: Mapped | Partial | Gap
-├── Observation Mappings []
-│   ├── Observation ID
+├── attribute Mappings []
+│   ├── attribute ID
 │   ├── Semantic Column
 │   └── Status
 ├── Measure Mappings []
@@ -473,7 +473,7 @@ MAPPING (separate layer)
 "Here's how our finance function works and what data supports it"
 - Visual ontology navigation
 - Three perspective views
-- Entity/observation/measure/metric relationships
+- Entity/attribute/measure/metric relationships
 
 ### Phase 2: Requirements Builder
 "Customer X has these processes, they need these metrics, therefore they need this semantic model structure"
@@ -497,7 +497,7 @@ MAPPING (separate layer)
 | Perspectives in schema | Tags on measures/metrics, not structural | Accurate representation while supporting clean UI |
 | System tracking | First-class entity | Supports integration planning and gap analysis |
 | Metric as anchor | Requirements flow backwards from metrics | Matches how business actually thinks |
-| Crystallization | Property of process step, not observation | Same observation crystallizes at different times for different processes |
+| Crystallization | Property of process step, not attribute | Same attribute crystallizes at different times for different processes |
 | Semantic model linkage | Separate mapping layer | Keeps ontology technology-agnostic, supports gap analysis |
 | Thresholds/targets | Excluded | Implementation detail, not ontology concern |
 | Actor modeling | String label (for now) | Keep simple unless functional need emerges |

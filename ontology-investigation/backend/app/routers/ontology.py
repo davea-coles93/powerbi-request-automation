@@ -427,6 +427,23 @@ def create_process_step(
     return result
 
 
+@router.delete("/processes/{process_id}/steps/{step_id}", response_model=Process)
+def delete_process_step(
+    process_id: str,
+    step_id: str,
+    db: Session = Depends(get_db)
+):
+    """Delete a specific step from a process."""
+    repo = ProcessRepository(db)
+    result = repo.delete_step(process_id, step_id)
+    if not result:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Process {process_id} or step {step_id} not found"
+        )
+    return result
+
+
 # ============ Semantic Mappings ============
 @router.get("/mappings", response_model=list[SemanticMapping])
 def get_mappings(

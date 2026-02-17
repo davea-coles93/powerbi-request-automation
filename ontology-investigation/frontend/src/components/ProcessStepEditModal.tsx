@@ -11,6 +11,13 @@ interface ProcessStepEditModalProps {
   onCancel: () => void;
 }
 
+export interface ObservationData {
+  text: string;
+  author?: string;
+  timestamp?: string;
+  category?: 'pain_point' | 'decision' | 'insight' | 'question' | 'action_item';
+}
+
 export interface StepFormData {
   id: string;
   name: string;
@@ -26,11 +33,15 @@ export interface StepFormData {
   uses_metric_ids?: string[];
   systems_used_ids?: string[];
   description?: string;
+  observations?: ObservationData[];
 }
 
 export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: ProcessStepEditModalProps) {
   const [step, setStep] = useState<StepFormData>(initialStep);
-  const [activeTab, setActiveTab] = useState<'basic' | 'metadata' | 'links'>('basic');
+  const [activeTab, setActiveTab] = useState<'basic' | 'metadata' | 'links' | 'observations'>('basic');
+  const [newObsText, setNewObsText] = useState('');
+  const [newObsAuthor, setNewObsAuthor] = useState('');
+  const [newObsCategory, setNewObsCategory] = useState<ObservationData['category'] | ''>('');
   const [showCreateAttribute, setShowCreateAttribute] = useState(false);
   const [showCreateSystem, setShowCreateSystem] = useState(false);
 
@@ -132,6 +143,21 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
             }`}
           >
             🔗 Links & Data
+          </button>
+          <button
+            onClick={() => setActiveTab('observations')}
+            className={`px-6 py-3 font-semibold ${
+              activeTab === 'observations'
+                ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            💬 Observations
+            {(step.observations?.length ?? 0) > 0 && (
+              <span className="ml-1.5 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs">
+                {step.observations!.length}
+              </span>
+            )}
           </button>
         </div>
 
@@ -420,6 +446,139 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Observations Tab */}
+          {activeTab === 'observations' && (
+            <div className="space-y-6">
+              {/* Add Observation Form */}
+              <div className="p-4 bg-gray-50 rounded-lg border">
+                <h3 className="font-semibold text-sm mb-3">Add New Observation</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-semibold mb-1">Observation *</label>
+                    <textarea
+                      value={newObsText}
+                      onChange={(e) => setNewObsText(e.target.value)}
+                      className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                      rows={2}
+                      placeholder="Describe the observation, pain point, or insight..."
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-semibold mb-1">Category</label>
+                      <select
+                        value={newObsCategory}
+                        onChange={(e) => setNewObsCategory(e.target.value as ObservationData['category'] | '')}
+                        className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                      >
+                        <option value="">Select category...</option>
+                        <option value="pain_point">Pain Point</option>
+                        <option value="decision">Decision</option>
+                        <option value="insight">Insight</option>
+                        <option value="question">Question</option>
+                        <option value="action_item">Action Item</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-1">Author</label>
+                      <input
+                        type="text"
+                        value={newObsAuthor}
+                        onChange={(e) => setNewObsAuthor(e.target.value)}
+                        className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                        placeholder="e.g., John Smith"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (!newObsText.trim()) return;
+                      const newObs: ObservationData = {
+                        text: newObsText.trim(),
+                        timestamp: new Date().toISOString(),
+                        ...(newObsAuthor.trim() ? { author: newObsAuthor.trim() } : {}),
+                        ...(newObsCategory ? { category: newObsCategory as ObservationData['category'] } : {}),
+                      };
+                      setStep({
+                        ...step,
+                        observations: [...(step.observations || []), newObs],
+                      });
+                      setNewObsText('');
+                      setNewObsAuthor('');
+                      setNewObsCategory('');
+                    }}
+                    disabled={!newObsText.trim()}
+                    className="px-4 py-2 bg-purple-600 text-white rounded font-semibold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    + Add Observation
+                  </button>
+                </div>
+              </div>
+
+              {/* Existing Observations List */}
+              <div>
+                <h3 className="font-semibold text-sm mb-3">
+                  Observations ({step.observations?.length || 0})
+                </h3>
+                {(!step.observations || step.observations.length === 0) ? (
+                  <div className="text-center py-8 text-gray-500 border-2 border-dashed rounded-lg">
+                    <p className="text-lg mb-1">No observations yet</p>
+                    <p className="text-sm">Add observations to capture workshop notes, pain points, and decisions.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {step.observations.map((obs, index) => {
+                      const categoryConfig: Record<string, { bg: string; text: string; label: string }> = {
+                        pain_point: { bg: 'bg-red-100', text: 'text-red-700', label: 'Pain Point' },
+                        decision: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Decision' },
+                        insight: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Insight' },
+                        question: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Question' },
+                        action_item: { bg: 'bg-green-100', text: 'text-green-700', label: 'Action Item' },
+                      };
+                      const catStyle = obs.category ? categoryConfig[obs.category] : null;
+
+                      return (
+                        <div key={index} className="p-3 bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                {catStyle && (
+                                  <span className={`px-2 py-0.5 rounded text-xs font-semibold ${catStyle.bg} ${catStyle.text}`}>
+                                    {catStyle.label}
+                                  </span>
+                                )}
+                                {obs.author && (
+                                  <span className="text-xs text-gray-500">by {obs.author}</span>
+                                )}
+                                {obs.timestamp && (
+                                  <span className="text-xs text-gray-400">
+                                    {new Date(obs.timestamp).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-800">{obs.text}</p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                const updated = [...(step.observations || [])];
+                                updated.splice(index, 1);
+                                setStep({ ...step, observations: updated });
+                              }}
+                              className="text-gray-400 hover:text-red-500 flex-shrink-0 p-1"
+                              title="Remove observation"
+                            >
+                              &#10005;
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}

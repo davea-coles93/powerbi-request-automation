@@ -1,8 +1,8 @@
-import { AlertTriangle, CheckCircle, XCircle, TrendingUp, Calculator, Database, Eye, ArrowRight, Download, Wand2, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { AlertTriangle, CheckCircle, XCircle, TrendingUp, Calculator, Database, Eye, ArrowRight, Download, Wand2, Sparkles, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { useFindGaps } from '../hooks/useOntology';
 
-// AI Hook placeholder for future integration
 interface AIGapSuggestion {
   type: 'missing_measure' | 'broken_flow' | 'optimization';
   priority: 'high' | 'medium' | 'low';
@@ -11,14 +11,28 @@ interface AIGapSuggestion {
   suggested_action: string;
 }
 
-// AI Hook: This will be replaced with actual AI-powered gap analysis
-const useAIGapAnalysis = (_mappingStatus: any): AIGapSuggestion[] => {
-  // TODO: Implement AI-powered gap analysis using Claude API
-  // This hook will analyze the mapping status and suggest fixes
-  // Example: Suggest DAX formulas for unimplemented measures
-  // Example: Suggest which measures should consume orphaned attributes
-  return [];
-};
+function mapGapsToSuggestions(gapData: any): AIGapSuggestion[] {
+  if (!gapData?.gaps) return [];
+  return gapData.gaps.map((gap: any) => {
+    const typeMap: Record<string, AIGapSuggestion['type']> = {
+      metric_without_measures: 'missing_measure',
+      measure_without_inputs: 'broken_flow',
+      unused_attribute: 'optimization',
+    };
+    const actionMap: Record<string, string> = {
+      metric_without_measures: 'Define measures that calculate this metric',
+      measure_without_inputs: 'Link attributes or other measures as inputs',
+      unused_attribute: 'Create a measure that uses this attribute, or remove if unneeded',
+    };
+    return {
+      type: typeMap[gap.type] || 'optimization',
+      priority: gap.type === 'metric_without_measures' ? 'high' : gap.type === 'measure_without_inputs' ? 'high' : 'medium',
+      description: gap.issue,
+      attribute_or_measure: gap.element,
+      suggested_action: actionMap[gap.type] || 'Review and address this gap',
+    };
+  });
+}
 
 interface GapAnalysisProps {
   mappingStatus: {
@@ -53,9 +67,24 @@ interface GapAnalysisProps {
 export function GapAnalysisDashboard({ mappingStatus }: GapAnalysisProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [isAutoFixing, setIsAutoFixing] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<AIGapSuggestion[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
 
-  // AI Hook for future intelligent gap suggestions
-  const aiSuggestions = useAIGapAnalysis(mappingStatus);
+  const findGaps = useFindGaps();
+
+  // Fetch AI gap analysis on mount
+  useEffect(() => {
+    setAiLoading(true);
+    findGaps.mutateAsync(undefined)
+      .then(data => {
+        setAiSuggestions(mapGapsToSuggestions(data));
+      })
+      .catch(() => {
+        // Silently fail - AI suggestions are supplementary
+      })
+      .finally(() => setAiLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Calculate data flow completeness metrics
   const totalAttributes = mappingStatus.total_attributes || 0;
@@ -281,8 +310,16 @@ export function GapAnalysisDashboard({ mappingStatus }: GapAnalysisProps) {
         </p>
       </div>
 
-      {/* AI-Powered Insights Placeholder */}
-      {aiSuggestions.length > 0 && (
+      {/* AI-Powered Insights */}
+      {aiLoading && (
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <Loader2 className="w-5 h-5 text-purple-500 animate-spin" />
+            <span className="text-sm text-gray-600">Analyzing ontology for gaps...</span>
+          </div>
+        </div>
+      )}
+      {!aiLoading && aiSuggestions.length > 0 && (
         <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
           <div className="flex items-start gap-3">
             <Sparkles className="w-5 h-5 text-purple-600 mt-0.5" />

@@ -157,7 +157,7 @@ export function SystemEditorModal({ isOpen, onClose, system, onSave }: SystemEdi
                 ))}
               </select>
               <p className="text-xs text-gray-500 mt-1">
-                Default reliability level for observations from this system
+                Default reliability level for attributes from this system
               </p>
             </div>
 

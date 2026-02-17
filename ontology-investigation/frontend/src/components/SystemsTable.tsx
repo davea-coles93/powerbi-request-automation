@@ -1,26 +1,20 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from './DataTable';
 import { EmptyState } from './EmptyState';
-import { Edit, Database, Server } from 'lucide-react';
-import { System, SystemType, IntegrationStatus } from '../types/ontology';
+import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
+import { SystemTypeBadge } from './cells/SystemTypeBadge';
+import { ReliabilityBadge } from './cells/ReliabilityBadge';
+import { Edit, Trash2, Database, Server } from 'lucide-react';
+import { System, IntegrationStatus } from '../types/ontology';
 
 interface SystemsTableProps {
   systems: System[];
   onSystemClick?: (system: System) => void;
   onEditSystem?: (system: System) => void;
+  onDeleteSystem?: (system: System) => void;
   onNewSystem?: () => void;
 }
-
-const systemTypeColors: Record<SystemType, string> = {
-  'ERP': 'bg-blue-100 text-blue-700',
-  'MES': 'bg-purple-100 text-purple-700',
-  'WMS': 'bg-green-100 text-green-700',
-  'Spreadsheet': 'bg-yellow-100 text-yellow-700',
-  'Manual': 'bg-gray-100 text-gray-700',
-  'BI': 'bg-indigo-100 text-indigo-700',
-  'Other': 'bg-gray-100 text-gray-600',
-};
 
 const integrationStatusColors: Record<IntegrationStatus, string> = {
   'Connected': 'bg-green-100 text-green-800',
@@ -33,8 +27,11 @@ export function SystemsTable({
   systems,
   onSystemClick,
   onEditSystem,
+  onDeleteSystem,
   onNewSystem,
 }: SystemsTableProps) {
+  const [deleteTarget, setDeleteTarget] = useState<System | null>(null);
+
   const columns = useMemo<ColumnDef<System>[]>(
     () => [
       {
@@ -47,14 +44,7 @@ export function SystemsTable({
       {
         accessorKey: 'type',
         header: 'Type',
-        cell: (info) => {
-          const type = info.getValue() as SystemType;
-          return (
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${systemTypeColors[type]}`}>
-              {type}
-            </span>
-          );
-        },
+        cell: (info) => <SystemTypeBadge type={info.getValue() as string} />,
       },
       {
         accessorKey: 'vendor',
@@ -84,19 +74,7 @@ export function SystemsTable({
       {
         accessorKey: 'reliability_default',
         header: 'Reliability',
-        cell: (info) => {
-          const reliability = info.getValue() as string | undefined;
-          const colors = {
-            'High': 'text-green-700',
-            'Medium': 'text-yellow-700',
-            'Low': 'text-red-700',
-          };
-          return (
-            <div className={`text-sm font-medium ${reliability ? colors[reliability as keyof typeof colors] : 'text-gray-400'}`}>
-              {reliability || '-'}
-            </div>
-          );
-        },
+        cell: (info) => <ReliabilityBadge reliability={info.getValue() as string | undefined} />,
       },
       {
         id: 'actions',
@@ -113,11 +91,23 @@ export function SystemsTable({
               <Edit className="w-3.5 h-3.5" />
               Edit
             </button>
+            {onDeleteSystem && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteTarget(info.row.original);
+                }}
+                className="flex items-center gap-1 px-3 py-1 text-red-600 hover:bg-red-100 hover:text-red-800 rounded text-sm font-medium transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete
+              </button>
+            )}
           </div>
         ),
       },
     ],
-    [onEditSystem]
+    [onEditSystem, onDeleteSystem]
   );
 
   // Show empty state if no systems
@@ -141,8 +131,6 @@ export function SystemsTable({
           description="Systems are the source applications where data originates. They capture business events and produce attributes. Examples: SAP ERP, Manufacturing Execution System (MES), Warehouse Management System (WMS), Excel spreadsheets."
           actionLabel="+ Add First System"
           onAction={onNewSystem}
-          secondaryActionLabel="📖 Learn About Systems"
-          onSecondaryAction={() => window.open('https://docs.example.com/systems', '_blank')}
         />
       </div>
     );
@@ -173,6 +161,19 @@ export function SystemsTable({
         columns={columns}
         searchPlaceholder="Search systems..."
         onRowClick={onSystemClick}
+      />
+
+      <ConfirmDeleteDialog
+        isOpen={!!deleteTarget}
+        itemName={deleteTarget?.name || ''}
+        itemType="System"
+        onConfirm={() => {
+          if (deleteTarget) {
+            onDeleteSystem?.(deleteTarget);
+            setDeleteTarget(null);
+          }
+        }}
+        onCancel={() => setDeleteTarget(null)}
       />
     </div>
   );
