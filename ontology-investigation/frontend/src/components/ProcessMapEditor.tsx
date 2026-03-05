@@ -2,8 +2,9 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import cytoscape from 'cytoscape';
 import cytoscapeDagre from 'cytoscape-dagre';
-import { Lock, ArrowRight, X, ChevronRight, Layers } from 'lucide-react';
-import { useProcessFlow, useProcesses, useUpdateProcessStep, useCreateProcessStep, useDeleteProcessStep, useCrystallizationPoints } from '../hooks/useOntology';
+import { Lock, ArrowRight, X, ChevronRight, Layers, Users, Calendar, Plus, Trash2 } from 'lucide-react';
+import type { WorkshopSession } from '../types/ontology';
+import { useProcessFlow, useProcesses, useUpdateProcessStep, useCreateProcessStep, useDeleteProcessStep, useCrystallizationPoints, useCreateProcess, useDeleteProcess } from '../hooks/useOntology';
 import { ProcessStepEditModal, StepFormData } from './ProcessStepEditModal';
 import { StepLineageDrawer } from './StepLineageDrawer';
 
@@ -11,8 +12,9 @@ import { StepLineageDrawer } from './StepLineageDrawer';
 cytoscape.use(cytoscapeDagre);
 
 interface ProcessMapEditorProps {
-  processId: string;
+  processId?: string;
   perspectiveLevel?: string;
+  workshopSession?: WorkshopSession;
 }
 
 interface DrillDownEntry {
@@ -68,7 +70,7 @@ const laneYPositions: Record<string, number> = {
   financial: 560,
 };
 
-export function ProcessMapEditor({ processId }: ProcessMapEditorProps) {
+export function ProcessMapEditor({ processId, workshopSession }: ProcessMapEditorProps) {
   const [selectedStep, setSelectedStep] = useState<StepMetadata | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -78,26 +80,38 @@ export function ProcessMapEditor({ processId }: ProcessMapEditorProps) {
   const [firstNodeForConnection, setFirstNodeForConnection] = useState<string | null>(null);
   const [crystallizationView, setCrystallizationView] = useState(false);
   const [lineageStepId, setLineageStepId] = useState<string | null>(null);
-  const [activeProcessId, setActiveProcessId] = useState(processId);
+  const [activeProcessId, setActiveProcessId] = useState(processId || '');
   const [selectedHandoff, setSelectedHandoff] = useState<HandoffInfo | null>(null);
   const [parentStepId, setParentStepId] = useState<string | null>(null);
   const [drillDownStack, setDrillDownStack] = useState<DrillDownEntry[]>([]);
+  const [showCreateProcess, setShowCreateProcess] = useState(false);
+  const [newProcessName, setNewProcessName] = useState('');
+  const [newProcessDescription, setNewProcessDescription] = useState('');
   const cyRef = useRef<cytoscape.Core | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Sync activeProcessId with prop
   useEffect(() => {
-    setActiveProcessId(processId);
+    if (processId) setActiveProcessId(processId);
   }, [processId]);
 
   // Show all perspectives (no perspectiveLevel filter) for swim-lane view
   // Pass parentStepId to drill into sub-steps
-  const { data: flow, isLoading } = useProcessFlow(activeProcessId, undefined, parentStepId || undefined);
+  const { data: flow, isLoading } = useProcessFlow(activeProcessId || '__none__', undefined, parentStepId || undefined);
   const { data: crystallizationData } = useCrystallizationPoints(crystallizationView ? activeProcessId : '');
   const { data: processes } = useProcesses();
   const updateStepMutation = useUpdateProcessStep();
   const createStepMutation = useCreateProcessStep();
   const deleteStepMutation = useDeleteProcessStep();
+  const createProcessMutation = useCreateProcess();
+  const deleteProcessMutation = useDeleteProcess();
+
+  // Auto-select first process if none set
+  useEffect(() => {
+    if (!activeProcessId && processes && processes.length > 0) {
+      setActiveProcessId(processes[0].id);
+    }
+  }, [activeProcessId, processes]);
 
   // Calculate summary stats
   const stats = useMemo(() => {
@@ -592,20 +606,133 @@ export function ProcessMapEditor({ processId }: ProcessMapEditorProps) {
     }
   }, [crystallizationView, crystallizationData]);
 
-  if (isLoading) {
+  if (isLoading && activeProcessId) {
     return <div className="p-4">Loading process map...</div>;
   }
 
+  // Empty state - no processes exist
+  if (!processes || processes.length === 0 || !activeProcessId) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full bg-gray-50">
+        <div className="text-center max-w-lg">
+          <div className="text-6xl mb-6">🔄</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">Build Your First Process</h2>
+          <p className="text-gray-600 mb-2">
+            Map out your business processes with swim lanes across Operational, Management, and Financial perspectives.
+          </p>
+          <p className="text-sm text-gray-500 mb-8">
+            Each step captures who does what, in which system, producing which data — revealing waste, manual effort, and automation opportunities.
+          </p>
+          {showCreateProcess ? (
+            <div className="bg-white rounded-lg border border-gray-200 p-6 text-left shadow-sm">
+              <h3 className="font-semibold text-gray-900 mb-4">Create Process</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Process Name *</label>
+                  <input
+                    type="text"
+                    value={newProcessName}
+                    onChange={(e) => setNewProcessName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="e.g., Month-End Close, Order-to-Cash"
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    value={newProcessDescription}
+                    onChange={(e) => setNewProcessDescription(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    rows={2}
+                    placeholder="Brief description of the process..."
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setShowCreateProcess(false); setNewProcessName(''); setNewProcessDescription(''); }}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!newProcessName.trim()) return;
+                      createProcessMutation.mutate(
+                        { name: newProcessName.trim(), description: newProcessDescription.trim(), steps: [] },
+                        {
+                          onSuccess: (result: any) => {
+                            setActiveProcessId(result.id);
+                            setShowCreateProcess(false);
+                            setNewProcessName('');
+                            setNewProcessDescription('');
+                            toast.success('Process created!');
+                          },
+                          onError: () => toast.error('Failed to create process'),
+                        },
+                      );
+                    }}
+                    disabled={!newProcessName.trim() || createProcessMutation.isPending}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
+                  >
+                    {createProcessMutation.isPending ? 'Creating...' : 'Create Process'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowCreateProcess(true)}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 mx-auto"
+            >
+              <Plus className="w-5 h-5" />
+              Create Process
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (!flow) {
-    return <div className="p-4">No process found</div>;
+    return <div className="p-4">Loading process...</div>;
   }
 
   return (
     <div className="flex flex-col h-full">
+      {/* Workshop Banner */}
+      {workshopSession && (
+        <div className="px-4 py-2.5 bg-purple-50 border-b border-purple-200 flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-purple-600" />
+            <span className="text-sm font-medium text-purple-800">
+              Workshop: {workshopSession.name}
+            </span>
+          </div>
+          <span className="text-xs text-purple-600 flex items-center gap-1">
+            <Calendar className="w-3 h-3" />
+            {workshopSession.date}
+          </span>
+          {workshopSession.participants.length > 0 && (
+            <div className="flex items-center gap-1">
+              {workshopSession.participants.slice(0, 3).map((p) => (
+                <span key={p} className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded">
+                  {p}
+                </span>
+              ))}
+              {workshopSession.participants.length > 3 && (
+                <span className="text-xs text-purple-600">
+                  +{workshopSession.participants.length - 3} more
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       {/* Header with controls */}
       <div className="p-4 border-b bg-gray-50">
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {/* Process Selector */}
             {processes && processes.length > 1 ? (
               <select
@@ -625,7 +752,96 @@ export function ProcessMapEditor({ processId }: ProcessMapEditorProps) {
               <h2 className="text-xl font-bold">{flow.process.name}</h2>
             )}
             {flow.process.description && (
-              <p className="text-sm text-gray-600">{flow.process.description}</p>
+              <p className="text-sm text-gray-600 hidden lg:block">{flow.process.description}</p>
+            )}
+            {/* Process management buttons */}
+            {showCreateProcess ? (
+              <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg p-2">
+                <input
+                  type="text"
+                  value={newProcessName}
+                  onChange={(e) => setNewProcessName(e.target.value)}
+                  className="px-2 py-1 border border-gray-300 rounded text-sm w-48 focus:ring-2 focus:ring-blue-500"
+                  placeholder="Process name..."
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newProcessName.trim()) {
+                      createProcessMutation.mutate(
+                        { name: newProcessName.trim(), description: '', steps: [] },
+                        {
+                          onSuccess: (result: any) => {
+                            setActiveProcessId(result.id);
+                            setShowCreateProcess(false);
+                            setNewProcessName('');
+                            toast.success('Process created!');
+                          },
+                          onError: () => toast.error('Failed to create process'),
+                        },
+                      );
+                    } else if (e.key === 'Escape') {
+                      setShowCreateProcess(false);
+                      setNewProcessName('');
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    if (!newProcessName.trim()) return;
+                    createProcessMutation.mutate(
+                      { name: newProcessName.trim(), description: '', steps: [] },
+                      {
+                        onSuccess: (result: any) => {
+                          setActiveProcessId(result.id);
+                          setShowCreateProcess(false);
+                          setNewProcessName('');
+                          toast.success('Process created!');
+                        },
+                        onError: () => toast.error('Failed to create process'),
+                      },
+                    );
+                  }}
+                  disabled={!newProcessName.trim()}
+                  className="px-2 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Create
+                </button>
+                <button
+                  onClick={() => { setShowCreateProcess(false); setNewProcessName(''); }}
+                  className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-sm hover:bg-gray-200"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setShowCreateProcess(true)}
+                  className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                  title="Create new process"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+                {processes && processes.length > 1 && (
+                  <button
+                    onClick={() => {
+                      if (confirm(`Delete process "${flow.process.name}"? This cannot be undone.`)) {
+                        deleteProcessMutation.mutate(activeProcessId, {
+                          onSuccess: () => {
+                            const remaining = processes.filter(p => p.id !== activeProcessId);
+                            setActiveProcessId(remaining.length > 0 ? remaining[0].id : '');
+                            toast.success('Process deleted');
+                          },
+                          onError: () => toast.error('Failed to delete process'),
+                        });
+                      }
+                    }}
+                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                    title="Delete this process"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             )}
           </div>
           <div className="flex gap-2">

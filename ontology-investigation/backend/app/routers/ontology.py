@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -25,6 +26,19 @@ from ..models import (
 )
 
 router = APIRouter(prefix="/api", tags=["ontology"])
+
+
+def _generate_id(name: str) -> str:
+    """Generate a slug-style ID from a name."""
+    return name.lower().strip().replace(" ", "_").replace("-", "_")
+
+
+class ProcessCreate(BaseModel):
+    """Request model for creating a process (id is auto-generated if omitted)."""
+    id: Optional[str] = None
+    name: str
+    description: Optional[str] = None
+    steps: list = Field(default_factory=list)
 
 
 # ============ Perspectives ============
@@ -318,42 +332,76 @@ def get_process(id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/processes", response_model=Process)
-def create_process(data: Process, db: Session = Depends(get_db)):
+def create_process(data: ProcessCreate, db: Session = Depends(get_db)):
     """
     Create a new process with steps.
 
-    The process can include steps at any level (financial, management, operational).
-    Use parent_step_id to create hierarchical relationships.
+    The `id` field is optional — if omitted, it will be auto-generated from the name.
+    """
+    process_id = data.id or _generate_id(data.name)
+    repo = ProcessRepository(db)
 
-    Example:
-        {
-            "id": "my_process",
-            "name": "My Process",
-            "description": "Process description",
-            "steps": [
-                {
-                    "id": "step1",
-                    "sequence": 1,
-                    "name": "Financial Step",
-                    "perspective_id": "financial",
-                    "perspective_level": "financial",
-                    "has_sub_steps": true,
-                    ...
-                },
-                {
-                    "id": "step1_mgmt_1",
-                    "sequence": 1,
-                    "name": "Management Sub-Process",
-                    "perspective_id": "management",
-                    "perspective_level": "management",
-                    "parent_step_id": "step1",
-                    ...
-                }
-            ]
-        }
+    # Check for duplicate id
+    if repo.get_by_id(process_id):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Process with id '{process_id}' already exists",
+        )
+
+    process = Process(
+        id=process_id,
+        name=data.name,
+        description=data.description,
+        steps=data.steps,
+    )
+    return repo.create(process)
+
+
+@router.post("/processes/{id}/duplicate", response_model=Process)
+def duplicate_process(id: str, db: Session = Depends(get_db)):
+    """
+    Deep-copy a process with all steps, remapping internal step IDs.
     """
     repo = ProcessRepository(db)
-    return repo.create(data)
+    source = repo.get_by_id(id)
+    if not source:
+        raise HTTPException(status_code=404, detail="Process not found")
+
+    import time
+    suffix = str(int(time.time()))
+
+    # Build step ID mapping
+    id_map = {}
+    for step in source.steps:
+        new_id = f"{step.id}_copy_{suffix}"
+        id_map[step.id] = new_id
+
+    # Deep copy steps with remapped IDs
+    from ..models import ProcessStep
+    new_steps = []
+    for step in source.steps:
+        new_step = step.model_copy(update={
+            "id": id_map[step.id],
+            "depends_on_step_ids": [id_map.get(d, d) for d in step.depends_on_step_ids],
+            "parent_step_id": id_map.get(step.parent_step_id) if step.parent_step_id else None,
+        })
+        new_steps.append(new_step)
+
+    new_id = _generate_id(f"{source.name} Copy")
+    # Ensure unique
+    counter = 1
+    base_id = new_id
+    while repo.get_by_id(new_id):
+        counter += 1
+        new_id = f"{base_id}_{counter}"
+
+    new_process = Process(
+        id=new_id,
+        name=f"{source.name} (Copy)",
+        description=source.description,
+        steps=new_steps,
+    )
+    return repo.create(new_process)
 
 
 @router.put("/processes/{id}", response_model=Process)
@@ -425,6 +473,114 @@ def create_process_step(
     if not result:
         raise HTTPException(status_code=404, detail=f"Process {process_id} not found")
     return result
+
+
+@router.put("/processes/{process_id}/reorder", response_model=Process)
+def reorder_process_step(
+    process_id: str,
+    body: dict,
+    db: Session = Depends(get_db),
+):
+    """
+    Reorder a step within a process by setting its new sequence number.
+    Other steps shift accordingly.
+    Body: { "step_id": "...", "new_sequence": 3 }
+    """
+    step_id = body.get("step_id")
+    new_sequence = body.get("new_sequence")
+    if not step_id or new_sequence is None:
+        raise HTTPException(status_code=400, detail="step_id and new_sequence are required")
+
+    repo = ProcessRepository(db)
+    process = repo.get_by_id(process_id)
+    if not process:
+        raise HTTPException(status_code=404, detail="Process not found")
+
+    # Find the step
+    target_step = None
+    other_steps = []
+    for step in process.steps:
+        if step.id == step_id:
+            target_step = step
+        else:
+            other_steps.append(step)
+
+    if not target_step:
+        raise HTTPException(status_code=404, detail="Step not found")
+
+    # Sort remaining by current sequence
+    other_steps.sort(key=lambda s: s.sequence)
+
+    # Insert at new position and renumber
+    new_sequence = max(1, min(new_sequence, len(process.steps)))
+    other_steps.insert(new_sequence - 1, target_step)
+
+    for i, step in enumerate(other_steps):
+        step.sequence = i + 1
+
+    process.steps = other_steps
+    return repo.update(process_id, process)
+
+
+@router.put("/processes/{process_id}/steps/bulk-update", response_model=Process)
+def bulk_update_steps(
+    process_id: str,
+    body: dict,
+    db: Session = Depends(get_db),
+):
+    """
+    Bulk-update properties on multiple steps.
+    Body: { "step_ids": ["..."], "updates": { "perspective_id": "management" } }
+    """
+    step_ids = body.get("step_ids", [])
+    updates = body.get("updates", {})
+    if not step_ids or not updates:
+        raise HTTPException(status_code=400, detail="step_ids and updates are required")
+
+    repo = ProcessRepository(db)
+    process = repo.get_by_id(process_id)
+    if not process:
+        raise HTTPException(status_code=404, detail="Process not found")
+
+    ids_set = set(step_ids)
+    for step in process.steps:
+        if step.id in ids_set:
+            for key, value in updates.items():
+                if hasattr(step, key):
+                    setattr(step, key, value)
+
+    return repo.update(process_id, process)
+
+
+@router.delete("/processes/{process_id}/steps/bulk-delete", response_model=Process)
+def bulk_delete_steps(
+    process_id: str,
+    body: dict,
+    db: Session = Depends(get_db),
+):
+    """
+    Delete multiple steps at once.
+    Body: { "step_ids": ["..."] }
+    """
+    step_ids = body.get("step_ids", [])
+    if not step_ids:
+        raise HTTPException(status_code=400, detail="step_ids is required")
+
+    repo = ProcessRepository(db)
+    process = repo.get_by_id(process_id)
+    if not process:
+        raise HTTPException(status_code=404, detail="Process not found")
+
+    ids_set = set(step_ids)
+    process.steps = [s for s in process.steps if s.id not in ids_set]
+
+    # Clean up depends_on_step_ids references
+    for step in process.steps:
+        step.depends_on_step_ids = [
+            sid for sid in step.depends_on_step_ids if sid not in ids_set
+        ]
+
+    return repo.update(process_id, process)
 
 
 @router.delete("/processes/{process_id}/steps/{step_id}", response_model=Process)

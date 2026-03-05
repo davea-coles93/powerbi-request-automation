@@ -68,16 +68,9 @@ SCENARIOS = {
         "icon": "🏭",
         "file": "seed_data.json"
     },
-    "toyota_connected": {
-        "id": "toyota_connected",
-        "name": "Toyota Connected - Project Portfolio",
-        "description": "Software project management and financial forecasting with stage gates and portfolio planning",
-        "icon": "📊",
-        "file": "seed_data_toyota_connected.json"
-    },
     "tceu": {
         "id": "tceu",
-        "name": "TCEU - Mieruka Replacement Programme",
+        "name": "TCEU - Project Portfolio & Mieruka Replacement",
         "description": "Enterprise project governance, resource management, timesheet management, and financial forecasting for TCEU's digital consulting practice",
         "icon": "🚗",
         "file": "seed_data_tceu.json"

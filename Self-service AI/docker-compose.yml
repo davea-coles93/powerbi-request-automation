@@ -15,12 +15,12 @@ services:
       - ./backend/.env
     volumes:
       - ./backend/src:/app/src
-      - ./backend/dist:/app/dist
       - .:/repo
       - ./models:/models
       # Mount MCP servers for child process spawning
       - ./mcp-servers:/app/mcp-servers:ro
     restart: unless-stopped
+    command: npx nodemon --exec ts-node src/index.ts
     networks:
       - powerbi-network
 

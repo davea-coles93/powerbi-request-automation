@@ -18,6 +18,7 @@ export type TriageResult =
 export type RequestStatus =
   | 'pending'
   | 'triaging'
+  | 'analyzed'
   | 'awaiting_clarification'
   | 'in_progress'
   | 'validating'
@@ -26,6 +27,32 @@ export type RequestStatus =
   | 'completed'
   | 'failed'
   | 'needs_human';
+
+export interface TmdlChangeProposal {
+  type: 'create' | 'update' | 'delete';
+  tableName: string;
+  measureName: string;
+  expression?: string;
+  formatString?: string;
+  description?: string;
+}
+
+export interface KnockOnEffect {
+  area: string;
+  description: string;
+  recommendation: string;
+  severity: 'info' | 'warning' | 'action_required';
+}
+
+export interface AnalysisReport {
+  summary: string;
+  reasoning: string;
+  proposedChanges: TmdlChangeProposal[];
+  estimatedComplexity: string;
+  affectedObjects: string[];
+  warnings: string[];
+  knockOnEffects: KnockOnEffect[];
+}
 
 export interface ChangeRequest {
   id: string;
@@ -46,6 +73,7 @@ export interface ChangeRequest {
   clarificationQuestions?: ClarificationQuestion[];
   clarificationResponse?: string;
   clarificationAttempts?: number;
+  analysisReport?: AnalysisReport;
 }
 
 export interface ExecutionLogEntry {

@@ -1,3 +1,4 @@
+import uuid
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -9,7 +10,9 @@ from ..db.repositories import (
     MeasureRepository,
     MetricRepository,
     ProcessRepository,
+    WorkshopSessionRepository,
 )
+from ..models.workshop import GapItem
 
 
 class GraphService:
@@ -441,3 +444,125 @@ class GraphService:
             "process_name": process.name,
             "crystallization_points": crystallization_map,
         }
+
+    def detect_gaps(
+        self,
+        top_down_session_ids: list[str],
+        bottom_up_session_ids: list[str],
+        db: Session,
+    ) -> list[GapItem]:
+        """Cross-reference top-down demand with bottom-up supply to identify gaps.
+
+        Gap types:
+        - missing_supply: required by top-down but not produced by any process step
+        - unused_supply: produced by process steps but not consumed by any metric
+        - shadow_system: step uses a system of type "Spreadsheet"
+        - high_manual_effort: step with manual_effort_percentage >= 80
+        """
+        workshop_repo = WorkshopSessionRepository(db)
+        gaps: list[GapItem] = []
+
+        # --- Collect demand signal from top-down sessions ---
+        required_attr_ids: set[str] = set()
+        for sid in top_down_session_ids:
+            session = workshop_repo.get_by_id(sid)
+            if not session or not session.top_down_data:
+                continue
+            for mc in session.top_down_data.metrics:
+                for mr in mc.required_measures:
+                    for ar in mr.required_attributes:
+                        if ar.existing_attribute_id:
+                            required_attr_ids.add(ar.existing_attribute_id)
+
+        # Also collect attributes required by existing metrics/measures in the ontology
+        all_metrics = self.metrics.get_all()
+        all_measures = self.measures.get_all()
+        for metric in all_metrics:
+            for mid in metric.calculated_by_measure_ids:
+                measure = self.measures.get_by_id(mid)
+                if measure:
+                    required_attr_ids.update(measure.input_attribute_ids)
+
+        # --- Collect supply signal from bottom-up sessions (processes) ---
+        produced_attr_ids: set[str] = set()
+        consumed_attr_ids: set[str] = set()
+        all_steps = []
+
+        # Bottom-up sessions link to process_id
+        process_ids: set[str] = set()
+        for sid in bottom_up_session_ids:
+            session = workshop_repo.get_by_id(sid)
+            if session and session.process_id:
+                process_ids.add(session.process_id)
+
+        for pid in process_ids:
+            process = self.processes.get_by_id(pid)
+            if not process:
+                continue
+            for step in process.steps:
+                all_steps.append((process, step))
+                produced_attr_ids.update(step.produces_attribute_ids)
+                consumed_attr_ids.update(step.consumes_attribute_ids)
+
+        # If no bottom-up sessions, fall back to all processes
+        if not process_ids:
+            for process in self.processes.get_all():
+                for step in process.steps:
+                    all_steps.append((process, step))
+                    produced_attr_ids.update(step.produces_attribute_ids)
+                    consumed_attr_ids.update(step.consumes_attribute_ids)
+
+        # --- Missing Supply: required but not produced ---
+        missing = required_attr_ids - produced_attr_ids
+        for attr_id in missing:
+            attr = self.attributes.get_by_id(attr_id)
+            gaps.append(GapItem(
+                id=str(uuid.uuid4()),
+                gap_type="missing_supply",
+                description=f"Attribute '{attr.name if attr else attr_id}' is required by metrics but not produced by any mapped process step.",
+                priority="high",
+                related_attribute_ids=[attr_id],
+            ))
+
+        # --- Unused Supply: produced but not consumed by any measure ---
+        all_measure_attr_ids: set[str] = set()
+        for m in all_measures:
+            all_measure_attr_ids.update(m.input_attribute_ids)
+        unused = produced_attr_ids - all_measure_attr_ids - consumed_attr_ids
+        for attr_id in unused:
+            attr = self.attributes.get_by_id(attr_id)
+            gaps.append(GapItem(
+                id=str(uuid.uuid4()),
+                gap_type="unused_supply",
+                description=f"Attribute '{attr.name if attr else attr_id}' is produced by a process step but not consumed by any measure or downstream step.",
+                priority="low",
+                related_attribute_ids=[attr_id],
+            ))
+
+        # --- Shadow System & High Manual Effort ---
+        for process, step in all_steps:
+            # Shadow system: uses a spreadsheet
+            for sys_id in step.systems_used_ids:
+                system = self.systems.get_by_id(sys_id)
+                if system and system.type and system.type.lower() in (
+                    "spreadsheet", "excel", "google sheets"
+                ):
+                    gaps.append(GapItem(
+                        id=str(uuid.uuid4()),
+                        gap_type="shadow_system",
+                        description=f"Step '{step.name}' in process '{process.name}' uses spreadsheet '{system.name}' instead of a proper system.",
+                        priority="medium",
+                        related_process_ids=[process.id],
+                    ))
+
+            # High manual effort
+            if step.manual_effort_percentage is not None and step.manual_effort_percentage >= 80:
+                gaps.append(GapItem(
+                    id=str(uuid.uuid4()),
+                    gap_type="high_manual_effort",
+                    description=f"Step '{step.name}' in process '{process.name}' has {step.manual_effort_percentage}% manual effort.",
+                    priority="medium" if step.manual_effort_percentage < 90 else "high",
+                    related_process_ids=[process.id],
+                ))
+
+        return gaps

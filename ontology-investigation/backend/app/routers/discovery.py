@@ -30,7 +30,14 @@ from app.models import (
     Process,
     ProcessStep,
 )
-from app.models.workshop import WorkshopSession, WorkshopFinding
+from app.models.workshop import (
+    WorkshopSession,
+    WorkshopFinding,
+    TopDownData,
+    GapAnalysisData,
+)
+from app.services.graph_service import GraphService
+from app.services.workshop_service import WorkshopService
 
 
 router = APIRouter(prefix="/api/discovery", tags=["discovery"])
@@ -199,7 +206,7 @@ def _row_to_model(row: dict, column_mapping: dict, entity_type: str) -> dict:
                 "consumes_attribute_ids", "produces_attribute_ids",
                 "uses_metric_ids", "crystallizes_attribute_ids",
                 "depends_on_step_ids", "systems_used_ids",
-                "observations",
+                "facts",
             ]
             if model_field in list_fields:
                 parsed = _parse_json_field(value)
@@ -606,3 +613,108 @@ async def remove_finding(
         raise HTTPException(status_code=404, detail="Finding not found")
 
     return repo.update(session_id, session)
+
+
+# --- Structured Workshop Data ---
+
+
+@router.put("/workshop/sessions/{session_id}/top-down-data", response_model=WorkshopSession)
+async def save_top_down_data(
+    session_id: str,
+    body: TopDownData,
+    db: Session = Depends(get_db),
+):
+    """Save structured top-down workshop data (the demand signal)."""
+    repo = WorkshopSessionRepository(db)
+    session = repo.get_by_id(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Workshop session not found")
+    if session.session_type != "top_down":
+        raise HTTPException(status_code=400, detail="Session is not a top-down session")
+
+    session.top_down_data = body
+    return repo.update(session_id, session)
+
+
+@router.put("/workshop/sessions/{session_id}/gap-analysis-data", response_model=WorkshopSession)
+async def save_gap_analysis_data(
+    session_id: str,
+    body: GapAnalysisData,
+    db: Session = Depends(get_db),
+):
+    """Save structured gap analysis workshop data."""
+    repo = WorkshopSessionRepository(db)
+    session = repo.get_by_id(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Workshop session not found")
+    if session.session_type != "gap_analysis":
+        raise HTTPException(status_code=400, detail="Session is not a gap analysis session")
+
+    session.gap_analysis_data = body
+    return repo.update(session_id, session)
+
+
+@router.get("/workshop/sessions/{session_id}/gap-analysis/auto-detect")
+async def auto_detect_gaps(
+    session_id: str,
+    db: Session = Depends(get_db),
+):
+    """Run automated gap detection for a gap analysis session.
+
+    Cross-references top-down demand with bottom-up supply to identify gaps.
+    """
+    repo = WorkshopSessionRepository(db)
+    session = repo.get_by_id(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Workshop session not found")
+    if session.session_type != "gap_analysis":
+        raise HTTPException(status_code=400, detail="Session is not a gap analysis session")
+    if not session.gap_analysis_data:
+        raise HTTPException(
+            status_code=400,
+            detail="No gap analysis data configured. Set top_down_session_ids and bottom_up_session_ids first.",
+        )
+
+    graph = GraphService(db)
+    gaps = graph.detect_gaps(
+        top_down_session_ids=session.gap_analysis_data.top_down_session_ids,
+        bottom_up_session_ids=session.gap_analysis_data.bottom_up_session_ids,
+        db=db,
+    )
+    return {"gaps": [g.model_dump() for g in gaps]}
+
+
+class MaterializeRequest(BaseModel):
+    """Request body for materializing workshop captures into ontology elements."""
+    element_type: Literal["metric", "measure", "attribute"]
+    source_session_id: str
+    source_element_id: str
+    overrides: dict = Field(default_factory=dict)
+
+
+@router.post("/workshop/sessions/{session_id}/materialize")
+async def materialize_element(
+    session_id: str,
+    body: MaterializeRequest,
+    db: Session = Depends(get_db),
+):
+    """Create a real ontology element from a workshop capture.
+
+    Takes a captured metric/measure/attribute from a top-down session and
+    creates the corresponding ontology element.
+    """
+    repo = WorkshopSessionRepository(db)
+    session = repo.get_by_id(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Workshop session not found")
+
+    svc = WorkshopService(db)
+    result = svc.materialize(
+        session=session,
+        element_type=body.element_type,
+        source_element_id=body.source_element_id,
+        overrides=body.overrides,
+    )
+    if not result:
+        raise HTTPException(status_code=400, detail="Could not materialize element. Check source_element_id exists.")
+    return result

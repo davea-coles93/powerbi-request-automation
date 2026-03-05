@@ -101,14 +101,14 @@ export interface Metric {
   perspective_ids: string[];
 }
 
-// Observation types (workshop capture on process steps)
-export type ObservationCategory = 'pain_point' | 'decision' | 'insight' | 'question' | 'action_item';
+// Fact types (workshop capture on process steps)
+export type FactCategory = 'pain_point' | 'decision' | 'insight' | 'question' | 'action_item';
 
-export interface Observation {
+export interface Fact {
   text: string;
   author?: string;
   timestamp?: string;
-  category?: ObservationCategory;
+  category?: FactCategory;
 }
 
 // Process types
@@ -139,8 +139,8 @@ export interface ProcessStep {
   waste_category?: string;  // Type of waste identified
   manual_effort_percentage?: number;  // 0-100: percentage that is manual vs automated
 
-  // Workshop observations
-  observations?: Observation[];
+  // Workshop facts
+  facts?: Fact[];
 }
 
 export interface Process {
@@ -310,6 +310,58 @@ export interface WorkshopFinding {
   priority: 'high' | 'medium' | 'low';
 }
 
+// Top-down structured data
+export interface TopDownAttributeRequirement {
+  id: string;
+  name: string;
+  existing_attribute_id?: string;
+  entity_hint?: string;
+}
+
+export interface TopDownMeasureRequirement {
+  id: string;
+  name: string;
+  logic?: string;
+  existing_measure_id?: string;
+  required_attributes: TopDownAttributeRequirement[];
+}
+
+export interface TopDownMetricCapture {
+  id: string;
+  business_question: string;
+  metric_name: string;
+  perspective_ids: string[];
+  existing_metric_id?: string;
+  required_measures: TopDownMeasureRequirement[];
+}
+
+export interface TopDownData {
+  metrics: TopDownMetricCapture[];
+}
+
+// Gap analysis structured data
+export type GapType = 'missing_supply' | 'unused_supply' | 'shadow_system' | 'high_manual_effort';
+
+export interface GapItem {
+  id: string;
+  gap_type: GapType;
+  description: string;
+  priority: 'high' | 'medium' | 'low';
+  related_entity_ids: string[];
+  related_attribute_ids: string[];
+  related_measure_ids: string[];
+  related_process_ids: string[];
+  suggested_action?: string;
+  resolved: boolean;
+  resolution_notes?: string;
+}
+
+export interface GapAnalysisData {
+  top_down_session_ids: string[];
+  bottom_up_session_ids: string[];
+  gaps: GapItem[];
+}
+
 export interface WorkshopSession {
   id: string;
   name: string;
@@ -318,6 +370,17 @@ export interface WorkshopSession {
   session_type: WorkshopSessionType;
   notes?: string;
   findings: WorkshopFinding[];
+  top_down_data?: TopDownData;
+  gap_analysis_data?: GapAnalysisData;
+  process_id?: string;
+}
+
+// Materialize request
+export interface MaterializeRequest {
+  element_type: 'metric' | 'measure' | 'attribute';
+  source_session_id: string;
+  source_element_id: string;
+  overrides?: Record<string, any>;
 }
 
 // Import response types
@@ -335,7 +398,7 @@ export interface ExcelImportResponse {
 
 // Process creation type
 export interface CreateProcessInput {
-  id: string;
+  id?: string;
   name: string;
   description?: string;
   steps?: ProcessStep[];

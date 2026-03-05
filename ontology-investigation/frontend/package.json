@@ -16,6 +16,7 @@
     "axios": "^1.6.5",
     "cytoscape": "^3.28.1",
     "cytoscape-dagre": "^2.5.0",
+    "cytoscape-fcose": "^2.2.0",
     "dagre": "^0.8.5",
     "lucide-react": "^0.309.0",
     "react": "^18.2.0",
@@ -23,7 +24,8 @@
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.6.0",
     "react-tooltip": "^5.30.0",
-    "reactflow": "^11.10.1"
+    "reactflow": "^11.10.1",
+    "zustand": "^4.5.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.1",

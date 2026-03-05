@@ -14,6 +14,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    profiles:
+      - prod
 
   frontend:
     build:
@@ -23,8 +25,10 @@ services:
       - "3000:80"
     depends_on:
       - backend
+    profiles:
+      - prod
 
-  # Development services (optional)
+  # Development services
   backend-dev:
     build:
       context: ./backend
@@ -49,6 +53,8 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    environment:
+      - VITE_API_TARGET=http://backend-dev:8000
     depends_on:
       - backend-dev
     profiles:

@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { ChangeRequest, CreateRequestDTO, RequestStatus, TriageAnalysis } from '../types/request';
+import { ChangeRequest, CreateRequestDTO, RequestStatus, TriageAnalysis, AnalysisReport } from '../types/request';
 
 // In-memory store for the POC
 // In production, this would be a database
@@ -61,7 +61,15 @@ export class RequestStore {
     return this.update(id, {
       changeType: analysis.changeType,
       triageResult: analysis.triageResult,
-      status: analysis.triageResult === 'auto_fix' ? 'in_progress' : 'needs_human',
+      // Don't auto-set to in_progress — analysis phase will set to 'analyzed'
+      status: analysis.triageResult === 'auto_fix' ? 'triaging' : 'needs_human',
+    });
+  }
+
+  setAnalysisReport(id: string, report: AnalysisReport): ChangeRequest | undefined {
+    return this.update(id, {
+      analysisReport: report,
+      status: 'analyzed',
     });
   }
 
@@ -109,6 +117,7 @@ export class RequestStore {
     const byStatus: Record<RequestStatus, number> = {
       pending: 0,
       triaging: 0,
+      analyzed: 0,
       awaiting_clarification: 0,
       in_progress: 0,
       validating: 0,

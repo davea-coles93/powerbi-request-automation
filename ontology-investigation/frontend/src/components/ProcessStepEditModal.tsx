@@ -11,7 +11,7 @@ interface ProcessStepEditModalProps {
   onCancel: () => void;
 }
 
-export interface ObservationData {
+export interface FactData {
   text: string;
   author?: string;
   timestamp?: string;
@@ -33,15 +33,15 @@ export interface StepFormData {
   uses_metric_ids?: string[];
   systems_used_ids?: string[];
   description?: string;
-  observations?: ObservationData[];
+  facts?: FactData[];
 }
 
 export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: ProcessStepEditModalProps) {
   const [step, setStep] = useState<StepFormData>(initialStep);
-  const [activeTab, setActiveTab] = useState<'basic' | 'metadata' | 'links' | 'observations'>('basic');
+  const [activeTab, setActiveTab] = useState<'basic' | 'metadata' | 'links' | 'facts'>('basic');
   const [newObsText, setNewObsText] = useState('');
   const [newObsAuthor, setNewObsAuthor] = useState('');
-  const [newObsCategory, setNewObsCategory] = useState<ObservationData['category'] | ''>('');
+  const [newObsCategory, setNewObsCategory] = useState<FactData['category'] | ''>('');
   const [showCreateAttribute, setShowCreateAttribute] = useState(false);
   const [showCreateSystem, setShowCreateSystem] = useState(false);
 
@@ -145,17 +145,17 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
             🔗 Links & Data
           </button>
           <button
-            onClick={() => setActiveTab('observations')}
+            onClick={() => setActiveTab('facts')}
             className={`px-6 py-3 font-semibold ${
-              activeTab === 'observations'
+              activeTab === 'facts'
                 ? 'border-b-2 border-purple-600 text-purple-600 bg-white'
                 : 'text-gray-600 hover:text-gray-800'
             }`}
           >
-            💬 Observations
-            {(step.observations?.length ?? 0) > 0 && (
+            💬 Facts
+            {(step.facts?.length ?? 0) > 0 && (
               <span className="ml-1.5 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs">
-                {step.observations!.length}
+                {step.facts!.length}
               </span>
             )}
           </button>
@@ -450,21 +450,21 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
             </div>
           )}
 
-          {/* Observations Tab */}
-          {activeTab === 'observations' && (
+          {/* Facts Tab */}
+          {activeTab === 'facts' && (
             <div className="space-y-6">
-              {/* Add Observation Form */}
+              {/* Add Fact Form */}
               <div className="p-4 bg-gray-50 rounded-lg border">
-                <h3 className="font-semibold text-sm mb-3">Add New Observation</h3>
+                <h3 className="font-semibold text-sm mb-3">Add New Fact</h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-sm font-semibold mb-1">Observation *</label>
+                    <label className="block text-sm font-semibold mb-1">Fact *</label>
                     <textarea
                       value={newObsText}
                       onChange={(e) => setNewObsText(e.target.value)}
                       className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
                       rows={2}
-                      placeholder="Describe the observation, pain point, or insight..."
+                      placeholder="Describe the fact, pain point, or insight..."
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -472,7 +472,7 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
                       <label className="block text-sm font-semibold mb-1">Category</label>
                       <select
                         value={newObsCategory}
-                        onChange={(e) => setNewObsCategory(e.target.value as ObservationData['category'] | '')}
+                        onChange={(e) => setNewObsCategory(e.target.value as FactData['category'] | '')}
                         className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
                       >
                         <option value="">Select category...</option>
@@ -497,15 +497,15 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
                   <button
                     onClick={() => {
                       if (!newObsText.trim()) return;
-                      const newObs: ObservationData = {
+                      const newObs: FactData = {
                         text: newObsText.trim(),
                         timestamp: new Date().toISOString(),
                         ...(newObsAuthor.trim() ? { author: newObsAuthor.trim() } : {}),
-                        ...(newObsCategory ? { category: newObsCategory as ObservationData['category'] } : {}),
+                        ...(newObsCategory ? { category: newObsCategory as FactData['category'] } : {}),
                       };
                       setStep({
                         ...step,
-                        observations: [...(step.observations || []), newObs],
+                        facts: [...(step.facts || []), newObs],
                       });
                       setNewObsText('');
                       setNewObsAuthor('');
@@ -514,24 +514,24 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
                     disabled={!newObsText.trim()}
                     className="px-4 py-2 bg-purple-600 text-white rounded font-semibold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    + Add Observation
+                    + Add Fact
                   </button>
                 </div>
               </div>
 
-              {/* Existing Observations List */}
+              {/* Existing Facts List */}
               <div>
                 <h3 className="font-semibold text-sm mb-3">
-                  Observations ({step.observations?.length || 0})
+                  Facts ({step.facts?.length || 0})
                 </h3>
-                {(!step.observations || step.observations.length === 0) ? (
+                {(!step.facts || step.facts.length === 0) ? (
                   <div className="text-center py-8 text-gray-500 border-2 border-dashed rounded-lg">
-                    <p className="text-lg mb-1">No observations yet</p>
-                    <p className="text-sm">Add observations to capture workshop notes, pain points, and decisions.</p>
+                    <p className="text-lg mb-1">No facts yet</p>
+                    <p className="text-sm">Add facts to capture workshop notes, pain points, and decisions.</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {step.observations.map((obs, index) => {
+                    {step.facts.map((obs, index) => {
                       const categoryConfig: Record<string, { bg: string; text: string; label: string }> = {
                         pain_point: { bg: 'bg-red-100', text: 'text-red-700', label: 'Pain Point' },
                         decision: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Decision' },
@@ -564,12 +564,12 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
                             </div>
                             <button
                               onClick={() => {
-                                const updated = [...(step.observations || [])];
+                                const updated = [...(step.facts || [])];
                                 updated.splice(index, 1);
-                                setStep({ ...step, observations: updated });
+                                setStep({ ...step, facts: updated });
                               }}
                               className="text-gray-400 hover:text-red-500 flex-shrink-0 p-1"
-                              title="Remove observation"
+                              title="Remove fact"
                             >
                               &#10005;
                             </button>

@@ -19,6 +19,10 @@ import type {
   TmdlPreview,
   TmdlLoadResponse,
   WorkshopSession,
+  TopDownData,
+  GapAnalysisData,
+  GapItem,
+  MaterializeRequest,
   CsvImportResponse,
   ExcelImportResponse,
   CreateProcessInput,
@@ -221,6 +225,21 @@ export const loadTmdlModel = (modelPath: string, modelName: string) =>
 export const createProcess = (data: CreateProcessInput) =>
   api.post<Process>('/processes', data).then((res) => res.data);
 
+// Process duplication
+export const duplicateProcess = (id: string) =>
+  api.post<Process>(`/processes/${id}/duplicate`).then((res) => res.data);
+
+// Step reordering
+export const reorderProcessStep = (processId: string, stepId: string, newSequence: number) =>
+  api.put(`/processes/${processId}/reorder`, { step_id: stepId, new_sequence: newSequence }).then((res) => res.data);
+
+// Bulk step operations
+export const bulkUpdateSteps = (processId: string, stepIds: string[], updates: Record<string, any>) =>
+  api.put(`/processes/${processId}/steps/bulk-update`, { step_ids: stepIds, updates }).then((res) => res.data);
+
+export const bulkDeleteSteps = (processId: string, stepIds: string[]) =>
+  api.delete(`/processes/${processId}/steps/bulk-delete`, { data: { step_ids: stepIds } }).then((res) => res.data);
+
 // Discovery / Import endpoints
 export const importCsv = (formData: FormData) =>
   api.post<CsvImportResponse>('/discovery/import/csv', formData, {
@@ -244,3 +263,19 @@ export const updateWorkshopSession = (id: string, data: Partial<WorkshopSession>
 
 export const addWorkshopFinding = (sessionId: string, finding: any) =>
   api.post<WorkshopSession>(`/discovery/workshop/sessions/${sessionId}/findings`, finding).then((res) => res.data);
+
+export const deleteWorkshopSession = (id: string) =>
+  api.delete(`/discovery/workshop/sessions/${id}`).then((res) => res.data);
+
+// Structured workshop data
+export const saveTopDownData = (sessionId: string, data: TopDownData) =>
+  api.put<WorkshopSession>(`/discovery/workshop/sessions/${sessionId}/top-down-data`, data).then((res) => res.data);
+
+export const saveGapAnalysisData = (sessionId: string, data: GapAnalysisData) =>
+  api.put<WorkshopSession>(`/discovery/workshop/sessions/${sessionId}/gap-analysis-data`, data).then((res) => res.data);
+
+export const autoDetectGaps = (sessionId: string) =>
+  api.get<{ gaps: GapItem[] }>(`/discovery/workshop/sessions/${sessionId}/gap-analysis/auto-detect`).then((res) => res.data);
+
+export const materializeElement = (sessionId: string, data: MaterializeRequest) =>
+  api.post(`/discovery/workshop/sessions/${sessionId}/materialize`, data).then((res) => res.data);

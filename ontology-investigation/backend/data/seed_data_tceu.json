@@ -1,6 +1,6 @@
 {
-  "scenario_name": "Toyota Connected Europe - Mieruka Replacement Programme",
-  "scenario_description": "Enterprise project governance, resource management, timesheet management, and financial forecasting for TCEU's digital consulting practice. Covers the full lifecycle from lead capture through project closure, plus ongoing resource and licence management.",
+  "scenario_name": "Toyota Connected Europe - Project Portfolio & Mieruka Replacement",
+  "scenario_description": "Enterprise project governance, resource management, timesheet management, and financial forecasting for TCEU's digital consulting practice. Covers the full lifecycle from lead capture through project closure, plus ongoing resource and licence management. Replaces the legacy Mieruka system.",
   "perspectives": [
     {
       "id": "operational",

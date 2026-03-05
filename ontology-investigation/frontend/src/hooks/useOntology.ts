@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as api from '../services/api';
+import type { CreateProcessInput } from '../types/ontology';
 
 export const usePerspectives = () =>
   useQuery({
@@ -341,9 +342,58 @@ export const useLoadTmdlModel = () => {
 export const useCreateProcess = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { id: string; name: string; description?: string; steps?: any[] }) =>
+    mutationFn: (data: CreateProcessInput) =>
       api.createProcess(data),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['processes'] });
+    },
+  });
+};
+
+// Process duplication
+export const useDuplicateProcess = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.duplicateProcess(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['processes'] });
+    },
+  });
+};
+
+// Step reordering
+export const useReorderProcessStep = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ processId, stepId, newSequence }: { processId: string; stepId: string; newSequence: number }) =>
+      api.reorderProcessStep(processId, stepId, newSequence),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['processFlow', variables.processId] });
+      queryClient.invalidateQueries({ queryKey: ['processes'] });
+    },
+  });
+};
+
+// Bulk step operations
+export const useBulkUpdateSteps = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ processId, stepIds, updates }: { processId: string; stepIds: string[]; updates: Record<string, any> }) =>
+      api.bulkUpdateSteps(processId, stepIds, updates),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['processFlow', variables.processId] });
+      queryClient.invalidateQueries({ queryKey: ['processes'] });
+    },
+  });
+};
+
+export const useBulkDeleteSteps = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ processId, stepIds }: { processId: string; stepIds: string[] }) =>
+      api.bulkDeleteSteps(processId, stepIds),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['processFlow', variables.processId] });
       queryClient.invalidateQueries({ queryKey: ['processes'] });
     },
   });
@@ -405,6 +455,60 @@ export const useAddWorkshopFinding = () => {
       api.addWorkshopFinding(sessionId, finding),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workshopSessions'] });
+    },
+  });
+};
+
+export const useDeleteWorkshopSession = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteWorkshopSession(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workshopSessions'] });
+    },
+  });
+};
+
+export const useSaveTopDownData = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, data }: { sessionId: string; data: any }) =>
+      api.saveTopDownData(sessionId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workshopSessions'] });
+    },
+  });
+};
+
+export const useSaveGapAnalysisData = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, data }: { sessionId: string; data: any }) =>
+      api.saveGapAnalysisData(sessionId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workshopSessions'] });
+    },
+  });
+};
+
+export const useAutoDetectGaps = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) => api.autoDetectGaps(sessionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workshopSessions'] });
+    },
+  });
+};
+
+export const useMaterializeElement = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, data }: { sessionId: string; data: any }) =>
+      api.materializeElement(sessionId, data),
+    onSuccess: () => {
+      // Materialize creates ontology elements, invalidate everything
+      queryClient.invalidateQueries();
     },
   });
 };

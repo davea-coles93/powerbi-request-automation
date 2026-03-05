@@ -137,6 +137,9 @@ class WorkshopSessionDB(Base):
     session_type = Column(String)
     notes = Column(Text)
     findings = Column(JSON, default=list)
+    top_down_data = Column(JSON)
+    gap_analysis_data = Column(JSON)
+    process_id = Column(String)
 
 
 def init_db():

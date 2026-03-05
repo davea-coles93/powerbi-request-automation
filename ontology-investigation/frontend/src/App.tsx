@@ -3,11 +3,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import toast, { Toaster } from 'react-hot-toast';
 import * as api from './services/api';
 import { PerspectiveNav } from './components/PerspectiveNav';
-import { DataFoundation } from './components/DataFoundation';
+import { DataFoundation } from './components/data-foundation';
 import { SemanticModelView } from './components/SemanticModelView';
 import { MetricDetail } from './components/MetricDetail';
-import { FullGraphView } from './components/FullGraphView';
-import { ProcessMapEditor } from './components/ProcessMapEditor';
+import { ProcessCanvas } from './components/process-canvas';
 import { ScenarioSelector } from './components/ScenarioSelector';
 import { EntityEditorModal } from './components/EntityEditorModal';
 import { SystemEditorModal } from './components/SystemEditorModal';
@@ -18,6 +17,7 @@ import { MetricEditorModal } from './components/MetricEditorModal';
 import { PerspectiveEditorModal } from './components/PerspectiveEditorModal';
 import { OntologyCommandBar } from './components/OntologyCommandBar';
 import { TmdlImportModal } from './components/TmdlImportModal';
+import { GapsView } from './components/GapsView';
 import {
   usePerspectives,
   usePerspectiveView,
@@ -29,13 +29,11 @@ import {
   useMetrics,
   useMappingStatus
 } from './hooks/useOntology';
-import { GitBranch, Table, Database, Edit3, Activity, Upload, Search, FileSpreadsheet, Users } from 'lucide-react';
-import { ProcessEfficiencyDashboard } from './components/ProcessEfficiencyDashboard';
+import { Table, Database, Edit3, Upload, AlertTriangle, FileSpreadsheet } from 'lucide-react';
 import { PerspectiveFlowHeader } from './components/PerspectiveFlowHeader';
 import { ExcelImportPanel } from './components/ExcelImportPanel';
-import { WorkshopSessionPanel } from './components/WorkshopSession';
 
-type ViewMode = 'processBuilder' | 'dataFoundation' | 'semanticModel' | 'dataLineage' | 'processEfficiency' | 'discovery';
+type ViewMode = 'processBuilder' | 'dataFoundation' | 'gaps' | 'semanticModel';
 
 function App() {
   const queryClient = useQueryClient();
@@ -64,9 +62,8 @@ function App() {
   // TMDL import modal state
   const [isTmdlImportOpen, setIsTmdlImportOpen] = useState(false);
 
-  // Discovery modal states
+  // Excel import modal state
   const [isExcelImportOpen, setIsExcelImportOpen] = useState(false);
-  const [isWorkshopOpen, setIsWorkshopOpen] = useState(false);
 
   const { data: perspectives } = usePerspectives();
   usePerspectiveView(selectedPerspective);
@@ -259,6 +256,13 @@ function App() {
               processSteps={processes?.flatMap(p => p.steps.map(s => ({ id: s.id, name: s.name }))) || []}
             />
             <button
+              onClick={() => setIsExcelImportOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              Import Spreadsheet
+            </button>
+            <button
               onClick={() => setIsTmdlImportOpen(true)}
               className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
             >
@@ -271,7 +275,7 @@ function App() {
       </header>
 
       {/* Perspective Navigation - Flow header for Process Builder, filter nav for other views */}
-      {viewMode === 'processBuilder' || viewMode === 'processEfficiency' ? (
+      {viewMode === 'processBuilder' ? (
         <PerspectiveFlowHeader />
       ) : (
         <PerspectiveNav
@@ -317,6 +321,17 @@ function App() {
             Data Foundation
           </button>
           <button
+            onClick={() => setViewMode('gaps')}
+            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
+              viewMode === 'gaps'
+                ? 'border-blue-500 text-blue-600 font-medium'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <AlertTriangle className="w-4 h-4" />
+            Gaps
+          </button>
+          <button
             onClick={() => setViewMode('semanticModel')}
             className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
               viewMode === 'semanticModel'
@@ -327,49 +342,14 @@ function App() {
             <Table className="w-4 h-4" />
             Semantic Model
           </button>
-          <button
-            onClick={() => setViewMode('dataLineage')}
-            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
-              viewMode === 'dataLineage'
-                ? 'border-blue-500 text-blue-600 font-medium'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <GitBranch className="w-4 h-4" />
-            Data Lineage
-          </button>
-          <button
-            onClick={() => setViewMode('processEfficiency')}
-            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
-              viewMode === 'processEfficiency'
-                ? 'border-blue-500 text-blue-600 font-medium'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <Activity className="w-4 h-4" />
-            Process Efficiency
-          </button>
-          <button
-            onClick={() => setViewMode('discovery')}
-            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors whitespace-nowrap ${
-              viewMode === 'discovery'
-                ? 'border-blue-500 text-blue-600 font-medium'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <Search className="w-4 h-4" />
-            Discovery
-          </button>
         </div>
       </div>
 
       {/* Main Content */}
       <main className="bg-gray-50 h-[calc(100vh-180px)]">
-        {viewMode === 'processBuilder' && processes && processes.length > 0 && (
+        {viewMode === 'processBuilder' && (
           <div className="h-full">
-            <ProcessMapEditor
-              processId={processes[0].id}
-            />
+            <ProcessCanvas />
           </div>
         )}
 
@@ -432,111 +412,15 @@ function App() {
           </div>
         )}
 
+        {viewMode === 'gaps' && (
+          <div className="h-full bg-white">
+            <GapsView />
+          </div>
+        )}
+
         {viewMode === 'semanticModel' && (
           <div className="h-full bg-white">
             <SemanticModelView />
-          </div>
-        )}
-
-        {viewMode === 'dataLineage' && (
-          <div className="p-6">
-            <FullGraphView perspective={selectedPerspective} />
-          </div>
-        )}
-
-        {viewMode === 'processEfficiency' && (
-          <div className="h-full bg-white">
-            <ProcessEfficiencyDashboard />
-          </div>
-        )}
-
-        {viewMode === 'discovery' && (
-          <div className="h-full overflow-y-auto p-6 space-y-6">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Discovery & Data Collection</h2>
-              <p className="text-sm text-gray-600">Import data from external sources and capture workshop findings to build your ontology.</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-6">
-              {/* Import Data Card */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-blue-50 rounded-lg">
-                    <FileSpreadsheet className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Import Data</h3>
-                    <p className="text-sm text-gray-500">Upload Excel or CSV files</p>
-                  </div>
-                </div>
-                <p className="text-sm text-gray-600 mb-4">
-                  Import systems, entities, attributes, measures, and metrics from spreadsheets.
-                  Data is added incrementally to the existing ontology.
-                </p>
-                <button
-                  onClick={() => setIsExcelImportOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                >
-                  <Upload className="w-4 h-4" />
-                  Import from Spreadsheet
-                </button>
-              </div>
-
-              {/* Workshop Sessions Card */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-purple-50 rounded-lg">
-                    <Users className="w-6 h-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Workshop Sessions</h3>
-                    <p className="text-sm text-gray-500">Capture workshop findings</p>
-                  </div>
-                </div>
-                <p className="text-sm text-gray-600 mb-4">
-                  Record top-down, bottom-up, and gap analysis workshops. Capture findings like
-                  missing data supply, shadow systems, and manual effort pain points.
-                </p>
-                <button
-                  onClick={() => setIsWorkshopOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
-                >
-                  <Users className="w-4 h-4" />
-                  Open Workshop Capture
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Ontology</h3>
-              <div className="grid grid-cols-6 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">{perspectives?.length || 0}</div>
-                  <div className="text-xs text-gray-500">Perspectives</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">{systems?.length || 0}</div>
-                  <div className="text-xs text-gray-500">Systems</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">{entities?.length || 0}</div>
-                  <div className="text-xs text-gray-500">Entities</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">{attributes?.length || 0}</div>
-                  <div className="text-xs text-gray-500">Attributes</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">{measures?.length || 0}</div>
-                  <div className="text-xs text-gray-500">Measures</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">{metricsData?.length || 0}</div>
-                  <div className="text-xs text-gray-500">Metrics</div>
-                </div>
-              </div>
-            </div>
           </div>
         )}
       </main>
@@ -645,13 +529,6 @@ function App() {
             queryClient.invalidateQueries();
             toast.success('Data imported successfully');
           }}
-        />
-      )}
-
-      {/* Workshop Session Panel */}
-      {isWorkshopOpen && (
-        <WorkshopSessionPanel
-          onClose={() => setIsWorkshopOpen(false)}
         />
       )}
 

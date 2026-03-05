@@ -5,19 +5,19 @@ from typing import Optional, Literal
 PerspectiveLevel = Literal["financial", "management", "operational"]
 
 
-class Observation(BaseModel):
-    """A workshop observation or note attached to a process step."""
+class Fact(BaseModel):
+    """A workshop fact or note attached to a process step."""
 
-    text: str = Field(..., description="The observation text")
+    text: str = Field(..., description="The fact text")
     author: Optional[str] = Field(
-        default=None, description="Who recorded this observation"
+        default=None, description="Who recorded this fact"
     )
     timestamp: Optional[str] = Field(
         default=None, description="When this was recorded (ISO format)"
     )
     category: Optional[
         Literal["pain_point", "decision", "insight", "question", "action_item"]
-    ] = Field(default=None, description="Category of the observation")
+    ] = Field(default=None, description="Category of the fact")
 
 
 class ProcessStep(BaseModel):
@@ -82,10 +82,10 @@ class ProcessStep(BaseModel):
         description="Percentage of task that is manual (0-100), vs automated"
     )
 
-    # Workshop observations and notes
-    observations: list[Observation] = Field(
+    # Workshop facts and notes
+    facts: list[Fact] = Field(
         default_factory=list,
-        description="Workshop observations, pain points, and decisions recorded during process mapping",
+        description="Workshop facts, pain points, and decisions recorded during process mapping",
     )
 
 

@@ -132,7 +132,7 @@ export function createTmdlRequestRouter(
     res.json(stats);
   });
 
-  // Manually trigger execution
+  // Approve and execute — uses pre-analyzed changes from the analysis report
   router.post('/:id/execute', async (req: Request, res: Response) => {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const request = store.get(id);
@@ -148,7 +148,7 @@ export function createTmdlRequestRouter(
     }
 
     store.setStatus(request.id, 'in_progress');
-    store.addLog(request.id, 'Manual execution triggered', 'Starting TMDL execution...', 'info');
+    store.addLog(request.id, 'Execution approved', 'User approved proposed changes — executing...', 'info');
 
     try {
       const result = await executeAndCreatePR(
@@ -196,13 +196,20 @@ async function processRequest(
       'info'
     );
 
-    // If auto-fixable, proceed with execution
+    // If auto-fixable, generate analysis report for user review
     if (analysis.triageResult === 'auto_fix') {
       const request = store.get(requestId);
       if (!request) return;
 
-      store.addLog(requestId, 'Auto-fix starting', 'Executing TMDL changes...', 'info');
-      await executeAndCreatePR(request, modelPath, store, tmdlExecutionService, repoPath);
+      store.addLog(requestId, 'Analyzing request', 'Generating proposed changes...', 'info');
+      const report = await tmdlExecutionService.analyzeRequest(request, analysis);
+      store.setAnalysisReport(requestId, report);
+      store.addLog(
+        requestId,
+        'Analysis complete',
+        `${report.proposedChanges.length} change(s) proposed — awaiting approval`,
+        'success'
+      );
     } else {
       store.addLog(
         requestId,
@@ -231,17 +238,37 @@ async function executeAndCreatePR(
   const requestId = request.id;
 
   try {
-    // Execute TMDL changes
-    const result = await tmdlExecutionService.executeRequest(request, modelPath);
+    // Use pre-analyzed changes from the analysis report if available
+    let changes: TmdlChange[];
+    if (request.analysisReport && request.analysisReport.proposedChanges.length > 0) {
+      console.log(`[EXEC] Using ${request.analysisReport.proposedChanges.length} pre-analyzed change(s)`);
+      changes = request.analysisReport.proposedChanges.map(c => ({
+        type: c.type,
+        tableName: c.tableName,
+        measureName: c.measureName,
+        expression: c.expression,
+        formatString: c.formatString,
+        description: c.description,
+      }));
+    } else {
+      // Fallback: re-generate changes (for manual executions without analysis)
+      const result = await tmdlExecutionService.executeRequest(request, modelPath);
+      if (!result.success) {
+        store.setStatus(requestId, 'failed');
+        store.addLog(requestId, 'Execution failed', result.error || 'Unknown error', 'error');
+        return { success: false, error: result.error };
+      }
+      changes = result.changes;
+    }
 
-    if (!result.success) {
+    if (changes.length === 0) {
       store.setStatus(requestId, 'failed');
-      store.addLog(requestId, 'Execution failed', result.error || 'Unknown error', 'error');
-      return { success: false, error: result.error };
+      store.addLog(requestId, 'Execution failed', 'No changes to execute', 'error');
+      return { success: false, error: 'No changes to execute' };
     }
 
     // Log changes
-    for (const change of result.changes) {
+    for (const change of changes) {
       store.addLog(
         requestId,
         `${change.type}: ${change.measureName}`,
@@ -254,7 +281,7 @@ async function executeAndCreatePR(
     console.log('[PR] Starting PR creation for request:', requestId);
     const prResult = await createPullRequest(
       request,
-      result.changes,
+      changes,
       repoPath
     );
     console.log('[PR] PR creation result:', prResult);
@@ -271,7 +298,7 @@ async function executeAndCreatePR(
     return {
       success: prResult.success,
       prUrl: prResult.prUrl,
-      changes: result.changes,
+      changes,
       error: prResult.error,
     };
   } catch (error) {
