@@ -11,9 +11,14 @@ interface ChatMessageProps {
 /**
  * Render message content, stripping out ```proposal blocks
  * (they're rendered separately as ProposalCards).
+ * Also hides in-progress proposal blocks during streaming.
  */
 function renderContent(content: string): string {
-  return content.replace(/```proposal\s*\n[\s\S]*?```/g, '').trim();
+  // Strip completed proposal blocks
+  let cleaned = content.replace(/```proposal\s*\n[\s\S]*?```/g, '');
+  // Strip in-progress proposal blocks (opened but not yet closed)
+  cleaned = cleaned.replace(/```proposal[\s\S]*$/g, '');
+  return cleaned.trim();
 }
 
 /**
