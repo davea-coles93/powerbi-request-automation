@@ -26,13 +26,15 @@ import {
   useMappingStatus
 } from './hooks/useOntology';
 import { useAppModals } from './hooks/useAppModals';
-import { Table, Database, Edit3, Upload, AlertTriangle, FileSpreadsheet, Plus } from 'lucide-react';
+import { Table, Database, Edit3, Upload, AlertTriangle, FileSpreadsheet, Plus, Sparkles } from 'lucide-react';
 import { ExcelImportPanel } from './components/ExcelImportPanel';
+import { WorkshopAIPanel } from './components/workshop-ai/WorkshopAIPanel';
 
 type ViewMode = 'processBuilder' | 'dataFoundation' | 'gaps' | 'semanticModel';
 
 function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('dataFoundation');
+  const [showAIPanel, setShowAIPanel] = useState(false);
 
   const { data: perspectives } = usePerspectives();
   const { data: processes } = useProcesses();
@@ -112,6 +114,17 @@ function App() {
           >
             <Upload className="w-3.5 h-3.5" />
             Power BI
+          </button>
+          <button
+            onClick={() => setShowAIPanel(!showAIPanel)}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+              showAIPanel
+                ? 'text-purple-700 bg-purple-100 border border-purple-300'
+                : 'text-purple-700 bg-purple-50 border border-purple-200 hover:bg-purple-100'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Workshop AI
           </button>
           <ScenarioSelector />
         </div>
@@ -256,6 +269,11 @@ function App() {
           onClose={modals.excelImport.onClose}
           onImported={modals.excelImport.onImported}
         />
+      )}
+
+      {/* Workshop AI Panel */}
+      {showAIPanel && (
+        <WorkshopAIPanel onClose={() => setShowAIPanel(false)} />
       )}
 
       {/* Toast Notifications */}

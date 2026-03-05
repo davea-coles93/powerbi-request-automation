@@ -513,3 +513,59 @@ export interface CreateProcessInput {
   description?: string;
   steps?: ProcessStep[];
 }
+
+// Workshop AI types
+export interface WorkshopChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  proposals?: WorkshopProposals | null;
+  timestamp: number;
+}
+
+export interface WorkshopProposals {
+  metrics: ProposedMetric[];
+  measures: ProposedMeasure[];
+  attributes: ProposedAttribute[];
+}
+
+export interface ProposedMetric {
+  id: string;
+  name: string;
+  description: string;
+  business_question: string;
+  calculated_by_measure_ids: string[];
+  perspective_ids: string[];
+  is_existing: boolean;
+  existing_id: string | null;
+}
+
+export interface ProposedMeasure {
+  id: string;
+  name: string;
+  description: string;
+  logic: string;
+  formula?: string;
+  input_attribute_ids: string[];
+  input_measure_ids: string[];
+  perspective_ids: string[];
+  is_existing: boolean;
+  existing_id: string | null;
+}
+
+export interface ProposedAttribute {
+  id: string;
+  name: string;
+  description: string;
+  entity_id: string;
+  system_id: string;
+  perspective_ids: string[];
+  is_existing: boolean;
+  existing_id: string | null;
+}
+
+export interface MaterializeResult {
+  success: boolean;
+  created: Record<string, number>;
+  skipped: Record<string, number>;
+}

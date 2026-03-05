@@ -34,6 +34,8 @@ import type {
   TemplateInfo,
   TemplateDetail,
   TemplateImportResult,
+  WorkshopProposals,
+  MaterializeResult,
 } from '../types/ontology';
 
 const api = axios.create({
@@ -316,3 +318,65 @@ export const importTemplate = (id: string) =>
 // Clear workspace
 export const clearWorkspace = () =>
   api.post<{ success: boolean; message: string }>('/scenarios/clear').then((res) => res.data);
+
+// Workshop AI endpoints
+export const workshopAIChatStream = async (
+  messages: { role: string; content: string }[],
+  onText: (text: string) => void,
+  onDone: () => void,
+  onError: (error: string) => void,
+  signal?: AbortSignal,
+) => {
+  const response = await fetch('/api/ai/workshop/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages }),
+    signal,
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ detail: response.statusText }));
+    onError(err.detail || 'Chat request failed');
+    return;
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    onError('No response stream');
+    return;
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      try {
+        const payload = JSON.parse(line.slice(6));
+        if (payload.type === 'text') {
+          onText(payload.content);
+        } else if (payload.type === 'done') {
+          onDone();
+          return;
+        } else if (payload.type === 'error') {
+          onError(payload.content);
+          return;
+        }
+      } catch {
+        // skip malformed lines
+      }
+    }
+  }
+  onDone();
+};
+
+export const workshopAIMaterialize = (proposals: WorkshopProposals) =>
+  api.post<MaterializeResult>('/ai/workshop/materialize', proposals).then((res) => res.data);

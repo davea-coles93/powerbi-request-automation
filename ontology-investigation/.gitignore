@@ -20,6 +20,9 @@ playwright-report/
 # Database
 *.db
 
+# Environment
+.env
+
 # OS
 .DS_Store
 Thumbs.db
