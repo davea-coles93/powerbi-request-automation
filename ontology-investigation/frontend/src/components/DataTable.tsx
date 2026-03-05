@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Fragment } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -172,9 +172,8 @@ export function DataTable<T>({
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
             {table.getRowModel().rows.map((row) => (
-              <>
+              <Fragment key={row.id}>
                 <tr
-                  key={row.id}
                   className={`group hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200 ${
                     onRowClick ? 'cursor-pointer' : ''
                   }`}
@@ -204,7 +203,7 @@ export function DataTable<T>({
                   ))}
                 </tr>
                 {renderSubComponent && row.getIsExpanded() && (
-                  <tr key={`${row.id}-expanded`}>
+                  <tr>
                     <td colSpan={row.getVisibleCells().length + 1} className="p-0">
                       <div className="border-l-4 border-blue-400 bg-gray-50 px-6 py-4">
                         {renderSubComponent({ row })}
@@ -212,7 +211,7 @@ export function DataTable<T>({
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             ))}
           </tbody>
         </table>

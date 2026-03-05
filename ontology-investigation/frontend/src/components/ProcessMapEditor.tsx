@@ -97,7 +97,7 @@ export function ProcessMapEditor({ processId, workshopSession }: ProcessMapEdito
 
   // Show all perspectives (no perspectiveLevel filter) for swim-lane view
   // Pass parentStepId to drill into sub-steps
-  const { data: flow, isLoading } = useProcessFlow(activeProcessId || '__none__', undefined, parentStepId || undefined);
+  const { data: flow, isLoading } = useProcessFlow(activeProcessId || '', undefined, parentStepId || undefined);
   const { data: crystallizationData } = useCrystallizationPoints(crystallizationView ? activeProcessId : '');
   const { data: processes } = useProcesses();
   const updateStepMutation = useUpdateProcessStep();

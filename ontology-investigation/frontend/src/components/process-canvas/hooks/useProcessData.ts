@@ -23,7 +23,7 @@ export function useProcessData() {
   } = useCanvasStore();
 
   const { data: flow, isLoading } = useProcessFlow(
-    activeProcessId || '__none__',
+    activeProcessId || '',
     undefined,
     parentStepId || undefined
   );
