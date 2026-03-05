@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from .db import init_db
-from .routers import ontology_router, graph_router, ai_router, semantic_model_router, scenarios_router, ingestion_router, discovery_router
+from .routers import ontology_router, graph_router, ai_router, semantic_model_router, scenarios_router, ingestion_router, discovery_router, templates_router
 
 
 @asynccontextmanager
@@ -40,6 +40,7 @@ app.include_router(semantic_model_router)
 app.include_router(scenarios_router)
 app.include_router(ingestion_router)
 app.include_router(discovery_router)
+app.include_router(templates_router)
 
 
 @app.get("/")

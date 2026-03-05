@@ -473,6 +473,39 @@ export interface MeasureConnections {
   connected_processes: ConnectedProcessStep[];
 }
 
+// Template types
+export interface TemplateInfo {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: string;
+  process_count: number;
+  step_count: number;
+  system_count: number;
+  entity_count: number;
+  attribute_count: number;
+  measure_count: number;
+  metric_count: number;
+}
+
+export interface TemplateDetail {
+  template_meta: { id: string; name: string; description: string; icon: string; category: string };
+  systems: System[];
+  entities: Entity[];
+  attributes: Attribute[];
+  measures: Measure[];
+  metrics: Metric[];
+  processes: Process[];
+}
+
+export interface TemplateImportResult {
+  success: boolean;
+  message: string;
+  created: Record<string, number>;
+  skipped: Record<string, number>;
+}
+
 // Process creation type
 export interface CreateProcessInput {
   id?: string;

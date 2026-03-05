@@ -198,6 +198,33 @@ async def get_scenario_status():
     )
 
 
+DEFAULT_PERSPECTIVES = [
+    {"id": "operational", "name": "Operational", "purpose": "Execute and record business activities",
+     "primary_concern": "What work is being done?", "typical_actors": [], "consumes_from": [], "feeds": ["management"]},
+    {"id": "management", "name": "Management", "purpose": "Measure and monitor performance",
+     "primary_concern": "How are we performing?", "typical_actors": [], "consumes_from": ["operational"], "feeds": ["financial"]},
+    {"id": "financial", "name": "Financial", "purpose": "Account for and report financial position",
+     "primary_concern": "What's the financial position?", "typical_actors": [], "consumes_from": ["management"], "feeds": []},
+]
+
+
+@router.post("/clear")
+async def clear_workspace(db: Session = Depends(get_db)):
+    """Clear all data and start with an empty workspace (keeps default perspectives)."""
+    global _current_scenario
+    try:
+        clear_database(db)
+        # Re-seed the 3 default perspectives
+        repo = PerspectiveRepository(db)
+        for p in DEFAULT_PERSPECTIVES:
+            repo.create(Perspective(**p))
+        _current_scenario = None
+        return {"success": True, "message": "Workspace cleared. Default perspectives preserved."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error clearing workspace: {str(e)}")
+
+
 @router.post("/load/{scenario_id}")
 async def load_scenario(scenario_id: str, db: Session = Depends(get_db)):
     """Load a specific scenario by clearing the database and reseeding."""

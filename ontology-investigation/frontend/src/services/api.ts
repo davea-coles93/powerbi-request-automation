@@ -31,6 +31,9 @@ import type {
   ConflictStrategy,
   EntityRelationship,
   MeasureConnections,
+  TemplateInfo,
+  TemplateDetail,
+  TemplateImportResult,
 } from '../types/ontology';
 
 const api = axios.create({
@@ -299,3 +302,17 @@ export const getRelationships = (entityId?: string) =>
 // Measure connections (Power BI sources + process links)
 export const getMeasureConnections = (measureId: string) =>
   api.get<MeasureConnections>(`/graph/measure/${measureId}/connections`).then((res) => res.data);
+
+// Template endpoints
+export const getTemplates = () =>
+  api.get<TemplateInfo[]>('/templates/').then((res) => res.data);
+
+export const getTemplate = (id: string) =>
+  api.get<TemplateDetail>(`/templates/${id}`).then((res) => res.data);
+
+export const importTemplate = (id: string) =>
+  api.post<TemplateImportResult>(`/templates/${id}/import`).then((res) => res.data);
+
+// Clear workspace
+export const clearWorkspace = () =>
+  api.post<{ success: boolean; message: string }>('/scenarios/clear').then((res) => res.data);

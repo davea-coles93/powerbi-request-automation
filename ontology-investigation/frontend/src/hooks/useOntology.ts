@@ -548,3 +548,31 @@ export const useMeasureConnections = (measureId: string) =>
     queryFn: () => api.getMeasureConnections(measureId),
     enabled: !!measureId,
   });
+
+// Template hooks
+export const useTemplates = () =>
+  useQuery({
+    queryKey: ['templates'],
+    queryFn: api.getTemplates,
+  });
+
+export const useImportTemplate = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.importTemplate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+    },
+  });
+};
+
+// Clear workspace
+export const useClearWorkspace = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.clearWorkspace(),
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+    },
+  });
+};
