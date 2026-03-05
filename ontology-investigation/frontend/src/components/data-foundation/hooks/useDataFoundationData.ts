@@ -36,15 +36,17 @@ export const useDataFoundationData = () => {
   }, [attributes, perspectiveFilter]);
 
   return {
-    metrics,
-    measures,
-    attributes,
+    // Views consume these — they are filtered when a perspective is active
+    metrics: filteredMetrics,
+    measures: filteredMeasures,
+    attributes: filteredAttributes,
     entities,
     systems,
     processes,
-    filteredMetrics,
-    filteredMeasures,
-    filteredAttributes,
+    // Unfiltered versions for cases that need all data (e.g. editor dropdowns)
+    allMetrics: metrics,
+    allMeasures: measures,
+    allAttributes: attributes,
     isLoading,
   };
 };

@@ -309,6 +309,27 @@ def tmdl_to_ontology(model: TmdlModel, model_name: str = "Power BI Model") -> di
                     "perspective_ids": perspective_ids,
                 })
 
+    # 7. Entity Relationships: from TMDL foreign keys
+    relationships = []
+    for rel in model.relationships:
+        from_entity_id = slugify(rel.from_table)
+        to_entity_id = slugify(rel.to_table)
+        from_attr_id = attr_id_lookup.get((rel.from_table, rel.from_column))
+        to_attr_id = attr_id_lookup.get((rel.to_table, rel.to_column))
+
+        rel_id = slugify(f"{rel.from_table}_{rel.from_column}_to_{rel.to_table}_{rel.to_column}")
+        relationships.append({
+            "id": rel_id,
+            "name": f"{rel.from_table} -> {rel.to_table}",
+            "from_entity_id": from_entity_id,
+            "to_entity_id": to_entity_id,
+            "from_attribute_id": from_attr_id,
+            "to_attribute_id": to_attr_id,
+            "relationship_type": "many_to_one",
+            "is_active": rel.is_active,
+            "source": "tmdl",
+        })
+
     return {
         "scenario_name": f"Imported: {model_name}",
         "scenario_description": f"Auto-generated ontology from Power BI model: {model_name}",
@@ -318,6 +339,7 @@ def tmdl_to_ontology(model: TmdlModel, model_name: str = "Power BI Model") -> di
         "attributes": attributes,
         "measures": measures,
         "metrics": metrics,
+        "relationships": relationships,
         "processes": [],
         "semantic_tables": [],
     }

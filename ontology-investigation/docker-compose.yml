@@ -39,8 +39,11 @@ services:
     volumes:
       - ./backend:/app
       - ./data:/app/data
+      - "../Self-service AI/models:/data/models:ro"
+      - "../Self-service AI/sample-data:/data/sample-data:ro"
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - TMDL_SCAN_DIRS=/data/models,/data/sample-data
     profiles:
       - dev
 

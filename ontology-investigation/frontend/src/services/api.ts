@@ -26,6 +26,11 @@ import type {
   CsvImportResponse,
   ExcelImportResponse,
   CreateProcessInput,
+  TmdlMergePreview,
+  TmdlMergeResponse,
+  ConflictStrategy,
+  EntityRelationship,
+  MeasureConnections,
 } from '../types/ontology';
 
 const api = axios.create({
@@ -221,6 +226,13 @@ export const previewTmdlIngestion = (modelPath: string, modelName: string) =>
 export const loadTmdlModel = (modelPath: string, modelName: string) =>
   api.post<TmdlLoadResponse>('/ingest/tmdl/load', { model_path: modelPath, model_name: modelName }).then((res) => res.data);
 
+// TMDL Merge endpoints
+export const previewTmdlMerge = (modelPath: string, modelName: string) =>
+  api.post<TmdlMergePreview>('/ingest/tmdl/preview-merge', { model_path: modelPath, model_name: modelName }).then((res) => res.data);
+
+export const mergeTmdlModel = (modelPath: string, modelName: string, conflictStrategy: ConflictStrategy = 'skip') =>
+  api.post<TmdlMergeResponse>('/ingest/tmdl/load', { model_path: modelPath, model_name: modelName, conflict_strategy: conflictStrategy }).then((res) => res.data);
+
 // Process creation
 export const createProcess = (data: CreateProcessInput) =>
   api.post<Process>('/processes', data).then((res) => res.data);
@@ -279,3 +291,11 @@ export const autoDetectGaps = (sessionId: string) =>
 
 export const materializeElement = (sessionId: string, data: MaterializeRequest) =>
   api.post(`/discovery/workshop/sessions/${sessionId}/materialize`, data).then((res) => res.data);
+
+// Entity Relationships
+export const getRelationships = (entityId?: string) =>
+  api.get<EntityRelationship[]>('/relationships', { params: entityId ? { entity_id: entityId } : {} }).then((res) => res.data);
+
+// Measure connections (Power BI sources + process links)
+export const getMeasureConnections = (measureId: string) =>
+  api.get<MeasureConnections>(`/graph/measure/${measureId}/connections`).then((res) => res.data);

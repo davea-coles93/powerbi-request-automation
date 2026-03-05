@@ -10,6 +10,7 @@ from ..db.repositories import (
     MeasureRepository,
     MetricRepository,
     ProcessRepository,
+    EntityRelationshipRepository,
     WorkshopSessionRepository,
 )
 from ..models.workshop import GapItem
@@ -27,6 +28,7 @@ class GraphService:
         self.measures = MeasureRepository(db)
         self.metrics = MetricRepository(db)
         self.processes = ProcessRepository(db)
+        self.relationships = EntityRelationshipRepository(db)
 
     def trace_metric(self, metric_id: str) -> Optional[dict]:
         """
@@ -443,6 +445,78 @@ class GraphService:
             "process_id": process.id,
             "process_name": process.name,
             "crystallization_points": crystallization_map,
+        }
+
+    def get_measure_connections(self, measure_id: str) -> Optional[dict]:
+        """Get Power BI source mappings and connected process steps for a measure.
+
+        Returns:
+        - power_bi_sources: Table[Column] references from the measure's input attributes
+        - connected_processes: Process steps that produce attributes this measure consumes
+        """
+        measure = self.measures.get_by_id(measure_id)
+        if not measure:
+            return None
+
+        # Build Power BI source mappings from input attributes
+        power_bi_sources = []
+        consumed_attr_ids = set(measure.input_attribute_ids)
+
+        for attr_id in measure.input_attribute_ids:
+            attr = self.attributes.get_by_id(attr_id)
+            if attr and (attr.source_table or attr.source_column):
+                power_bi_sources.append({
+                    "attribute_id": attr.id,
+                    "attribute_name": attr.name,
+                    "source_table": attr.source_table,
+                    "source_column": attr.source_column,
+                    "entity_id": attr.entity_id,
+                })
+
+        # Also check input measures (chained) for their attributes
+        for input_measure_id in measure.input_measure_ids:
+            input_measure = self.measures.get_by_id(input_measure_id)
+            if input_measure:
+                for attr_id in input_measure.input_attribute_ids:
+                    consumed_attr_ids.add(attr_id)
+                    attr = self.attributes.get_by_id(attr_id)
+                    if attr and (attr.source_table or attr.source_column):
+                        if not any(s["attribute_id"] == attr.id for s in power_bi_sources):
+                            power_bi_sources.append({
+                                "attribute_id": attr.id,
+                                "attribute_name": attr.name,
+                                "source_table": attr.source_table,
+                                "source_column": attr.source_column,
+                                "entity_id": attr.entity_id,
+                            })
+
+        # Find process steps that produce or crystallize attributes this measure consumes
+        connected_steps = []
+        for process in self.processes.get_all():
+            for step in process.steps:
+                produced = set(step.produces_attribute_ids)
+                crystallized = set(step.crystallizes_attribute_ids)
+                shared = consumed_attr_ids & (produced | crystallized)
+                if shared:
+                    shared_attrs = []
+                    for aid in shared:
+                        a = self.attributes.get_by_id(aid)
+                        if a:
+                            shared_attrs.append({"id": a.id, "name": a.name})
+                    connected_steps.append({
+                        "process_id": process.id,
+                        "process_name": process.name,
+                        "step_id": step.id,
+                        "step_name": step.name,
+                        "shared_attributes": shared_attrs,
+                        "manual_effort_percentage": getattr(step, "manual_effort_percentage", None),
+                        "waste_category": getattr(step, "waste_category", None),
+                    })
+
+        return {
+            "measure": measure.model_dump(),
+            "power_bi_sources": power_bi_sources,
+            "connected_processes": connected_steps,
         }
 
     def detect_gaps(

@@ -10,6 +10,7 @@ from .database import (
     ProcessDB,
     SemanticMappingDB,
     SemanticTableDB,
+    EntityRelationshipDB,
     WorkshopSessionDB,
 )
 from ..models import (
@@ -21,6 +22,7 @@ from ..models import (
     Metric,
     Process,
     SemanticMapping,
+    EntityRelationship,
 )
 from ..models.workshop import WorkshopSession
 from ..models.semantic_model import Table
@@ -69,6 +71,41 @@ class BaseRepository(Generic[T, DBModel]):
         self.db.delete(db_item)
         self.db.commit()
         return True
+
+    def exists(self, id: str) -> bool:
+        """Check if an item with the given ID exists."""
+        return self.db.query(self.model_class).filter(self.model_class.id == id).first() is not None
+
+    def upsert(self, data: T, strategy: str = "skip") -> tuple[T, str]:
+        """Insert or update based on whether the ID already exists.
+
+        Args:
+            data: The Pydantic model to insert/update.
+            strategy: "skip" (keep existing) or "update" (overwrite existing).
+
+        Returns:
+            Tuple of (result model, action: "created" | "skipped" | "updated").
+        """
+        existing = self.db.query(self.model_class).filter(
+            self.model_class.id == data.id
+        ).first()
+
+        if existing is None:
+            db_item = self.model_class(**data.model_dump())
+            self.db.add(db_item)
+            self.db.commit()
+            self.db.refresh(db_item)
+            return self._to_pydantic(db_item), "created"
+
+        if strategy == "update":
+            for key, value in data.model_dump().items():
+                setattr(existing, key, value)
+            self.db.commit()
+            self.db.refresh(existing)
+            return self._to_pydantic(existing), "updated"
+
+        # Default: skip
+        return self._to_pydantic(existing), "skipped"
 
     def _to_pydantic(self, db_item: DBModel) -> T:
         return self.pydantic_class.model_validate(
@@ -237,6 +274,25 @@ class SemanticTableRepository(BaseRepository[Table, SemanticTableDB]):
         """Get tables from a specific source system."""
         items = self.db.query(self.model_class).filter(
             self.model_class.source_system_id == system_id
+        ).all()
+        return [self._to_pydantic(item) for item in items]
+
+
+class EntityRelationshipRepository(BaseRepository[EntityRelationship, EntityRelationshipDB]):
+    def __init__(self, db: Session):
+        super().__init__(db, EntityRelationshipDB, EntityRelationship)
+
+    def _to_pydantic(self, db_item: EntityRelationshipDB) -> EntityRelationship:
+        """Override to handle SQLite int -> bool conversion for is_active."""
+        data = {c.name: getattr(db_item, c.name) for c in db_item.__table__.columns}
+        data["is_active"] = bool(data.get("is_active", 1))
+        return EntityRelationship.model_validate(data)
+
+    def get_by_entity(self, entity_id: str) -> list[EntityRelationship]:
+        """Get all relationships involving an entity (as source or target)."""
+        items = self.db.query(self.model_class).filter(
+            (self.model_class.from_entity_id == entity_id) |
+            (self.model_class.to_entity_id == entity_id)
         ).all()
         return [self._to_pydantic(item) for item in items]
 

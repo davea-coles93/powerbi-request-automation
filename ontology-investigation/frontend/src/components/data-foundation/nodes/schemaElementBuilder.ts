@@ -2,8 +2,12 @@
  * Build Cytoscape elements for the Schema view.
  *
  * Nodes are arranged in horizontal layers by entity type with fixed Y positions
- * so the graph can use the 'preset' layout.
+ * so the graph can use the 'preset' layout. Each layer gets a floating label
+ * node. Nodes include multi-line labels with type indicator, name, and subtitle.
+ * Edges are typed and labeled to show relationship semantics.
  */
+
+import { entityTypeConfig } from './entityTypeConfig';
 
 interface SchemaData {
   metrics: any[];
@@ -15,58 +19,115 @@ interface SchemaData {
 
 const LAYER_Y: Record<string, number> = {
   metric: 0,
-  measure: 350,
-  attribute: 700,
-  entity: 1050,
-  system: 1400,
+  measure: 400,
+  entity: 800,
+  system: 1200,
+  attribute: 1600,
 };
 
-const H_SPACING = 320;
-const NODE_WIDTH = 240;
-const NODE_HEIGHT = 80;
+const H_SPACING = 340;
+const NODE_WIDTH = 260;
+const NODE_HEIGHT = 120;
 
 function truncate(text: string, max: number): string {
   if (!text) return '';
   return text.length > max ? text.slice(0, max) + '...' : text;
 }
 
+/**
+ * Build a rich multi-line label for a node.
+ * Format:  [TYPE ICON]  Name
+ *          subtitle info
+ */
+function buildLabel(entityType: string, item: any): string {
+  const config = entityTypeConfig[entityType];
+  const icon = config?.icon ?? '';
+  const name = item.name || item.id;
+
+  let subtitle = '';
+  switch (entityType) {
+    case 'metric':
+      if (item.business_question) subtitle = truncate(item.business_question, 50);
+      else if (item.description) subtitle = truncate(item.description, 50);
+      break;
+    case 'measure':
+      if (item.formula) subtitle = truncate(item.formula, 50);
+      else if (item.description) subtitle = truncate(item.description, 50);
+      break;
+    case 'attribute':
+      if (item.data_type) subtitle = `Type: ${item.data_type}`;
+      else if (item.description) subtitle = truncate(item.description, 50);
+      break;
+    case 'entity':
+      if (item.description) subtitle = truncate(item.description, 50);
+      break;
+    case 'system':
+      if (item.system_type) subtitle = item.system_type;
+      else if (item.vendor) subtitle = item.vendor;
+      break;
+  }
+
+  const lines = [`${icon}  ${name}`];
+  if (subtitle) lines.push(subtitle);
+  return lines.join('\n');
+}
+
 function buildLayerNodes(
   items: any[],
   entityType: string,
-  nameField: string = 'name',
 ): any[] {
   const y = LAYER_Y[entityType];
-  return items.map((item, idx) => {
-    const name = item[nameField] || item.id;
-    const desc = item.description ? `\n${truncate(item.description, 60)}` : '';
-    return {
-      data: {
-        id: item.id,
-        name,
-        label: `${name}${desc}`,
-        entityType,
-        width: NODE_WIDTH,
-        height: NODE_HEIGHT,
-        ...item,
-      },
-      position: {
-        x: idx * H_SPACING,
-        y,
-      },
-      classes: `${entityType}-node`,
-    };
-  });
+  return items.map((item, idx) => ({
+    data: {
+      id: item.id,
+      name: item.name || item.id,
+      label: buildLabel(entityType, item),
+      entityType,
+      width: NODE_WIDTH,
+      height: NODE_HEIGHT,
+      ...item,
+    },
+    position: {
+      x: idx * H_SPACING,
+      y,
+    },
+    classes: `${entityType}-node`,
+  }));
+}
+
+/** Floating label node positioned to the left of each layer. */
+function buildLayerLabel(entityType: string, count: number): any {
+  const config = entityTypeConfig[entityType];
+  const y = LAYER_Y[entityType];
+  return {
+    data: {
+      id: `__layer-${entityType}`,
+      label: `${config?.label ?? entityType} (${count})`,
+      entityType: '__label',
+    },
+    position: { x: -200, y },
+    classes: 'layer-label',
+    selectable: false,
+    grabbable: false,
+  };
 }
 
 export function buildSchemaElements(data: SchemaData): any[] {
   const elements: any[] = [];
 
+  // --- Layer label nodes (top-to-bottom: Metrics → Measures → Entities → Systems → Attributes) ---
+  if (data.metrics.length > 0) elements.push(buildLayerLabel('metric', data.metrics.length));
+  if (data.measures.length > 0) elements.push(buildLayerLabel('measure', data.measures.length));
+  if (data.entities.length > 0) elements.push(buildLayerLabel('entity', data.entities.length));
+  if (data.systems.length > 0) elements.push(buildLayerLabel('system', data.systems.length));
+  if (data.attributes.length > 0) elements.push(buildLayerLabel('attribute', data.attributes.length));
+
   // --- Nodes ---
   elements.push(...buildLayerNodes(data.metrics, 'metric'));
   elements.push(...buildLayerNodes(data.measures, 'measure'));
-  elements.push(...buildLayerNodes(data.attributes, 'attribute'));
   elements.push(...buildLayerNodes(data.entities, 'entity'));
   elements.push(...buildLayerNodes(data.systems, 'system'));
+  elements.push(...buildLayerNodes(data.attributes, 'attribute'));
 
   // Build lookup sets for fast existence checks
   const nodeIds = new Set(elements.map((el: any) => el.data.id));
@@ -84,8 +145,9 @@ export function buildSchemaElements(data: SchemaData): any[] {
             source: metric.id,
             target: mId,
             edgeType: 'metric-measure',
+            label: 'calculated by',
           },
-          classes: 'schema-edge',
+          classes: 'edge-metric-measure',
         });
       }
     }
@@ -102,8 +164,9 @@ export function buildSchemaElements(data: SchemaData): any[] {
             source: measure.id,
             target: aId,
             edgeType: 'measure-attribute',
+            label: 'inputs',
           },
-          classes: 'schema-edge',
+          classes: 'edge-measure-attribute',
         });
       }
     }
@@ -119,8 +182,9 @@ export function buildSchemaElements(data: SchemaData): any[] {
           source: attr.id,
           target: entityId,
           edgeType: 'attribute-entity',
+          label: 'belongs to',
         },
-        classes: 'schema-edge',
+        classes: 'edge-attribute-entity',
       });
     }
   }
@@ -135,8 +199,9 @@ export function buildSchemaElements(data: SchemaData): any[] {
           source: attr.id,
           target: sysId,
           edgeType: 'attribute-system',
+          label: 'sourced from',
         },
-        classes: 'schema-edge',
+        classes: 'edge-attribute-system',
       });
     }
   }

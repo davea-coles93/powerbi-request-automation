@@ -297,6 +297,45 @@ export interface TmdlLoadResponse {
   metrics: number;
 }
 
+// TMDL Merge Import types
+export interface MergeConflict {
+  id: string;
+  name: string;
+  entity_type: string;
+  existing_name: string;
+}
+
+export interface TmdlMergePreview {
+  new_entities: number;
+  new_attributes: number;
+  new_measures: number;
+  new_metrics: number;
+  new_systems: number;
+  new_perspectives: number;
+  conflicting_entities: number;
+  conflicting_attributes: number;
+  conflicting_measures: number;
+  conflicting_metrics: number;
+  conflicts: MergeConflict[];
+  tables: string[];
+  sample_measures: string[];
+  relationships: number;
+  total_entities: number;
+  total_attributes: number;
+  total_measures: number;
+  total_metrics: number;
+}
+
+export type ConflictStrategy = 'skip' | 'update';
+
+export interface TmdlMergeResponse {
+  success: boolean;
+  message: string;
+  created: Record<string, number>;
+  skipped: Record<string, number>;
+  updated: Record<string, number>;
+}
+
 // Discovery / Workshop types
 export type WorkshopSessionType = 'top_down' | 'bottom_up' | 'gap_analysis';
 export type FindingCategory = 'missing_supply' | 'unused_supply' | 'shadow_system' | 'high_manual_effort' | 'data_quality' | 'other';
@@ -394,6 +433,44 @@ export interface ExcelImportResponse {
   success: boolean;
   summary: Record<string, number>;
   errors: string[];
+}
+
+// Entity Relationship types
+export interface EntityRelationship {
+  id: string;
+  name: string;
+  from_entity_id: string;
+  to_entity_id: string;
+  from_attribute_id?: string;
+  to_attribute_id?: string;
+  relationship_type: string;
+  is_active: boolean;
+  source: string;
+}
+
+// Measure connections (Power BI source + process links)
+export interface PowerBISource {
+  attribute_id: string;
+  attribute_name: string;
+  source_table?: string;
+  source_column?: string;
+  entity_id: string;
+}
+
+export interface ConnectedProcessStep {
+  process_id: string;
+  process_name: string;
+  step_id: string;
+  step_name: string;
+  shared_attributes: { id: string; name: string }[];
+  manual_effort_percentage?: number;
+  waste_category?: string;
+}
+
+export interface MeasureConnections {
+  measure: Measure;
+  power_bi_sources: PowerBISource[];
+  connected_processes: ConnectedProcessStep[];
 }
 
 // Process creation type

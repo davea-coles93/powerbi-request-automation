@@ -23,10 +23,11 @@ export const nodeStyles: StylesheetJsonBlock[] = [
       'overlay-padding': 4,
     } as any,
   },
-  // Perspective-specific node top bar colors
+  // Perspective-specific colors (border + tinted background)
   {
     selector: '.operational-node',
     style: {
+      'background-color': '#dcfce7',
       'border-color': '#22c55e',
       'border-width': 2,
     },
@@ -34,6 +35,7 @@ export const nodeStyles: StylesheetJsonBlock[] = [
   {
     selector: '.management-node',
     style: {
+      'background-color': '#fef9c3',
       'border-color': '#eab308',
       'border-width': 2,
     },
@@ -41,6 +43,7 @@ export const nodeStyles: StylesheetJsonBlock[] = [
   {
     selector: '.financial-node',
     style: {
+      'background-color': '#dbeafe',
       'border-color': '#3b82f6',
       'border-width': 2,
     },

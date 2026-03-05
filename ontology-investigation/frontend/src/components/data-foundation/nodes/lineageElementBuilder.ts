@@ -2,8 +2,11 @@
  * Build Cytoscape elements for the Lineage view.
  *
  * Nodes are placed on a simple grid; the actual positioning is handled by an
- * fcose force-directed layout at runtime.
+ * fcose force-directed layout at runtime. Edges are typed and labeled to show
+ * relationship semantics (matching the Schema view treatment).
  */
+
+import { entityTypeConfig } from './entityTypeConfig';
 
 interface LineageData {
   metrics: any[];
@@ -13,14 +16,21 @@ interface LineageData {
   systems: any[];
 }
 
-const NODE_WIDTH = 240;
-const NODE_HEIGHT = 80;
-const GRID_COLS = 6;
-const GRID_SPACING = 300;
+const NODE_WIDTH = 160;
+const NODE_HEIGHT = 44;
+const GRID_COLS = 8;
+const GRID_SPACING = 200;
 
 function truncate(text: string, max: number): string {
   if (!text) return '';
   return text.length > max ? text.slice(0, max) + '...' : text;
+}
+
+function buildLabel(entityType: string, item: any): string {
+  const config = entityTypeConfig[entityType];
+  const icon = config?.icon ?? '';
+  const name = truncate(item.name || item.id, 24);
+  return `${icon} ${name}`;
 }
 
 function buildNodes(items: any[], entityType: string, startIndex: number): any[] {
@@ -28,14 +38,12 @@ function buildNodes(items: any[], entityType: string, startIndex: number): any[]
     const globalIdx = startIndex + idx;
     const col = globalIdx % GRID_COLS;
     const row = Math.floor(globalIdx / GRID_COLS);
-    const name = item.name || item.id;
-    const desc = item.description ? `\n${truncate(item.description, 60)}` : '';
 
     return {
       data: {
         id: item.id,
-        name,
-        label: `${name}${desc}`,
+        name: item.name || item.id,
+        label: buildLabel(entityType, item),
         entityType,
         width: NODE_WIDTH,
         height: NODE_HEIGHT,
@@ -81,8 +89,9 @@ export function buildLineageElements(data: LineageData): any[] {
             source: metric.id,
             target: mId,
             edgeType: 'metric-measure',
+            label: 'calculated by',
           },
-          classes: 'lineage-edge',
+          classes: 'edge-metric-measure',
         });
       }
     }
@@ -99,8 +108,9 @@ export function buildLineageElements(data: LineageData): any[] {
             source: measure.id,
             target: aId,
             edgeType: 'measure-attribute',
+            label: 'inputs',
           },
-          classes: 'lineage-edge',
+          classes: 'edge-measure-attribute',
         });
       }
     }
@@ -116,8 +126,9 @@ export function buildLineageElements(data: LineageData): any[] {
           source: attr.id,
           target: entityId,
           edgeType: 'attribute-entity',
+          label: 'belongs to',
         },
-        classes: 'lineage-edge',
+        classes: 'edge-attribute-entity',
       });
     }
   }
@@ -132,8 +143,9 @@ export function buildLineageElements(data: LineageData): any[] {
           source: attr.id,
           target: sysId,
           edgeType: 'attribute-system',
+          label: 'sourced from',
         },
-        classes: 'lineage-edge',
+        classes: 'edge-attribute-system',
       });
     }
   }

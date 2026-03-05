@@ -13,6 +13,7 @@ from ..db.repositories import (
     MetricRepository,
     ProcessRepository,
     SemanticMappingRepository,
+    EntityRelationshipRepository,
 )
 from ..models import (
     Perspective,
@@ -23,6 +24,7 @@ from ..models import (
     Metric,
     Process,
     SemanticMapping,
+    EntityRelationship,
 )
 
 router = APIRouter(prefix="/api", tags=["ontology"])
@@ -619,3 +621,24 @@ def get_mappings(
 def create_mapping(data: SemanticMapping, db: Session = Depends(get_db)):
     repo = SemanticMappingRepository(db)
     return repo.create(data)
+
+
+# ============ Entity Relationships ============
+@router.get("/relationships", response_model=list[EntityRelationship])
+def get_relationships(
+    entity_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    repo = EntityRelationshipRepository(db)
+    if entity_id:
+        return repo.get_by_entity(entity_id)
+    return repo.get_all()
+
+
+@router.get("/relationships/{id}", response_model=EntityRelationship)
+def get_relationship(id: str, db: Session = Depends(get_db)):
+    repo = EntityRelationshipRepository(db)
+    result = repo.get_by_id(id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Relationship not found")
+    return result

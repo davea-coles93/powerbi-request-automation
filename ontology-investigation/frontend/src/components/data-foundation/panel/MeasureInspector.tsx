@@ -1,6 +1,8 @@
+import { Database, Workflow, Loader2 } from 'lucide-react';
 import { entityTypeConfig } from '../nodes/entityTypeConfig';
 import { useDataFoundationData } from '../hooks/useDataFoundationData';
 import { useDataFoundationStore } from '../hooks/useDataFoundationStore';
+import { useMeasureConnections } from '../../../hooks/useOntology';
 import type { Measure, Attribute, Metric } from '../../../types/ontology';
 
 interface MeasureInspectorProps {
@@ -27,6 +29,8 @@ export function MeasureInspector({ data }: MeasureInspectorProps) {
   const attrConfig = entityTypeConfig.attribute;
   const metricConfig = entityTypeConfig.metric;
 
+  const { data: connections, isLoading: connectionsLoading } = useMeasureConnections(data.id);
+
   const inputAttributes: Attribute[] = (data.input_attribute_ids ?? [])
     .map((id: string) => attributes.find((a: any) => a.id === id))
     .filter(Boolean) as Attribute[];
@@ -34,6 +38,9 @@ export function MeasureInspector({ data }: MeasureInspectorProps) {
   const usedByMetrics: Metric[] = metrics.filter((m: any) =>
     m.calculated_by_measure_ids?.includes(data.id),
   );
+
+  const hasPowerBISources = connections && connections.power_bi_sources.length > 0;
+  const hasConnectedProcesses = connections && connections.connected_processes.length > 0;
 
   return (
     <div className="p-4 space-y-5">
@@ -75,6 +82,35 @@ export function MeasureInspector({ data }: MeasureInspectorProps) {
         </div>
       )}
 
+      {/* Power BI Sources */}
+      {connectionsLoading ? (
+        <div className="border-t pt-4 flex items-center gap-2 text-sm text-gray-400">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          Loading connections...
+        </div>
+      ) : hasPowerBISources ? (
+        <div className="border-t pt-4">
+          <h4 className="font-semibold text-xs text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+            <Database className="w-3.5 h-3.5" />
+            Power BI Sources
+          </h4>
+          <div className="space-y-1">
+            {connections.power_bi_sources.map((src) => (
+              <div
+                key={src.attribute_id}
+                className="px-3 py-2 rounded-lg bg-indigo-50/50 border border-indigo-100 text-sm"
+              >
+                <code className="font-mono text-indigo-700 text-xs">
+                  '{src.source_table}'[{src.source_column}]
+                </code>
+                <span className="text-gray-400 mx-1.5">&larr;</span>
+                <span className="text-gray-600">{src.attribute_name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {/* Input Attributes */}
       <div className="border-t pt-4">
         <h4 className="font-semibold text-xs text-gray-500 uppercase tracking-wide mb-2">
@@ -104,6 +140,44 @@ export function MeasureInspector({ data }: MeasureInspectorProps) {
           <p className="text-sm text-gray-400">No input attributes</p>
         )}
       </div>
+
+      {/* Connected Processes */}
+      {hasConnectedProcesses && (
+        <div className="border-t pt-4">
+          <h4 className="font-semibold text-xs text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+            <Workflow className="w-3.5 h-3.5" />
+            Connected Processes
+          </h4>
+          <div className="space-y-1.5">
+            {connections.connected_processes.map((step) => (
+              <div
+                key={`${step.process_id}-${step.step_id}`}
+                className="px-3 py-2 rounded-lg border border-gray-100 bg-gray-50/50"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-800">{step.step_name}</span>
+                  {step.manual_effort_percentage != null && (
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                      step.manual_effort_percentage >= 80
+                        ? 'bg-red-100 text-red-700'
+                        : step.manual_effort_percentage >= 50
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : 'bg-green-100 text-green-700'
+                    }`}>
+                      {step.manual_effort_percentage}% manual
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">
+                  {step.process_name}
+                  <span className="mx-1">&middot;</span>
+                  {step.shared_attributes.length} shared attribute{step.shared_attributes.length !== 1 ? 's' : ''}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Used By Metrics */}
       <div className="border-t pt-4">

@@ -6,8 +6,8 @@ interface MinimapProps {
   cyRef: MutableRefObject<cytoscape.Core | null>;
 }
 
-const WIDTH = 160;
-const HEIGHT = 100;
+const WIDTH = 200;
+const HEIGHT = 150;
 
 /**
  * Small canvas minimap in the bottom-left corner.

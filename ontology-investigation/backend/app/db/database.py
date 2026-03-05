@@ -127,6 +127,20 @@ class SemanticTableDB(Base):
     measures = Column(JSON, default=list)
 
 
+class EntityRelationshipDB(Base):
+    __tablename__ = "entity_relationships"
+
+    id = Column(String, primary_key=True)
+    name = Column(String, nullable=False)
+    from_entity_id = Column(String, nullable=False)
+    to_entity_id = Column(String, nullable=False)
+    from_attribute_id = Column(String)
+    to_attribute_id = Column(String)
+    relationship_type = Column(String, default="many_to_one")
+    is_active = Column(Integer, default=1)  # SQLite boolean
+    source = Column(String, default="tmdl")
+
+
 class WorkshopSessionDB(Base):
     __tablename__ = "workshop_sessions"
 

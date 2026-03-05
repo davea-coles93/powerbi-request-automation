@@ -17,5 +17,10 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+    watch: {
+      // Enable polling for Docker on Windows (fs events don't cross mount boundaries)
+      usePolling: true,
+      interval: 1000,
+    },
   },
 })

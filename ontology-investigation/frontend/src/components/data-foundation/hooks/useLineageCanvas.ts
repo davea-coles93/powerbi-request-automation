@@ -27,12 +27,13 @@ export function useLineageCanvas(
       // Clear previous selection visuals
       cy.nodes('.selected-node').removeClass('selected-node');
       cy.nodes('.highlighted').removeClass('highlighted');
+      cy.nodes('.neighbor-highlight').removeClass('neighbor-highlight');
       cy.edges('.neighbor-edge').removeClass('neighbor-edge');
 
       // Apply selection visuals
       node.addClass('selected-node');
       node.connectedEdges().addClass('neighbor-edge');
-      node.neighborhood('node').addClass('highlighted');
+      node.neighborhood('node').addClass('neighbor-highlight');
 
       // Update store
       store.selectNode({
@@ -47,6 +48,7 @@ export function useLineageCanvas(
       if (evt.target === cy) {
         cy.nodes('.selected-node').removeClass('selected-node');
         cy.nodes('.highlighted').removeClass('highlighted');
+        cy.nodes('.neighbor-highlight').removeClass('neighbor-highlight');
         cy.edges('.neighbor-edge').removeClass('neighbor-edge');
         useDataFoundationStore.getState().closeInspector();
       }

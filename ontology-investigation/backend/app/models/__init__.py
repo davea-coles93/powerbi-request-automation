@@ -6,6 +6,7 @@ from .measure import Measure
 from .metric import Metric
 from .process import Process, ProcessStep
 from .mapping import SemanticMapping
+from .relationship import EntityRelationship
 
 __all__ = [
     "Perspective",
@@ -20,4 +21,5 @@ __all__ = [
     "Process",
     "ProcessStep",
     "SemanticMapping",
+    "EntityRelationship",
 ]

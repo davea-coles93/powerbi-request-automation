@@ -33,6 +33,8 @@ interface AttributeEditorModalProps {
   onSave: (attribute: AttributeData) => void;
   availableEntities?: Array<{ id: string; name: string }>;
   availableSystems?: Array<{ id: string; name: string }>;
+  onCreateEntity?: (entity: { name: string; description: string }) => Promise<{ id: string; name: string }>;
+  onCreateSystem?: (system: { name: string; description: string }) => Promise<{ id: string; name: string }>;
 }
 
 const defaultFormData: AttributeData = {
@@ -57,8 +59,18 @@ export function AttributeEditorModal({
   onSave,
   availableEntities = [],
   availableSystems = [],
+  onCreateEntity,
+  onCreateSystem,
 }: AttributeEditorModalProps) {
   const [formData, setFormData] = useState<AttributeData>({ ...defaultFormData });
+  const [showNewEntity, setShowNewEntity] = useState(false);
+  const [newEntityName, setNewEntityName] = useState('');
+  const [newEntityDesc, setNewEntityDesc] = useState('');
+  const [creatingEntity, setCreatingEntity] = useState(false);
+  const [showNewSystem, setShowNewSystem] = useState(false);
+  const [newSystemName, setNewSystemName] = useState('');
+  const [newSystemDesc, setNewSystemDesc] = useState('');
+  const [creatingSystem, setCreatingSystem] = useState(false);
 
   useEffect(() => {
     if (attribute) {
@@ -70,7 +82,42 @@ export function AttributeEditorModal({
     } else {
       setFormData({ ...defaultFormData });
     }
+    // Reset inline creation forms
+    setShowNewEntity(false);
+    setNewEntityName('');
+    setNewEntityDesc('');
+    setShowNewSystem(false);
+    setNewSystemName('');
+    setNewSystemDesc('');
   }, [attribute, isOpen]);
+
+  const handleCreateEntity = async () => {
+    if (!onCreateEntity || !newEntityName.trim()) return;
+    setCreatingEntity(true);
+    try {
+      const created = await onCreateEntity({ name: newEntityName.trim(), description: newEntityDesc.trim() });
+      setFormData({ ...formData, entity_id: created.id });
+      setShowNewEntity(false);
+      setNewEntityName('');
+      setNewEntityDesc('');
+    } finally {
+      setCreatingEntity(false);
+    }
+  };
+
+  const handleCreateSystem = async () => {
+    if (!onCreateSystem || !newSystemName.trim()) return;
+    setCreatingSystem(true);
+    try {
+      const created = await onCreateSystem({ name: newSystemName.trim(), description: newSystemDesc.trim() });
+      setFormData({ ...formData, system_id: created.id });
+      setShowNewSystem(false);
+      setNewSystemName('');
+      setNewSystemDesc('');
+    } finally {
+      setCreatingSystem(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,46 +208,150 @@ export function AttributeEditorModal({
               </div>
 
               <div className="grid grid-cols-2 gap-4">
+                {/* Entity selector with inline create */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Entity *
                   </label>
-                  <select
-                    required
-                    value={formData.entity_id}
-                    onChange={(e) =>
-                      setFormData({ ...formData, entity_id: e.target.value })
-                    }
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select an entity...</option>
-                    {availableEntities.map((entity) => (
-                      <option key={entity.id} value={entity.id}>
-                        {entity.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex gap-2">
+                    <select
+                      required
+                      value={formData.entity_id}
+                      onChange={(e) =>
+                        setFormData({ ...formData, entity_id: e.target.value })
+                      }
+                      className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select an entity...</option>
+                      {availableEntities.map((entity) => (
+                        <option key={entity.id} value={entity.id}>
+                          {entity.name}
+                        </option>
+                      ))}
+                    </select>
+                    {onCreateEntity && (
+                      <button
+                        type="button"
+                        onClick={() => setShowNewEntity(!showNewEntity)}
+                        className={`px-2.5 border rounded-lg transition-colors ${
+                          showNewEntity
+                            ? 'bg-blue-50 border-blue-300 text-blue-600'
+                            : 'border-gray-300 text-gray-500 hover:bg-gray-50'
+                        }`}
+                        title="Create new entity"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  {showNewEntity && (
+                    <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+                      <input
+                        type="text"
+                        value={newEntityName}
+                        onChange={(e) => setNewEntityName(e.target.value)}
+                        className="w-full border border-blue-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        placeholder="Entity name (e.g., Production Order)"
+                      />
+                      <input
+                        type="text"
+                        value={newEntityDesc}
+                        onChange={(e) => setNewEntityDesc(e.target.value)}
+                        className="w-full border border-blue-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        placeholder="Description (optional)"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleCreateEntity}
+                          disabled={!newEntityName.trim() || creatingEntity}
+                          className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+                        >
+                          {creatingEntity ? 'Creating...' : 'Create & Select'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setShowNewEntity(false); setNewEntityName(''); setNewEntityDesc(''); }}
+                          className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
+                {/* System selector with inline create */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     System *
                   </label>
-                  <select
-                    required
-                    value={formData.system_id}
-                    onChange={(e) =>
-                      setFormData({ ...formData, system_id: e.target.value })
-                    }
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select a system...</option>
-                    {availableSystems.map((system) => (
-                      <option key={system.id} value={system.id}>
-                        {system.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex gap-2">
+                    <select
+                      required
+                      value={formData.system_id}
+                      onChange={(e) =>
+                        setFormData({ ...formData, system_id: e.target.value })
+                      }
+                      className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select a system...</option>
+                      {availableSystems.map((system) => (
+                        <option key={system.id} value={system.id}>
+                          {system.name}
+                        </option>
+                      ))}
+                    </select>
+                    {onCreateSystem && (
+                      <button
+                        type="button"
+                        onClick={() => setShowNewSystem(!showNewSystem)}
+                        className={`px-2.5 border rounded-lg transition-colors ${
+                          showNewSystem
+                            ? 'bg-blue-50 border-blue-300 text-blue-600'
+                            : 'border-gray-300 text-gray-500 hover:bg-gray-50'
+                        }`}
+                        title="Create new system"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  {showNewSystem && (
+                    <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+                      <input
+                        type="text"
+                        value={newSystemName}
+                        onChange={(e) => setNewSystemName(e.target.value)}
+                        className="w-full border border-blue-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        placeholder="System name (e.g., SAP ECC)"
+                      />
+                      <input
+                        type="text"
+                        value={newSystemDesc}
+                        onChange={(e) => setNewSystemDesc(e.target.value)}
+                        className="w-full border border-blue-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        placeholder="Description (optional)"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleCreateSystem}
+                          disabled={!newSystemName.trim() || creatingSystem}
+                          className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+                        >
+                          {creatingSystem ? 'Creating...' : 'Create & Select'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setShowNewSystem(false); setNewSystemName(''); setNewSystemDesc(''); }}
+                          className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

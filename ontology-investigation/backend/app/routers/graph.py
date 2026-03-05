@@ -142,6 +142,22 @@ def get_crystallization_points(process_id: str, db: Session = Depends(get_db)):
     return result
 
 
+@router.get("/measure/{measure_id}/connections")
+def get_measure_connections(measure_id: str, db: Session = Depends(get_db)):
+    """
+    Get Power BI source mappings and connected process steps for a measure.
+
+    Returns:
+    - power_bi_sources: Source table/column references from input attributes
+    - connected_processes: Steps that produce attributes this measure consumes
+    """
+    service = GraphService(db)
+    result = service.get_measure_connections(measure_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Measure not found")
+    return result
+
+
 @router.get("/step/{step_id}/full-lineage")
 def get_step_full_lineage(step_id: str, db: Session = Depends(get_db)):
     """

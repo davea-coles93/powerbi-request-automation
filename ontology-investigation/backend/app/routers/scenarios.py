@@ -18,6 +18,7 @@ from app.db.database import (
     MetricDB,
     ProcessDB,
     SemanticTableDB,
+    EntityRelationshipDB,
 )
 from app.db.repositories import (
     PerspectiveRepository,
@@ -28,6 +29,7 @@ from app.db.repositories import (
     MetricRepository,
     ProcessRepository,
     SemanticTableRepository,
+    EntityRelationshipRepository,
 )
 from app.models import (
     Perspective,
@@ -37,6 +39,7 @@ from app.models import (
     Measure,
     Metric,
     Process,
+    EntityRelationship,
 )
 from app.models.semantic_model import Table
 
@@ -100,6 +103,7 @@ def clear_database(db: Session):
         ProcessDB.__table__,
         MetricDB.__table__,
         MeasureDB.__table__,
+        EntityRelationshipDB.__table__,
         AttributeDB.__table__,
         EntityDB.__table__,
         SemanticTableDB.__table__,
@@ -173,6 +177,11 @@ def seed_from_data(db: Session, data: dict):
     repo = ProcessRepository(db)
     for item in data.get("processes", []):
         repo.create(Process(**item))
+
+    # Seed entity relationships
+    repo = EntityRelationshipRepository(db)
+    for item in data.get("relationships", []):
+        repo.create(EntityRelationship(**item))
 
     # Seed semantic tables
     repo = SemanticTableRepository(db)

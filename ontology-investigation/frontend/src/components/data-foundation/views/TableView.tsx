@@ -36,14 +36,11 @@ export function TableView(props: TableViewProps) {
   const selectNode = useDataFoundationStore((s) => s.selectNode);
 
   const {
-    filteredMetrics,
-    filteredMeasures,
-    filteredAttributes,
+    metrics,
     measures,
     attributes,
     entities,
     systems,
-    metrics,
     isLoading,
   } = useDataFoundationData();
 
@@ -170,7 +167,7 @@ export function TableView(props: TableViewProps) {
     case 'metrics':
       return (
         <MetricsTable
-          metrics={filteredMetrics}
+          metrics={metrics}
           measures={measures}
           onEditMetric={props.onEditMetric ?? handleMetricClick}
           onDeleteMetric={props.onDeleteMetric}
@@ -182,7 +179,7 @@ export function TableView(props: TableViewProps) {
     case 'measures':
       return (
         <MeasuresTable
-          measures={filteredMeasures}
+          measures={measures}
           attributes={attributes}
           onMeasureClick={props.onEditMeasure ?? handleMeasureClick}
           onDeleteMeasure={props.onDeleteMeasure}
@@ -194,7 +191,7 @@ export function TableView(props: TableViewProps) {
     case 'attributes':
       return (
         <AttributesTable
-          attributes={filteredAttributes}
+          attributes={attributes}
           systems={systems}
           entities={entities}
           measures={measures}

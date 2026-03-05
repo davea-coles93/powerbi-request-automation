@@ -338,6 +338,27 @@ export const useLoadTmdlModel = () => {
   });
 };
 
+// TMDL Merge hooks
+export const usePreviewTmdlMerge = () =>
+  useMutation({
+    mutationFn: ({ modelPath, modelName }: { modelPath: string; modelName: string }) =>
+      api.previewTmdlMerge(modelPath, modelName),
+  });
+
+export const useMergeTmdlModel = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ modelPath, modelName, conflictStrategy }: {
+      modelPath: string;
+      modelName: string;
+      conflictStrategy: import('../types/ontology').ConflictStrategy;
+    }) => api.mergeTmdlModel(modelPath, modelName, conflictStrategy),
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+    },
+  });
+};
+
 // Process creation
 export const useCreateProcess = () => {
   const queryClient = useQueryClient();
@@ -512,3 +533,18 @@ export const useMaterializeElement = () => {
     },
   });
 };
+
+// Entity Relationships
+export const useRelationships = (entityId?: string) =>
+  useQuery({
+    queryKey: ['relationships', entityId],
+    queryFn: () => api.getRelationships(entityId),
+  });
+
+// Measure connections (Power BI sources + process links)
+export const useMeasureConnections = (measureId: string) =>
+  useQuery({
+    queryKey: ['measureConnections', measureId],
+    queryFn: () => api.getMeasureConnections(measureId),
+    enabled: !!measureId,
+  });
