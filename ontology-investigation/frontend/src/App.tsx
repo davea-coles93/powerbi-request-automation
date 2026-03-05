@@ -124,7 +124,7 @@ function App() {
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Workshop AI
+            AI Assistant
           </button>
           <ScenarioSelector />
         </div>

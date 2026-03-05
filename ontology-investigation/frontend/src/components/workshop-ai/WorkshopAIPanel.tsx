@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Send, Trash2, Square, Sparkles } from 'lucide-react';
 import { useWorkshopAI } from '../../hooks/useWorkshopAI';
+import { useSystems, useEntities, usePerspectives } from '../../hooks/useOntology';
 import { ChatMessage } from './ChatMessage';
 
 interface WorkshopAIPanelProps {
@@ -8,17 +9,24 @@ interface WorkshopAIPanelProps {
 }
 
 const STARTER_PROMPTS = [
-  'We need to understand our production yield and why we\'re seeing quality issues',
-  'What metrics do we need for month-end financial close?',
+  'What metrics and measures do we have so far?',
+  'We need to understand our production yield and quality issues',
+  'Explain the data lineage for our COGS metric',
   'Help me define KPIs for on-time delivery performance',
-  'We want to track inventory accuracy and shrinkage',
 ];
 
 export function WorkshopAIPanel({ onClose }: WorkshopAIPanelProps) {
   const { messages, isStreaming, sendMessage, stopStreaming, materialize, clearChat } = useWorkshopAI();
+  const { data: systemsData } = useSystems();
+  const { data: entitiesData } = useEntities();
+  const { data: perspectivesData } = usePerspectives();
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const lookupSystems = systemsData?.map(s => ({ id: s.id, name: s.name })) || [];
+  const lookupEntities = entitiesData?.map(e => ({ id: e.id, name: e.name })) || [];
+  const lookupPerspectives = perspectivesData?.map(p => ({ id: p.id, name: p.name })) || [];
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -52,8 +60,8 @@ export function WorkshopAIPanel({ onClose }: WorkshopAIPanelProps) {
             <Sparkles className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-gray-900">Workshop AI</h2>
-            <p className="text-[10px] text-gray-500">Top-Down Discovery Assistant</p>
+            <h2 className="text-sm font-bold text-gray-900">AI Assistant</h2>
+            <p className="text-[10px] text-gray-500">Ontology Discovery & Exploration</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -83,11 +91,11 @@ export function WorkshopAIPanel({ onClose }: WorkshopAIPanelProps) {
               <Sparkles className="w-8 h-8 text-purple-500" />
             </div>
             <h3 className="text-base font-semibold text-gray-900 mb-1">
-              Top-Down Workshop
+              AI Assistant
             </h3>
             <p className="text-xs text-gray-500 mb-6 max-w-sm">
-              Describe the business questions you need answered. I'll help structure them into
-              metrics, measures, and attributes — linking to your existing ontology where possible.
+              Ask about your ontology, explore metrics and data lineage, or describe business
+              questions — I'll help structure them into metrics, measures, and attributes.
             </p>
             <div className="w-full space-y-2">
               <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Try asking</p>
@@ -110,6 +118,9 @@ export function WorkshopAIPanel({ onClose }: WorkshopAIPanelProps) {
                 message={msg}
                 onMaterialize={materialize}
                 isStreaming={isStreaming && i === messages.length - 1 && msg.role === 'assistant'}
+                systems={lookupSystems}
+                entities={lookupEntities}
+                perspectives={lookupPerspectives}
               />
             ))}
             <div ref={messagesEndRef} />

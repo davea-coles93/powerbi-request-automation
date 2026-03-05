@@ -1,52 +1,330 @@
 import { useState } from 'react';
-import { Check, ChevronDown, ChevronRight, Link, Sparkles } from 'lucide-react';
-import type { WorkshopProposals } from '../../types/ontology';
+import { Check, ChevronDown, ChevronRight, Link, Sparkles, Pencil, X, Trash2 } from 'lucide-react';
+import type { WorkshopProposals, ProposedMetric, ProposedMeasure, ProposedAttribute } from '../../types/ontology';
+
+interface LookupItem {
+  id: string;
+  name: string;
+}
 
 interface ProposalCardProps {
   proposals: WorkshopProposals;
   onMaterialize: (proposals: WorkshopProposals) => Promise<any>;
   disabled?: boolean;
+  systems?: LookupItem[];
+  entities?: LookupItem[];
+  perspectives?: LookupItem[];
 }
 
-const perspectiveColors: Record<string, string> = {
-  operational: 'bg-emerald-100 text-emerald-700',
-  management: 'bg-amber-100 text-amber-700',
-  financial: 'bg-blue-100 text-blue-700',
+const PERSPECTIVE_COLORS: Record<string, string> = {
+  operational: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  management: 'bg-amber-100 text-amber-700 border-amber-200',
+  financial: 'bg-blue-100 text-blue-700 border-blue-200',
 };
 
-function PerspectivePill({ id }: { id: string }) {
+function PerspectivePill({ id, onRemove }: { id: string; onRemove?: () => void }) {
   return (
-    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${perspectiveColors[id] || 'bg-gray-100 text-gray-600'}`}>
+    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium border ${PERSPECTIVE_COLORS[id] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
       {id}
+      {onRemove && (
+        <button onClick={onRemove} className="ml-0.5 hover:text-red-600">
+          <X className="w-2.5 h-2.5" />
+        </button>
+      )}
     </span>
   );
 }
 
-export function ProposalCard({ proposals, onMaterialize, disabled }: ProposalCardProps) {
+function SmallInput({ value, onChange, placeholder, className = '' }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; className?: string;
+}) {
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className={`w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-400 focus:border-purple-400 ${className}`}
+    />
+  );
+}
+
+function SmallSelect({ value, onChange, options, placeholder }: {
+  value: string; onChange: (v: string) => void; options: LookupItem[]; placeholder?: string;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-400 bg-white"
+    >
+      {placeholder && <option value="">{placeholder}</option>}
+      {options.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+    </select>
+  );
+}
+
+// ─── Individual element editors ───────────────────────────────
+
+function MetricRow({ item, editing, onEdit, onChange, onRemove, perspectives }: {
+  item: ProposedMetric; editing: boolean; onEdit: () => void;
+  onChange: (m: ProposedMetric) => void; onRemove: () => void; perspectives?: LookupItem[];
+}) {
+  if (item.is_existing) {
+    return (
+      <div className="flex items-center gap-2 py-1 px-1 text-xs text-gray-500">
+        <span>🎯</span>
+        <span className="italic">{item.name}</span>
+        <Link className="w-3 h-3 text-blue-400" />
+        <span className="text-[10px]">(existing)</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="py-1.5 px-1 group">
+      <div className="flex items-center gap-2">
+        <span className="text-sm">🎯</span>
+        <span className="text-xs font-medium text-gray-900 flex-1">{item.name}</span>
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={onEdit} className="p-0.5 hover:bg-gray-100 rounded" title="Edit">
+            <Pencil className="w-3 h-3 text-gray-400" />
+          </button>
+          <button onClick={onRemove} className="p-0.5 hover:bg-red-50 rounded" title="Remove">
+            <Trash2 className="w-3 h-3 text-gray-400 hover:text-red-500" />
+          </button>
+        </div>
+      </div>
+      <div className="flex items-center gap-1 mt-0.5 ml-6">
+        {item.perspective_ids?.map((p) => <PerspectivePill key={p} id={p} />)}
+        <span className="text-[11px] text-gray-500 italic ml-1">"{item.business_question}"</span>
+      </div>
+      {editing && (
+        <div className="mt-2 ml-6 space-y-1.5 p-2 bg-gray-50 rounded-md border border-gray-200">
+          <div>
+            <label className="text-[10px] font-semibold text-gray-500 uppercase">Name</label>
+            <SmallInput value={item.name} onChange={(v) => onChange({ ...item, name: v })} />
+          </div>
+          <div>
+            <label className="text-[10px] font-semibold text-gray-500 uppercase">Business Question</label>
+            <SmallInput value={item.business_question} onChange={(v) => onChange({ ...item, business_question: v })} />
+          </div>
+          <div>
+            <label className="text-[10px] font-semibold text-gray-500 uppercase">Description</label>
+            <SmallInput value={item.description} onChange={(v) => onChange({ ...item, description: v })} />
+          </div>
+          <div>
+            <label className="text-[10px] font-semibold text-gray-500 uppercase">Perspectives</label>
+            <div className="flex flex-wrap gap-1 mt-0.5">
+              {item.perspective_ids?.map((p) => (
+                <PerspectivePill key={p} id={p} onRemove={() => onChange({ ...item, perspective_ids: item.perspective_ids.filter((x) => x !== p) })} />
+              ))}
+              {perspectives?.filter((p) => !item.perspective_ids?.includes(p.id)).map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => onChange({ ...item, perspective_ids: [...(item.perspective_ids || []), p.id] })}
+                  className="px-1.5 py-0.5 rounded text-[10px] font-medium border border-dashed border-gray-300 text-gray-400 hover:border-purple-300 hover:text-purple-500"
+                >
+                  + {p.id}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MeasureRow({ item, editing, onEdit, onChange, onRemove, perspectives }: {
+  item: ProposedMeasure; editing: boolean; onEdit: () => void;
+  onChange: (m: ProposedMeasure) => void; onRemove: () => void; perspectives?: LookupItem[];
+}) {
+  if (item.is_existing) {
+    return (
+      <div className="flex items-center gap-2 py-1 px-1 text-xs text-gray-500">
+        <span>📐</span>
+        <span className="italic">{item.name}</span>
+        <Link className="w-3 h-3 text-blue-400" />
+        <span className="text-[10px]">(existing)</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="py-1.5 px-1 group">
+      <div className="flex items-center gap-2">
+        <span className="text-sm">📐</span>
+        <span className="text-xs font-medium text-gray-900 flex-1">{item.name}</span>
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={onEdit} className="p-0.5 hover:bg-gray-100 rounded" title="Edit">
+            <Pencil className="w-3 h-3 text-gray-400" />
+          </button>
+          <button onClick={onRemove} className="p-0.5 hover:bg-red-50 rounded" title="Remove">
+            <Trash2 className="w-3 h-3 text-gray-400 hover:text-red-500" />
+          </button>
+        </div>
+      </div>
+      <div className="ml-6 mt-0.5 text-[11px] text-gray-500">{item.logic || item.description}</div>
+      {editing && (
+        <div className="mt-2 ml-6 space-y-1.5 p-2 bg-gray-50 rounded-md border border-gray-200">
+          <div>
+            <label className="text-[10px] font-semibold text-gray-500 uppercase">Name</label>
+            <SmallInput value={item.name} onChange={(v) => onChange({ ...item, name: v })} />
+          </div>
+          <div>
+            <label className="text-[10px] font-semibold text-gray-500 uppercase">Logic</label>
+            <SmallInput value={item.logic} onChange={(v) => onChange({ ...item, logic: v })} />
+          </div>
+          <div>
+            <label className="text-[10px] font-semibold text-gray-500 uppercase">Description</label>
+            <SmallInput value={item.description} onChange={(v) => onChange({ ...item, description: v })} />
+          </div>
+          <div>
+            <label className="text-[10px] font-semibold text-gray-500 uppercase">Perspectives</label>
+            <div className="flex flex-wrap gap-1 mt-0.5">
+              {item.perspective_ids?.map((p) => (
+                <PerspectivePill key={p} id={p} onRemove={() => onChange({ ...item, perspective_ids: item.perspective_ids.filter((x) => x !== p) })} />
+              ))}
+              {perspectives?.filter((p) => !item.perspective_ids?.includes(p.id)).map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => onChange({ ...item, perspective_ids: [...(item.perspective_ids || []), p.id] })}
+                  className="px-1.5 py-0.5 rounded text-[10px] font-medium border border-dashed border-gray-300 text-gray-400 hover:border-purple-300 hover:text-purple-500"
+                >
+                  + {p.id}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AttributeRow({ item, editing, onEdit, onChange, onRemove, systems, entities, perspectives }: {
+  item: ProposedAttribute; editing: boolean; onEdit: () => void;
+  onChange: (a: ProposedAttribute) => void; onRemove: () => void;
+  systems?: LookupItem[]; entities?: LookupItem[]; perspectives?: LookupItem[];
+}) {
+  if (item.is_existing) {
+    return (
+      <div className="flex items-center gap-2 py-1 px-1 text-xs text-gray-500">
+        <span>📊</span>
+        <span className="italic">{item.name}</span>
+        <Link className="w-3 h-3 text-blue-400" />
+        <span className="text-[10px]">(existing)</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="py-1.5 px-1 group">
+      <div className="flex items-center gap-2">
+        <span className="text-sm">📊</span>
+        <span className="text-xs font-medium text-gray-900 flex-1">{item.name}</span>
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={onEdit} className="p-0.5 hover:bg-gray-100 rounded" title="Edit">
+            <Pencil className="w-3 h-3 text-gray-400" />
+          </button>
+          <button onClick={onRemove} className="p-0.5 hover:bg-red-50 rounded" title="Remove">
+            <Trash2 className="w-3 h-3 text-gray-400 hover:text-red-500" />
+          </button>
+        </div>
+      </div>
+      <div className="ml-6 mt-0.5 text-[11px] text-gray-500">
+        {item.entity_id && <span>Entity: {item.entity_id}</span>}
+        {item.system_id && <span> | System: {item.system_id}</span>}
+      </div>
+      {editing && (
+        <div className="mt-2 ml-6 space-y-1.5 p-2 bg-gray-50 rounded-md border border-gray-200">
+          <div>
+            <label className="text-[10px] font-semibold text-gray-500 uppercase">Name</label>
+            <SmallInput value={item.name} onChange={(v) => onChange({ ...item, name: v })} />
+          </div>
+          <div>
+            <label className="text-[10px] font-semibold text-gray-500 uppercase">Description</label>
+            <SmallInput value={item.description} onChange={(v) => onChange({ ...item, description: v })} />
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <div>
+              <label className="text-[10px] font-semibold text-gray-500 uppercase">Entity</label>
+              {entities && entities.length > 0 ? (
+                <SmallSelect value={item.entity_id} onChange={(v) => onChange({ ...item, entity_id: v })} options={entities} placeholder="Select entity..." />
+              ) : (
+                <SmallInput value={item.entity_id} onChange={(v) => onChange({ ...item, entity_id: v })} placeholder="Entity ID" />
+              )}
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold text-gray-500 uppercase">System</label>
+              {systems && systems.length > 0 ? (
+                <SmallSelect value={item.system_id} onChange={(v) => onChange({ ...item, system_id: v })} options={systems} placeholder="Select system..." />
+              ) : (
+                <SmallInput value={item.system_id} onChange={(v) => onChange({ ...item, system_id: v })} placeholder="System ID" />
+              )}
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] font-semibold text-gray-500 uppercase">Perspectives</label>
+            <div className="flex flex-wrap gap-1 mt-0.5">
+              {item.perspective_ids?.map((p) => (
+                <PerspectivePill key={p} id={p} onRemove={() => onChange({ ...item, perspective_ids: item.perspective_ids.filter((x) => x !== p) })} />
+              ))}
+              {perspectives?.filter((p) => !item.perspective_ids?.includes(p.id)).map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => onChange({ ...item, perspective_ids: [...(item.perspective_ids || []), p.id] })}
+                  className="px-1.5 py-0.5 rounded text-[10px] font-medium border border-dashed border-gray-300 text-gray-400 hover:border-purple-300 hover:text-purple-500"
+                >
+                  + {p.id}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main ProposalCard ────────────────────────────────────────
+
+export function ProposalCard({ proposals: initialProposals, onMaterialize, disabled, systems, entities, perspectives }: ProposalCardProps) {
   const [expanded, setExpanded] = useState(true);
   const [materializing, setMaterializing] = useState(false);
   const [materialized, setMaterialized] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Local editable copy
+  const [metrics, setMetrics] = useState(initialProposals.metrics);
+  const [measures, setMeasures] = useState(initialProposals.measures);
+  const [attributes, setAttributes] = useState(initialProposals.attributes);
 
   const totalNew =
-    proposals.metrics.filter((m) => !m.is_existing).length +
-    proposals.measures.filter((m) => !m.is_existing).length +
-    proposals.attributes.filter((a) => !a.is_existing).length;
+    metrics.filter((m) => !m.is_existing).length +
+    measures.filter((m) => !m.is_existing).length +
+    attributes.filter((a) => !a.is_existing).length;
 
   const totalExisting =
-    proposals.metrics.filter((m) => m.is_existing).length +
-    proposals.measures.filter((m) => m.is_existing).length +
-    proposals.attributes.filter((a) => a.is_existing).length;
+    metrics.filter((m) => m.is_existing).length +
+    measures.filter((m) => m.is_existing).length +
+    attributes.filter((a) => a.is_existing).length;
 
   const handleMaterialize = async () => {
     setMaterializing(true);
     try {
-      await onMaterialize(proposals);
+      await onMaterialize({ metrics, measures, attributes });
       setMaterialized(true);
     } catch {
       // error handled in hook
     } finally {
       setMaterializing(false);
     }
+  };
+
+  const toggleEdit = (id: string) => {
+    setEditingId(editingId === id ? null : id);
   };
 
   return (
@@ -91,76 +369,73 @@ export function ProposalCard({ proposals, onMaterialize, disabled }: ProposalCar
       </div>
 
       {/* Body */}
-      {expanded && (
-        <div className="px-3 pb-3 space-y-2">
-          {/* Metrics */}
-          {proposals.metrics.length > 0 && (
+      {expanded && !materialized && (
+        <div className="px-2 pb-2 space-y-1">
+          {metrics.length > 0 && (
             <div>
-              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Metrics</div>
-              {proposals.metrics.map((m) => (
-                <div key={m.id} className="flex items-start gap-2 py-1">
-                  <span className="text-sm">🎯</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-xs font-medium ${m.is_existing ? 'text-gray-500' : 'text-gray-900'}`}>
-                        {m.name}
-                      </span>
-                      {m.is_existing && <Link className="w-3 h-3 text-blue-400" />}
-                      {m.perspective_ids?.map((p) => <PerspectivePill key={p} id={p} />)}
-                    </div>
-                    <div className="text-[11px] text-gray-500 italic">"{m.business_question}"</div>
-                  </div>
-                </div>
+              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5 px-1">Metrics</div>
+              {metrics.map((m) => (
+                <MetricRow
+                  key={m.id}
+                  item={m}
+                  editing={editingId === m.id}
+                  onEdit={() => toggleEdit(m.id)}
+                  onChange={(updated) => setMetrics((prev) => prev.map((x) => x.id === m.id ? updated : x))}
+                  onRemove={() => setMetrics((prev) => prev.filter((x) => x.id !== m.id))}
+                  perspectives={perspectives}
+                />
               ))}
             </div>
           )}
 
-          {/* Measures */}
-          {proposals.measures.length > 0 && (
+          {measures.length > 0 && (
             <div>
-              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Measures</div>
-              {proposals.measures.map((m) => (
-                <div key={m.id} className="flex items-start gap-2 py-1">
-                  <span className="text-sm">📐</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-xs font-medium ${m.is_existing ? 'text-gray-500' : 'text-gray-900'}`}>
-                        {m.name}
-                      </span>
-                      {m.is_existing && <Link className="w-3 h-3 text-blue-400" />}
-                      {m.perspective_ids?.map((p) => <PerspectivePill key={p} id={p} />)}
-                    </div>
-                    <div className="text-[11px] text-gray-500">{m.logic || m.description}</div>
-                  </div>
-                </div>
+              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5 px-1">Measures</div>
+              {measures.map((m) => (
+                <MeasureRow
+                  key={m.id}
+                  item={m}
+                  editing={editingId === m.id}
+                  onEdit={() => toggleEdit(m.id)}
+                  onChange={(updated) => setMeasures((prev) => prev.map((x) => x.id === m.id ? updated : x))}
+                  onRemove={() => setMeasures((prev) => prev.filter((x) => x.id !== m.id))}
+                  perspectives={perspectives}
+                />
               ))}
             </div>
           )}
 
-          {/* Attributes */}
-          {proposals.attributes.length > 0 && (
+          {attributes.length > 0 && (
             <div>
-              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Attributes</div>
-              {proposals.attributes.map((a) => (
-                <div key={a.id} className="flex items-start gap-2 py-1">
-                  <span className="text-sm">📊</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-xs font-medium ${a.is_existing ? 'text-gray-500' : 'text-gray-900'}`}>
-                        {a.name}
-                      </span>
-                      {a.is_existing && <Link className="w-3 h-3 text-blue-400" />}
-                      {a.perspective_ids?.map((p) => <PerspectivePill key={p} id={p} />)}
-                    </div>
-                    <div className="text-[11px] text-gray-500">
-                      {a.entity_id && <span>Entity: {a.entity_id}</span>}
-                      {a.system_id && <span> | System: {a.system_id}</span>}
-                    </div>
-                  </div>
-                </div>
+              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5 px-1">Attributes</div>
+              {attributes.map((a) => (
+                <AttributeRow
+                  key={a.id}
+                  item={a}
+                  editing={editingId === a.id}
+                  onEdit={() => toggleEdit(a.id)}
+                  onChange={(updated) => setAttributes((prev) => prev.map((x) => x.id === a.id ? updated : x))}
+                  onRemove={() => setAttributes((prev) => prev.filter((x) => x.id !== a.id))}
+                  systems={systems}
+                  entities={entities}
+                  perspectives={perspectives}
+                />
               ))}
             </div>
           )}
+
+          <p className="text-[10px] text-gray-400 px-1 pt-1">
+            Hover to edit or remove. Click pencil to adjust details.
+          </p>
+        </div>
+      )}
+
+      {/* Compact summary after materialized */}
+      {expanded && materialized && (
+        <div className="px-3 pb-2 text-[11px] text-green-600">
+          {metrics.filter((m) => !m.is_existing).map((m) => m.name).join(', ')}
+          {measures.filter((m) => !m.is_existing).length > 0 && ` + ${measures.filter((m) => !m.is_existing).length} measures`}
+          {attributes.filter((a) => !a.is_existing).length > 0 && ` + ${attributes.filter((a) => !a.is_existing).length} attributes`}
         </div>
       )}
     </div>

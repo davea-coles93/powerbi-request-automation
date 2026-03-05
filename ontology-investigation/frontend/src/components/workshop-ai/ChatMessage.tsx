@@ -2,10 +2,18 @@ import type { WorkshopChatMessage, WorkshopProposals } from '../../types/ontolog
 import { ProposalCard } from './ProposalCard';
 import { User, Bot } from 'lucide-react';
 
+interface LookupItem {
+  id: string;
+  name: string;
+}
+
 interface ChatMessageProps {
   message: WorkshopChatMessage;
   onMaterialize: (proposals: WorkshopProposals) => Promise<any>;
   isStreaming?: boolean;
+  systems?: LookupItem[];
+  entities?: LookupItem[];
+  perspectives?: LookupItem[];
 }
 
 /**
@@ -93,7 +101,7 @@ function InlineFormat({ text }: { text: string }) {
   );
 }
 
-export function ChatMessage({ message, onMaterialize, isStreaming }: ChatMessageProps) {
+export function ChatMessage({ message, onMaterialize, isStreaming, systems, entities, perspectives }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const displayContent = renderContent(message.content);
 
@@ -138,6 +146,9 @@ export function ChatMessage({ message, onMaterialize, isStreaming }: ChatMessage
           <ProposalCard
             proposals={message.proposals}
             onMaterialize={onMaterialize}
+            systems={systems}
+            entities={entities}
+            perspectives={perspectives}
           />
         )}
       </div>
