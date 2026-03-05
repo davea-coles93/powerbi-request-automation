@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import {
-  Lock, ArrowRight, X, ChevronRight, Layers, Users, Calendar, Plus, Trash2, Copy, BookOpen,
+  Lock, ArrowRight, X, ChevronRight, Layers, Users, Calendar, Plus, Trash2, Copy, BookOpen, Sparkles,
 } from 'lucide-react';
 import { useState } from 'react';
 import type { WorkshopSession } from '../../types/ontology';
@@ -24,6 +24,7 @@ import { CommandPalette } from './overlays/CommandPalette';
 import { OnboardingTour } from './overlays/OnboardingTour';
 import { InspectorPanel } from './panel/InspectorPanel';
 import { ProcessTemplateLibrary } from '../ProcessTemplateLibrary';
+import { ProcessAIPanel } from './ProcessAIPanel';
 import { StepInspector } from './panel/StepInspector';
 import { HandoffInspector } from './panel/HandoffInspector';
 import { BulkActionsPanel } from './panel/BulkActionsPanel';
@@ -36,6 +37,7 @@ interface ProcessCanvasProps {
 export function ProcessCanvas({ processId, workshopSession }: ProcessCanvasProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
+  const [showProcessAI, setShowProcessAI] = useState(false);
 
   // ── Store ──────────────────────────────────────────────────
   const {
@@ -481,6 +483,13 @@ export function ProcessCanvas({ processId, workshopSession }: ProcessCanvasProps
                 >
                   <BookOpen className="w-4 h-4" />
                 </button>
+                <button
+                  onClick={() => setShowProcessAI(true)}
+                  className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                  title="AI Process Builder"
+                >
+                  <Sparkles className="w-4 h-4" />
+                </button>
                 {processes && processes.length > 1 && (
                   <button
                     onClick={() => setShowDeleteConfirm(true)}
@@ -856,6 +865,16 @@ export function ProcessCanvas({ processId, workshopSession }: ProcessCanvasProps
           onClose={() => setShowLibrary(false)}
           onImported={() => {
             // Refetch processes to pick up the imported one
+          }}
+        />
+      )}
+
+      {showProcessAI && (
+        <ProcessAIPanel
+          onClose={() => setShowProcessAI(false)}
+          onProcessCreated={(id) => {
+            setActiveProcessId(id);
+            setShowProcessAI(false);
           }}
         />
       )}

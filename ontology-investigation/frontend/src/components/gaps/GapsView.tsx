@@ -20,6 +20,7 @@ import { AnnualROISummary } from './AnnualROISummary';
 import { GapCard, GAP_TYPE_CONFIG } from './GapCard';
 import { AddGapForm } from './AddGapForm';
 import { GapsSummaryBar } from './GapsSummaryBar';
+import { AIGapAnalysis } from './AIGapAnalysis';
 import { GAP_TYPES, colorClasses } from './types';
 import type { GapAnalysisData, GapItem, EfficiencyMetrics, ProcessStep } from './types';
 import type { WorkshopSession } from '../../types/ontology';
@@ -208,6 +209,9 @@ export function GapsView() {
           hourlyRate={hourlyRate}
           onViewLineage={setLineageStepId}
         />
+
+        {/* AI Gap Analysis */}
+        <AIGapAnalysis />
 
         {/* Gap Analysis Section */}
         <div className="border-t pt-6">

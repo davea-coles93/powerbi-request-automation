@@ -569,3 +569,54 @@ export interface MaterializeResult {
   created: Record<string, number>;
   skipped: Record<string, number>;
 }
+
+// Process AI types
+export interface ProcessProposal {
+  process: {
+    id: string;
+    name: string;
+    description: string;
+  };
+  steps: ProposedProcessStep[];
+}
+
+export interface ProposedProcessStep {
+  id: string;
+  sequence: number;
+  name: string;
+  description?: string;
+  perspective_id: string;
+  actor?: string;
+  systems_used_ids: string[];
+  manual_effort_percentage?: number;
+  waste_category?: string | null;
+  automation_potential?: string;
+  estimated_duration_minutes?: number;
+  depends_on_step_ids: string[];
+  consumes_attribute_ids: string[];
+  produces_attribute_ids: string[];
+}
+
+export interface MaterializeProcessResult {
+  success: boolean;
+  process_id: string;
+  process_name: string;
+  steps_created: number;
+}
+
+// Gap Analysis AI types
+export interface GapAnalysisResult {
+  summary: string;
+  health_score: number;
+  gaps: AIGapItem[];
+}
+
+export interface AIGapItem {
+  id: string;
+  type: string;
+  severity: 'high' | 'medium' | 'low';
+  title: string;
+  description: string;
+  affected_elements: string[];
+  recommendation: string;
+}
