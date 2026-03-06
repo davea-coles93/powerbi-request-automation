@@ -1,0 +1,1171 @@
+{
+  "template_meta": {
+    "id": "finance_entities",
+    "name": "Finance Foundation Pack",
+    "description": "Core financial entities for period-end close, reporting, and control: Trial Balance, General Ledger, Chart of Accounts, Journal Entries, Sub-ledgers, and Intercompany. Includes perspective lenses, key attributes, measures, and metrics.",
+    "icon": "\ud83c\udfe6",
+    "category": "Entity Pack"
+  },
+  "systems": [
+    {
+      "id": "erp",
+      "name": "ERP System",
+      "type": "ERP",
+      "description": "Core enterprise resource planning system (SAP, Oracle, D365)"
+    },
+    {
+      "id": "gl_system",
+      "name": "General Ledger System",
+      "type": "ERP",
+      "description": "General ledger module or standalone GL system"
+    },
+    {
+      "id": "consolidation",
+      "name": "Consolidation System",
+      "type": "Other",
+      "description": "Financial consolidation tool (e.g., SAP BPC, OneStream, Hyperion)"
+    },
+    {
+      "id": "bank_system",
+      "name": "Banking System",
+      "type": "Other",
+      "description": "Banking portal and payment systems"
+    },
+    {
+      "id": "tax_system",
+      "name": "Tax System",
+      "type": "Other",
+      "description": "Tax compliance and reporting system"
+    },
+    {
+      "id": "excel",
+      "name": "Excel Spreadsheets",
+      "type": "Spreadsheet",
+      "description": "Manual spreadsheets for analysis and workarounds"
+    }
+  ],
+  "entities": [
+    {
+      "id": "trial_balance",
+      "name": "Trial Balance",
+      "description": "Period-end summary of all account balances used for reporting and audit",
+      "core_attributes": [
+        {
+          "name": "Period",
+          "data_type": "string",
+          "description": "Accounting period (e.g., 2024-01)"
+        },
+        {
+          "name": "Fiscal Year",
+          "data_type": "string",
+          "description": "Fiscal year the balance belongs to"
+        },
+        {
+          "name": "Entity Code",
+          "data_type": "string",
+          "description": "Legal entity or company code"
+        }
+      ],
+      "lenses": [
+        {
+          "perspective_id": "operational",
+          "interpretation": "Extract to compile from GL system",
+          "derived_attributes": [
+            {
+              "name": "Extraction Timestamp",
+              "data_type": "datetime",
+              "description": "When the TB was extracted"
+            },
+            {
+              "name": "Source System",
+              "data_type": "string",
+              "description": "GL system the extract was pulled from"
+            }
+          ]
+        },
+        {
+          "perspective_id": "management",
+          "interpretation": "Variance analysis input \u2014 compare period-to-period",
+          "derived_attributes": [
+            {
+              "name": "Period-over-Period Change",
+              "data_type": "number",
+              "derivation": "Current Period Balance - Prior Period Balance"
+            },
+            {
+              "name": "Budget Variance",
+              "data_type": "number",
+              "derivation": "Actual Balance - Budget Balance"
+            }
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Formal account balance summary for reporting and audit",
+          "derived_attributes": [
+            {
+              "name": "Opening Balance",
+              "data_type": "number",
+              "description": "Balance at start of period"
+            },
+            {
+              "name": "Closing Balance",
+              "data_type": "number",
+              "description": "Balance at end of period"
+            },
+            {
+              "name": "Net Movement",
+              "data_type": "number",
+              "derivation": "Closing Balance - Opening Balance"
+            },
+            {
+              "name": "YTD Balance",
+              "data_type": "number",
+              "description": "Year-to-date cumulative balance"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "general_ledger",
+      "name": "General Ledger",
+      "description": "Central accounting record containing all posted transactions",
+      "core_attributes": [
+        {
+          "name": "Account Number",
+          "data_type": "string",
+          "description": "GL account number"
+        },
+        {
+          "name": "Account Name",
+          "data_type": "string",
+          "description": "Descriptive name of the account"
+        },
+        {
+          "name": "Account Type",
+          "data_type": "string",
+          "description": "Asset, Liability, Equity, Revenue, or Expense"
+        }
+      ],
+      "lenses": [
+        {
+          "perspective_id": "operational",
+          "interpretation": "Transaction repository \u2014 where postings land",
+          "derived_attributes": [
+            {
+              "name": "Posting Count",
+              "data_type": "number",
+              "description": "Number of postings in the period"
+            },
+            {
+              "name": "Last Posting Date",
+              "data_type": "date",
+              "description": "Date of most recent posting"
+            }
+          ]
+        },
+        {
+          "perspective_id": "management",
+          "interpretation": "Data source for performance reporting",
+          "derived_attributes": [
+            {
+              "name": "Cost Center Allocation",
+              "data_type": "string",
+              "description": "Management reporting cost center"
+            },
+            {
+              "name": "Budget Line Mapping",
+              "data_type": "string",
+              "description": "Mapped budget category"
+            }
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Book of record \u2014 formal accounting record",
+          "derived_attributes": [
+            {
+              "name": "Debit Total",
+              "data_type": "number",
+              "derivation": "SUM(debit postings)"
+            },
+            {
+              "name": "Credit Total",
+              "data_type": "number",
+              "derivation": "SUM(credit postings)"
+            },
+            {
+              "name": "Running Balance",
+              "data_type": "number",
+              "derivation": "Debit Total - Credit Total"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "journal_entry",
+      "name": "Journal Entry",
+      "description": "Individual accounting transaction or adjustment posted to the general ledger",
+      "core_attributes": [
+        {
+          "name": "Journal ID",
+          "data_type": "string",
+          "description": "Unique journal entry identifier"
+        },
+        {
+          "name": "Posting Date",
+          "data_type": "date",
+          "description": "Date the journal is posted to the GL"
+        },
+        {
+          "name": "Document Type",
+          "data_type": "string",
+          "description": "Type of journal (e.g., Standard, Recurring, Reversing, Accrual)"
+        }
+      ],
+      "lenses": [
+        {
+          "perspective_id": "operational",
+          "interpretation": "Transaction to post and approve",
+          "derived_attributes": [
+            {
+              "name": "Preparer",
+              "data_type": "string",
+              "description": "Person who created the journal"
+            },
+            {
+              "name": "Approver",
+              "data_type": "string",
+              "description": "Person who approved the journal"
+            },
+            {
+              "name": "Supporting Documentation",
+              "data_type": "string",
+              "description": "Reference to backup documents"
+            }
+          ]
+        },
+        {
+          "perspective_id": "management",
+          "interpretation": "Volume and timeliness indicator",
+          "derived_attributes": [
+            {
+              "name": "Days to Post",
+              "data_type": "number",
+              "derivation": "Posting Date - Transaction Date"
+            },
+            {
+              "name": "Auto vs Manual Flag",
+              "data_type": "string",
+              "description": "Whether journal was system-generated or manual"
+            }
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Formal accounting adjustment or transaction",
+          "derived_attributes": [
+            {
+              "name": "Debit Amount",
+              "data_type": "number",
+              "description": "Total debit side of the journal"
+            },
+            {
+              "name": "Credit Amount",
+              "data_type": "number",
+              "description": "Total credit side of the journal"
+            },
+            {
+              "name": "Reversing Flag",
+              "data_type": "boolean",
+              "description": "Whether this journal auto-reverses in the next period"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chart_of_accounts",
+      "name": "Chart of Accounts",
+      "description": "Master list of all accounts used in the general ledger, defining the reporting structure",
+      "core_attributes": [
+        {
+          "name": "Account Number",
+          "data_type": "string",
+          "description": "Unique account identifier"
+        },
+        {
+          "name": "Account Name",
+          "data_type": "string",
+          "description": "Descriptive account name"
+        },
+        {
+          "name": "Account Group",
+          "data_type": "string",
+          "description": "Grouping category (e.g., Current Assets, COGS, OpEx)"
+        }
+      ],
+      "lenses": [
+        {
+          "perspective_id": "operational",
+          "interpretation": "Reference data for coding transactions",
+          "derived_attributes": [
+            {
+              "name": "Active Flag",
+              "data_type": "boolean",
+              "description": "Whether the account is open for posting"
+            },
+            {
+              "name": "Default Cost Center",
+              "data_type": "string",
+              "description": "Default cost center for postings"
+            }
+          ]
+        },
+        {
+          "perspective_id": "management",
+          "interpretation": "Structure for management reporting hierarchy",
+          "derived_attributes": [
+            {
+              "name": "Reporting Category",
+              "data_type": "string",
+              "description": "Management reporting roll-up category"
+            },
+            {
+              "name": "KPI Mapping",
+              "data_type": "string",
+              "description": "Which KPI this account feeds"
+            }
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Statutory classification structure",
+          "derived_attributes": [
+            {
+              "name": "Account Level",
+              "data_type": "number",
+              "description": "Depth in the account hierarchy"
+            },
+            {
+              "name": "Parent Account",
+              "data_type": "string",
+              "description": "Parent account in the hierarchy"
+            },
+            {
+              "name": "Statutory Mapping",
+              "data_type": "string",
+              "description": "Mapping to statutory financial statement line item"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sub_ledger",
+      "name": "Sub-ledger",
+      "description": "Detailed transaction ledger supporting a GL control account (AP, AR, Fixed Assets, Inventory)",
+      "core_attributes": [
+        {
+          "name": "Sub-ledger Type",
+          "data_type": "string",
+          "description": "Category: AP, AR, FA, or Inventory"
+        },
+        {
+          "name": "Entity Reference",
+          "data_type": "string",
+          "description": "Reference to the underlying business object (vendor, customer, asset, material)"
+        }
+      ],
+      "lenses": [
+        {
+          "perspective_id": "operational",
+          "interpretation": "Detail transaction source",
+          "derived_attributes": [
+            {
+              "name": "Transaction Count",
+              "data_type": "number",
+              "description": "Number of transactions in the period"
+            },
+            {
+              "name": "Last Transaction Date",
+              "data_type": "date",
+              "description": "Date of most recent transaction"
+            }
+          ]
+        },
+        {
+          "perspective_id": "management",
+          "interpretation": "Ageing and turnover analysis source",
+          "derived_attributes": [
+            {
+              "name": "Ageing Bucket",
+              "data_type": "string",
+              "description": "Current, 30, 60, 90, 120+ days"
+            },
+            {
+              "name": "Turnover Ratio",
+              "data_type": "number",
+              "derivation": "Revenue or COGS / Average Balance"
+            }
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Supporting detail for GL reconciliation",
+          "derived_attributes": [
+            {
+              "name": "Reconciling Items",
+              "data_type": "number",
+              "description": "Count of unreconciled items between sub-ledger and GL"
+            },
+            {
+              "name": "Balance Difference",
+              "data_type": "number",
+              "derivation": "Sub-ledger Total - GL Control Account Balance"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intercompany",
+      "name": "Intercompany Account",
+      "description": "Balances and transactions between legal entities within the same group, requiring elimination in consolidation",
+      "core_attributes": [
+        {
+          "name": "Sending Entity",
+          "data_type": "string",
+          "description": "Entity originating the intercompany transaction"
+        },
+        {
+          "name": "Receiving Entity",
+          "data_type": "string",
+          "description": "Entity receiving the intercompany transaction"
+        },
+        {
+          "name": "Transaction Type",
+          "data_type": "string",
+          "description": "Type of IC transaction (e.g., Sales, Services, Loan, Dividend)"
+        }
+      ],
+      "lenses": [
+        {
+          "perspective_id": "operational",
+          "interpretation": "Cross-entity transaction to process",
+          "derived_attributes": [
+            {
+              "name": "Invoice Reference",
+              "data_type": "string",
+              "description": "IC invoice or document number"
+            },
+            {
+              "name": "Settlement Status",
+              "data_type": "string",
+              "description": "Open, Partially Settled, Settled"
+            }
+          ]
+        },
+        {
+          "perspective_id": "management",
+          "interpretation": "Elimination tracking item",
+          "derived_attributes": [
+            {
+              "name": "Matching Status",
+              "data_type": "string",
+              "description": "Matched, Unmatched, Disputed"
+            },
+            {
+              "name": "Days Outstanding",
+              "data_type": "number",
+              "description": "Days since IC transaction was created"
+            }
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Balance to eliminate in consolidation",
+          "derived_attributes": [
+            {
+              "name": "IC Balance",
+              "data_type": "number",
+              "description": "Intercompany balance from sending entity perspective"
+            },
+            {
+              "name": "Counterparty Balance",
+              "data_type": "number",
+              "description": "Intercompany balance from receiving entity perspective"
+            },
+            {
+              "name": "Matching Difference",
+              "data_type": "number",
+              "derivation": "IC Balance - Counterparty Balance"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bank_account",
+      "name": "Bank Account",
+      "description": "Cash account held at a financial institution, used for payments, receipts, and cash management",
+      "core_attributes": [
+        {
+          "name": "Bank Account Number",
+          "data_type": "string",
+          "description": "Account number at the bank"
+        },
+        {
+          "name": "Currency",
+          "data_type": "string",
+          "description": "Account currency (e.g., USD, EUR, GBP)"
+        },
+        {
+          "name": "Bank Name",
+          "data_type": "string",
+          "description": "Name of the banking institution"
+        }
+      ],
+      "lenses": [
+        {
+          "perspective_id": "operational",
+          "interpretation": "Account to reconcile and manage cash",
+          "derived_attributes": [
+            {
+              "name": "Last Reconciled Date",
+              "data_type": "date",
+              "description": "Date of last completed reconciliation"
+            },
+            {
+              "name": "Outstanding Checks",
+              "data_type": "number",
+              "description": "Count of issued but uncleared checks"
+            }
+          ]
+        },
+        {
+          "perspective_id": "management",
+          "interpretation": "Cash position monitoring point",
+          "derived_attributes": [
+            {
+              "name": "Available Balance",
+              "data_type": "number",
+              "description": "Balance available for use"
+            },
+            {
+              "name": "Daily Cash Movement",
+              "data_type": "number",
+              "derivation": "Today's Receipts - Today's Payments"
+            }
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Cash and equivalents for balance sheet",
+          "derived_attributes": [
+            {
+              "name": "Statement Balance",
+              "data_type": "number",
+              "description": "Balance per bank statement"
+            },
+            {
+              "name": "Book Balance",
+              "data_type": "number",
+              "description": "Balance per GL"
+            },
+            {
+              "name": "Reconciling Items",
+              "data_type": "number",
+              "derivation": "Statement Balance - Book Balance"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fixed_asset",
+      "name": "Fixed Asset",
+      "description": "Long-lived tangible asset recorded on the balance sheet and depreciated over its useful life",
+      "core_attributes": [
+        {
+          "name": "Asset ID",
+          "data_type": "string",
+          "description": "Unique asset identifier"
+        },
+        {
+          "name": "Description",
+          "data_type": "string",
+          "description": "Description of the asset"
+        },
+        {
+          "name": "Acquisition Date",
+          "data_type": "date",
+          "description": "Date the asset was acquired"
+        }
+      ],
+      "lenses": [
+        {
+          "perspective_id": "operational",
+          "interpretation": "Physical asset to track and maintain",
+          "derived_attributes": [
+            {
+              "name": "Location",
+              "data_type": "string",
+              "description": "Physical location of the asset"
+            },
+            {
+              "name": "Condition",
+              "data_type": "string",
+              "description": "Current physical condition (Good, Fair, Poor)"
+            },
+            {
+              "name": "Assigned To",
+              "data_type": "string",
+              "description": "Department or person responsible"
+            }
+          ]
+        },
+        {
+          "perspective_id": "management",
+          "interpretation": "Capital expenditure tracking item",
+          "derived_attributes": [
+            {
+              "name": "Remaining Useful Life",
+              "data_type": "number",
+              "description": "Years remaining on depreciation schedule"
+            },
+            {
+              "name": "Utilization Rate",
+              "data_type": "number",
+              "description": "Percentage of capacity being used"
+            }
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Depreciable asset on balance sheet",
+          "derived_attributes": [
+            {
+              "name": "Cost",
+              "data_type": "number",
+              "description": "Original acquisition cost"
+            },
+            {
+              "name": "Accumulated Depreciation",
+              "data_type": "number",
+              "description": "Total depreciation charged to date"
+            },
+            {
+              "name": "Net Book Value",
+              "data_type": "number",
+              "derivation": "Cost - Accumulated Depreciation"
+            },
+            {
+              "name": "Depreciation Method",
+              "data_type": "string",
+              "description": "Straight-line, declining balance, etc."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tax_position",
+      "name": "Tax Position",
+      "description": "Tax liability or asset position by jurisdiction and tax type for compliance and reporting",
+      "core_attributes": [
+        {
+          "name": "Tax Type",
+          "data_type": "string",
+          "description": "Type of tax (e.g., Income Tax, VAT, Sales Tax, Withholding)"
+        },
+        {
+          "name": "Jurisdiction",
+          "data_type": "string",
+          "description": "Tax jurisdiction (country, state, municipality)"
+        },
+        {
+          "name": "Period",
+          "data_type": "string",
+          "description": "Tax period (e.g., 2024-Q1)"
+        }
+      ],
+      "lenses": [
+        {
+          "perspective_id": "operational",
+          "interpretation": "Tax filing to prepare and submit",
+          "derived_attributes": [
+            {
+              "name": "Filing Deadline",
+              "data_type": "date",
+              "description": "Statutory filing deadline"
+            },
+            {
+              "name": "Filing Status",
+              "data_type": "string",
+              "description": "Draft, Submitted, Accepted"
+            }
+          ]
+        },
+        {
+          "perspective_id": "management",
+          "interpretation": "Effective tax rate monitoring",
+          "derived_attributes": [
+            {
+              "name": "Effective Tax Rate",
+              "data_type": "number",
+              "derivation": "Tax Amount / Pre-Tax Income"
+            },
+            {
+              "name": "Rate vs Statutory",
+              "data_type": "number",
+              "derivation": "Effective Tax Rate - Statutory Rate"
+            }
+          ]
+        },
+        {
+          "perspective_id": "financial",
+          "interpretation": "Tax liability/asset for balance sheet",
+          "derived_attributes": [
+            {
+              "name": "Tax Base",
+              "data_type": "number",
+              "description": "Taxable amount"
+            },
+            {
+              "name": "Tax Rate",
+              "data_type": "number",
+              "description": "Applicable tax rate"
+            },
+            {
+              "name": "Tax Amount",
+              "data_type": "number",
+              "derivation": "Tax Base \u00d7 Tax Rate"
+            },
+            {
+              "name": "Deferred Component",
+              "data_type": "number",
+              "description": "Deferred tax asset or liability portion"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "attributes": [
+    {
+      "id": "gl_balance",
+      "name": "GL Account Balance",
+      "description": "Period-end account balance from the general ledger",
+      "entity_id": "general_ledger",
+      "system_id": "gl_system",
+      "source_actor": "System (automated posting)",
+      "reliability": "High",
+      "volatility": "Point-in-time"
+    },
+    {
+      "id": "journal_amount",
+      "name": "Journal Entry Amount",
+      "description": "Debit/credit amount per journal entry line",
+      "entity_id": "journal_entry",
+      "system_id": "erp",
+      "source_actor": "Accountant / System",
+      "reliability": "High",
+      "volatility": "Accumulating"
+    },
+    {
+      "id": "tb_closing_balance",
+      "name": "Trial Balance Closing Balance",
+      "description": "Closing balance per account per period on the trial balance",
+      "entity_id": "trial_balance",
+      "system_id": "gl_system",
+      "source_actor": "System (period-end extract)",
+      "reliability": "High",
+      "volatility": "Point-in-time"
+    },
+    {
+      "id": "ic_balance",
+      "name": "Intercompany Balance",
+      "description": "Intercompany balance per entity pair",
+      "entity_id": "intercompany",
+      "system_id": "erp",
+      "source_actor": "System (IC postings)",
+      "reliability": "High",
+      "volatility": "Point-in-time"
+    },
+    {
+      "id": "bank_statement_balance",
+      "name": "Bank Statement Balance",
+      "description": "Bank statement ending balance per account",
+      "entity_id": "bank_account",
+      "system_id": "bank_system",
+      "source_actor": "Bank (electronic feed)",
+      "reliability": "High",
+      "volatility": "Point-in-time"
+    },
+    {
+      "id": "asset_nbv",
+      "name": "Fixed Asset Net Book Value",
+      "description": "Net book value of fixed asset (cost less accumulated depreciation)",
+      "entity_id": "fixed_asset",
+      "system_id": "erp",
+      "source_actor": "System (asset module)",
+      "reliability": "High",
+      "volatility": "Point-in-time"
+    },
+    {
+      "id": "sub_ledger_balance",
+      "name": "Sub-ledger Balance",
+      "description": "Sub-ledger total balance per category (AP, AR, FA, Inventory)",
+      "entity_id": "sub_ledger",
+      "system_id": "erp",
+      "source_actor": "System (sub-ledger module)",
+      "reliability": "High",
+      "volatility": "Point-in-time"
+    },
+    {
+      "id": "tax_provision",
+      "name": "Tax Provision Amount",
+      "description": "Calculated tax provision amount per jurisdiction and type",
+      "entity_id": "tax_position",
+      "system_id": "tax_system",
+      "source_actor": "Tax Accountant",
+      "reliability": "Medium",
+      "volatility": "Point-in-time"
+    },
+    {
+      "id": "coa_mapping",
+      "name": "Account to Statutory Mapping",
+      "description": "Mapping of GL account to statutory financial statement line item",
+      "entity_id": "chart_of_accounts",
+      "system_id": "erp",
+      "source_actor": "Finance Manager",
+      "reliability": "High",
+      "volatility": "Point-in-time"
+    },
+    {
+      "id": "journal_approval_status",
+      "name": "Journal Approval Status",
+      "description": "Approval workflow status of journal entry (Pending, Approved, Rejected)",
+      "entity_id": "journal_entry",
+      "system_id": "erp",
+      "source_actor": "Approver (manual)",
+      "reliability": "High",
+      "volatility": "Accumulating"
+    },
+    {
+      "id": "reconciliation_status",
+      "name": "Bank Reconciliation Status",
+      "description": "Manual reconciliation completion status per bank account",
+      "entity_id": "bank_account",
+      "system_id": "excel",
+      "source_actor": "Treasury Analyst (manual)",
+      "reliability": "Medium",
+      "volatility": "Point-in-time"
+    },
+    {
+      "id": "depreciation_charge",
+      "name": "Periodic Depreciation Charge",
+      "description": "Depreciation expense amount for the period per asset",
+      "entity_id": "fixed_asset",
+      "system_id": "erp",
+      "source_actor": "System (depreciation run)",
+      "reliability": "High",
+      "volatility": "Accumulating"
+    },
+    {
+      "id": "ic_counterparty_balance",
+      "name": "IC Counterparty Balance",
+      "description": "Intercompany balance as reported by the counterparty entity",
+      "entity_id": "intercompany",
+      "system_id": "consolidation",
+      "source_actor": "Counterparty entity finance team",
+      "reliability": "Medium",
+      "volatility": "Point-in-time"
+    },
+    {
+      "id": "journal_line_count",
+      "name": "Journal Entry Line Count",
+      "description": "Number of journal entry lines posted in the period",
+      "entity_id": "journal_entry",
+      "system_id": "erp",
+      "source_actor": "System",
+      "reliability": "High",
+      "volatility": "Accumulating"
+    },
+    {
+      "id": "gl_book_balance",
+      "name": "GL Book Balance for Bank",
+      "description": "Cash balance per general ledger for bank reconciliation",
+      "entity_id": "bank_account",
+      "system_id": "gl_system",
+      "source_actor": "System",
+      "reliability": "High",
+      "volatility": "Point-in-time"
+    }
+  ],
+  "measures": [
+    {
+      "id": "total_gl_balance",
+      "name": "Total GL Balance",
+      "description": "Sum of all general ledger account balances for the period",
+      "logic": "Aggregated GL balances across all accounts",
+      "formula": "SUM(gl_balance)",
+      "input_attribute_ids": [
+        "gl_balance"
+      ],
+      "input_measure_ids": [],
+      "perspective_ids": [
+        "financial"
+      ]
+    },
+    {
+      "id": "journal_entry_volume",
+      "name": "Journal Entry Volume",
+      "description": "Total number of journal entry lines posted in the period",
+      "logic": "Count of journal entry lines",
+      "formula": "SUM(journal_line_count)",
+      "input_attribute_ids": [
+        "journal_line_count"
+      ],
+      "input_measure_ids": [],
+      "perspective_ids": [
+        "management",
+        "operational"
+      ]
+    },
+    {
+      "id": "tb_net_movement",
+      "name": "Trial Balance Net Movement",
+      "description": "Net movement across all accounts on the trial balance for the period",
+      "logic": "Sum of closing balances minus opening balances",
+      "formula": "SUM(tb_closing_balance[current]) - SUM(tb_closing_balance[prior])",
+      "input_attribute_ids": [
+        "tb_closing_balance"
+      ],
+      "input_measure_ids": [],
+      "perspective_ids": [
+        "financial"
+      ]
+    },
+    {
+      "id": "ic_elimination_balance",
+      "name": "IC Elimination Balance",
+      "description": "Net intercompany balance requiring elimination in consolidation",
+      "logic": "Sum of all intercompany balances across entity pairs",
+      "formula": "SUM(ic_balance)",
+      "input_attribute_ids": [
+        "ic_balance",
+        "ic_counterparty_balance"
+      ],
+      "input_measure_ids": [],
+      "perspective_ids": [
+        "financial"
+      ]
+    },
+    {
+      "id": "bank_reconciliation_variance",
+      "name": "Bank Reconciliation Variance",
+      "description": "Difference between bank statement balance and GL book balance",
+      "logic": "Statement balance minus book balance per bank account",
+      "formula": "SUM(bank_statement_balance) - SUM(gl_book_balance)",
+      "input_attribute_ids": [
+        "bank_statement_balance",
+        "gl_book_balance"
+      ],
+      "input_measure_ids": [],
+      "perspective_ids": [
+        "financial"
+      ]
+    },
+    {
+      "id": "asset_depreciation_expense",
+      "name": "Asset Depreciation Expense",
+      "description": "Total depreciation expense charged in the period across all assets",
+      "logic": "Sum of periodic depreciation charges",
+      "formula": "SUM(depreciation_charge)",
+      "input_attribute_ids": [
+        "depreciation_charge"
+      ],
+      "input_measure_ids": [],
+      "perspective_ids": [
+        "financial"
+      ]
+    },
+    {
+      "id": "sub_ledger_reconciliation_gap",
+      "name": "Sub-ledger Reconciliation Gap",
+      "description": "Difference between sub-ledger totals and GL control account balances",
+      "logic": "Sub-ledger balance minus GL control account balance",
+      "formula": "SUM(sub_ledger_balance) - SUM(gl_balance[control accounts])",
+      "input_attribute_ids": [
+        "sub_ledger_balance",
+        "gl_balance"
+      ],
+      "input_measure_ids": [],
+      "perspective_ids": [
+        "financial"
+      ]
+    },
+    {
+      "id": "effective_tax_rate",
+      "name": "Effective Tax Rate",
+      "description": "Actual tax rate as a percentage of pre-tax income",
+      "logic": "Tax provision divided by pre-tax income",
+      "formula": "SUM(tax_provision) / Pre-Tax Income",
+      "input_attribute_ids": [
+        "tax_provision"
+      ],
+      "input_measure_ids": [],
+      "perspective_ids": [
+        "financial",
+        "management"
+      ]
+    },
+    {
+      "id": "total_asset_nbv",
+      "name": "Total Fixed Asset Net Book Value",
+      "description": "Total net book value of all fixed assets",
+      "logic": "Sum of net book values across the asset register",
+      "formula": "SUM(asset_nbv)",
+      "input_attribute_ids": [
+        "asset_nbv"
+      ],
+      "input_measure_ids": [],
+      "perspective_ids": [
+        "financial"
+      ]
+    },
+    {
+      "id": "journal_approval_rate",
+      "name": "Journal Approval Rate",
+      "description": "Percentage of journal entries approved vs total posted",
+      "logic": "Count of approved journals divided by total journals",
+      "formula": "COUNT(journal_approval_status = 'Approved') / COUNT(journal_approval_status) \u00d7 100",
+      "input_attribute_ids": [
+        "journal_approval_status"
+      ],
+      "input_measure_ids": [],
+      "perspective_ids": [
+        "management"
+      ]
+    }
+  ],
+  "metrics": [
+    {
+      "id": "close_cycle_time",
+      "name": "Close Cycle Time",
+      "description": "Number of business days from period end to financial statements being issued",
+      "business_question": "How quickly can we close the books?",
+      "calculated_by_measure_ids": [
+        "journal_entry_volume",
+        "tb_net_movement"
+      ],
+      "target_value": "\u2264 5 business days",
+      "perspective_ids": [
+        "management",
+        "financial"
+      ]
+    },
+    {
+      "id": "reconciliation_completion_rate",
+      "name": "Reconciliation Completion Rate",
+      "description": "Percentage of required reconciliations completed by deadline",
+      "business_question": "Are all accounts reconciled on time?",
+      "calculated_by_measure_ids": [
+        "bank_reconciliation_variance",
+        "sub_ledger_reconciliation_gap"
+      ],
+      "target_value": "100%",
+      "perspective_ids": [
+        "management",
+        "financial"
+      ]
+    },
+    {
+      "id": "ic_elimination_accuracy",
+      "name": "IC Elimination Accuracy",
+      "description": "Percentage of intercompany balances that match between counterparties",
+      "business_question": "Do our intercompany balances match and eliminate cleanly?",
+      "calculated_by_measure_ids": [
+        "ic_elimination_balance"
+      ],
+      "target_value": "100% match (zero difference)",
+      "perspective_ids": [
+        "financial"
+      ]
+    },
+    {
+      "id": "journal_entry_error_rate",
+      "name": "Journal Entry Error Rate",
+      "description": "Percentage of journal entries that required correction or reversal",
+      "business_question": "How accurate are our journal entries?",
+      "calculated_by_measure_ids": [
+        "journal_entry_volume",
+        "journal_approval_rate"
+      ],
+      "target_value": "< 1%",
+      "perspective_ids": [
+        "management"
+      ]
+    },
+    {
+      "id": "effective_tax_rate_vs_target",
+      "name": "Effective Tax Rate vs Target",
+      "description": "Variance between actual effective tax rate and statutory/target rate",
+      "business_question": "Is our effective tax rate in line with expectations?",
+      "calculated_by_measure_ids": [
+        "effective_tax_rate"
+      ],
+      "target_value": "Within 2% of statutory rate",
+      "perspective_ids": [
+        "financial"
+      ]
+    },
+    {
+      "id": "asset_register_accuracy",
+      "name": "Asset Register Accuracy",
+      "description": "Percentage of fixed assets verified against physical existence and correct valuation",
+      "business_question": "Does our asset register accurately reflect what we own?",
+      "calculated_by_measure_ids": [
+        "total_asset_nbv",
+        "asset_depreciation_expense"
+      ],
+      "target_value": "100% verified annually",
+      "perspective_ids": [
+        "financial",
+        "management"
+      ]
+    },
+    {
+      "id": "tb_balance_check",
+      "name": "Trial Balance Integrity",
+      "description": "Whether the trial balance is in balance (total debits equal total credits)",
+      "business_question": "Does our trial balance balance?",
+      "calculated_by_measure_ids": [
+        "total_gl_balance",
+        "tb_net_movement"
+      ],
+      "target_value": "Zero difference",
+      "perspective_ids": [
+        "financial"
+      ]
+    },
+    {
+      "id": "sub_ledger_reconciliation_status",
+      "name": "Sub-ledger to GL Reconciliation",
+      "description": "Whether all sub-ledgers reconcile to their GL control accounts",
+      "business_question": "Do our sub-ledgers tie to the general ledger?",
+      "calculated_by_measure_ids": [
+        "sub_ledger_reconciliation_gap"
+      ],
+      "target_value": "Zero gap across all sub-ledgers",
+      "perspective_ids": [
+        "financial"
+      ]
+    }
+  ],
+  "processes": []
+}

@@ -4,7 +4,8 @@ import { DataTable } from './DataTable';
 import { EmptyState } from './EmptyState';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { PerspectiveBadges } from './cells/PerspectiveBadges';
-import { Eye, Edit, Trash2, Box } from 'lucide-react';
+import { EntityPackLibrary } from './EntityPackLibrary';
+import { Eye, Edit, Trash2, Box, BookOpen } from 'lucide-react';
 
 interface Entity {
   id: string;
@@ -40,6 +41,7 @@ export function EntitiesTable({
   onNewEntity,
 }: EntitiesTableProps) {
   const [deleteTarget, setDeleteTarget] = useState<Entity | null>(null);
+  const [showLibrary, setShowLibrary] = useState(false);
 
   const columns = useMemo<ColumnDef<Entity>[]>(
     () => [
@@ -142,6 +144,14 @@ export function EntitiesTable({
               Business concepts with core attributes and perspective-based lenses
             </p>
           </div>
+          <button
+            onClick={() => setShowLibrary(true)}
+            className="flex items-center gap-1.5 px-3 py-2 text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors font-medium text-sm"
+            title="Import entity packs"
+          >
+            <BookOpen className="w-4 h-4" />
+            Library
+          </button>
         </div>
         <EmptyState
           icon={<Box className="w-full h-full" />}
@@ -150,6 +160,9 @@ export function EntitiesTable({
           actionLabel="+ Create First Entity"
           onAction={onNewEntity}
         />
+        {showLibrary && (
+          <EntityPackLibrary onClose={() => setShowLibrary(false)} />
+        )}
       </div>
     );
   }
@@ -163,12 +176,22 @@ export function EntitiesTable({
             Business concepts with core attributes and perspective-based lenses
           </p>
         </div>
-        <button
-          onClick={onNewEntity}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-        >
-          + New Entity
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowLibrary(true)}
+            className="flex items-center gap-1.5 px-3 py-2 text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors font-medium text-sm"
+            title="Import entity packs"
+          >
+            <BookOpen className="w-4 h-4" />
+            Library
+          </button>
+          <button
+            onClick={onNewEntity}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+          >
+            + New Entity
+          </button>
+        </div>
       </div>
 
       <DataTable
@@ -236,6 +259,10 @@ export function EntitiesTable({
         }}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      {showLibrary && (
+        <EntityPackLibrary onClose={() => setShowLibrary(false)} />
+      )}
     </div>
   );
 }
