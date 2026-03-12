@@ -33,9 +33,14 @@ logger = logging.getLogger(__name__)
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
 DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".pptx"} | IMAGE_EXTENSIONS
 
-MAX_PAGES_PER_CHUNK = 10  # Pages per Haiku call for large PDFs
 MAX_TEXT_CHARS = 80_000   # Truncate extracted text to stay within Haiku context
 MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB per image for vision API
+
+# Chunking: if extracted text exceeds this, split into multiple Haiku calls
+# and merge. Haiku 4.5 has 200K context but only 8192 output tokens, so
+# sending too much in one call risks hitting the output ceiling.
+CHUNK_CHAR_THRESHOLD = 15_000  # ~4K tokens — split above this
+MAX_CHUNKS = 6  # Cost control: max parallel Haiku calls per document
 
 
 def _slug(name: str) -> str:
@@ -294,7 +299,7 @@ def extract_images_from_pdf(data: bytes, max_images: int = 10) -> list[dict]:
 
 
 EXTRACTION_SYSTEM_PROMPT = """\
-You are a data analyst extracting structured business ontology elements from a document.
+You are a senior data analyst extracting structured business ontology elements from a document.
 
 ## Ontology Framework
 
@@ -308,6 +313,33 @@ Grouped by Entity (business object like Customer, Production Order), sourced fro
   - **operational**: What work is being done? Raw data, transactions, source systems.
   - **management**: How are we performing? KPIs, monitoring, aggregated views.
   - **financial**: What's the financial position? Revenue, costs, margins, profitability.
+
+## Critical Thinking — Quality Over Quantity
+
+**Be selective and skeptical.** Your job is NOT to extract everything that could possibly \
+be an element. Your job is to extract what genuinely IS an ontology element based on \
+clear evidence in the document.
+
+Apply these filters before creating any element:
+
+- **Entity test**: Is this a real business object that has its own attributes and participates \
+in relationships? "Revenue" is not an entity — it's a measure. "Customer" IS an entity.
+- **Attribute test**: Is this a specific data field that would exist as a column in a table? \
+"Performance" is not an attribute — it's vague. "Performance Rating (1-5)" is an attribute.
+- **Measure test**: Is there a concrete calculation described? "Costs" is not a measure. \
+"Total Material Cost = SUM(Unit Cost × Quantity Issued)" IS a measure.
+- **Metric test**: Does this answer a specific business question that someone actually asks? \
+Don't promote every measure to a metric. Only create metrics for KPIs that drive decisions.
+- **System test**: Is a specific application or data store named? Don't create systems for \
+generic concepts like "database" or "reporting tool" — only for named systems (SAP, Salesforce, \
+Power BI, a specific Excel workbook).
+
+**When in doubt, leave it out.** It is much better to return 5 high-quality, well-evidenced \
+elements than 20 speculative ones. The downstream enrichment pass (Sonnet) will infer \
+additional elements — your job is to capture what the document explicitly states.
+
+**Empty arrays are perfectly fine.** If a document doesn't mention any measures, return an \
+empty measures array. Do not fabricate elements to fill gaps.
 
 ## What to Extract
 
@@ -327,7 +359,8 @@ From the document, extract:
 that's a key_insight, not just a process step
 - Business rules like "revenue is only recognized when goods ship" should be captured
 - If the document references existing systems (SAP, Salesforce, etc.), create system entries
-- Empty arrays are fine — only include what you find
+- For each element, ask yourself: "What is my evidence from the document for this?"
+- If you can't point to specific text or visual evidence, don't create the element
 """
 
 # Tool schema for structured output — forces Haiku to return conformant JSON
@@ -353,7 +386,11 @@ EXTRACTION_TOOL_SCHEMA = {
             "confidence": {
                 "type": "string",
                 "enum": ["high", "medium", "low"],
-                "description": "Confidence in extraction quality. Low if document is unclear or heavily visual.",
+                "description": "Confidence in extraction quality. Low if document is unclear, heavily visual, or not business-data-oriented.",
+            },
+            "extraction_notes": {
+                "type": "string",
+                "description": "Brief notes on your extraction decisions: what you included, what you deliberately excluded and why, any elements you were uncertain about. This helps downstream reviewers understand your reasoning.",
             },
             "key_insights": {
                 "type": "array",
@@ -656,6 +693,196 @@ def _build_content_blocks(
     return blocks
 
 
+def _chunk_content(extracted_content: list[dict]) -> list[list[dict]]:
+    """Split extracted content into chunks if it exceeds the threshold.
+
+    Each chunk is a list of page/section/slide dicts. We split at natural
+    boundaries (pages, sections, slides) rather than mid-text.
+    """
+    # Calculate total text size
+    total_chars = sum(len(c.get("text", "")) for c in extracted_content)
+
+    if total_chars <= CHUNK_CHAR_THRESHOLD:
+        return [extracted_content]
+
+    # Target chunk size — split evenly but respect MAX_CHUNKS
+    n_chunks = min(MAX_CHUNKS, max(2, total_chars // CHUNK_CHAR_THRESHOLD + 1))
+    target_per_chunk = total_chars // n_chunks
+
+    chunks: list[list[dict]] = []
+    current_chunk: list[dict] = []
+    current_size = 0
+
+    for item in extracted_content:
+        item_size = len(item.get("text", ""))
+        current_chunk.append(item)
+        current_size += item_size
+
+        if current_size >= target_per_chunk and len(chunks) < n_chunks - 1:
+            chunks.append(current_chunk)
+            current_chunk = []
+            current_size = 0
+
+    if current_chunk:
+        chunks.append(current_chunk)
+
+    return chunks
+
+
+def _merge_chunk_results(chunk_results: list[dict]) -> dict:
+    """Merge extraction results from multiple chunks into one result.
+
+    Combines all array fields, takes the best document_type/confidence,
+    and concatenates summaries.
+    """
+    if len(chunk_results) == 1:
+        return chunk_results[0]
+
+    merged = {
+        "document_type": chunk_results[0].get("document_type", "other"),
+        "document_summary": "",
+        "confidence": "high",
+        "key_insights": [],
+        "business_rules": [],
+        "entities": [],
+        "attributes": [],
+        "measures": [],
+        "metrics": [],
+        "systems": [],
+        "relationships": [],
+        "processes": [],
+    }
+
+    summaries = []
+    extraction_notes_parts = []
+    confidence_rank = {"high": 3, "medium": 2, "low": 1}
+    worst_confidence = 3
+
+    # Collect all IDs to detect duplicates across chunks
+    seen_ids: dict[str, set] = {
+        "entities": set(), "attributes": set(), "measures": set(),
+        "metrics": set(), "systems": set(), "relationships": set(),
+        "processes": set(),
+    }
+
+    total_input_tokens = 0
+    total_output_tokens = 0
+
+    for result in chunk_results:
+        # Summaries
+        s = result.get("document_summary", "")
+        if s:
+            summaries.append(s)
+
+        # Extraction notes
+        en = result.get("extraction_notes", "")
+        if en:
+            extraction_notes_parts.append(en)
+
+        # Confidence — take the worst
+        c = result.get("confidence", "medium")
+        worst_confidence = min(worst_confidence, confidence_rank.get(c, 2))
+
+        # Insights and rules — just concatenate (Pass 2 dedupes)
+        merged["key_insights"].extend(result.get("key_insights", []))
+        merged["business_rules"].extend(result.get("business_rules", []))
+
+        # Structural elements — skip exact ID duplicates
+        for field in seen_ids:
+            for item in result.get(field, []):
+                item_id = item.get("id", "")
+                if item_id and item_id in seen_ids[field]:
+                    continue
+                if item_id:
+                    seen_ids[field].add(item_id)
+                merged[field].append(item)
+
+        # Token usage
+        tu = result.get("token_usage", {})
+        total_input_tokens += tu.get("input_tokens", 0)
+        total_output_tokens += tu.get("output_tokens", 0)
+
+    # Best summary — use the first chunk's (it has the overview context)
+    merged["document_summary"] = summaries[0] if summaries else ""
+    merged["extraction_notes"] = " | ".join(extraction_notes_parts) if extraction_notes_parts else ""
+
+    merged["confidence"] = {3: "high", 2: "medium", 1: "low"}.get(worst_confidence, "medium")
+
+    merged["token_usage"] = {
+        "model": chunk_results[0].get("token_usage", {}).get("model", ""),
+        "input_tokens": total_input_tokens,
+        "output_tokens": total_output_tokens,
+        "chunks": len(chunk_results),
+    }
+
+    return merged
+
+
+async def _extract_single_chunk(
+    client,
+    model: str,
+    system: str,
+    content: list[dict],
+    filename: str,
+    chunk_label: str = "",
+) -> dict:
+    """Make a single Haiku tool-use call and return the parsed result."""
+    messages = [{"role": "user", "content": content}]
+
+    response = await client.messages.create(
+        model=model,
+        max_tokens=8192,
+        system=system,
+        messages=messages,
+        tools=[EXTRACTION_TOOL_SCHEMA],
+        tool_choice={"type": "tool", "name": "extract_ontology_elements"},
+    )
+
+    parsed = None
+    for block in response.content:
+        if block.type == "tool_use" and block.name == "extract_ontology_elements":
+            parsed = block.input
+            break
+
+    if not parsed:
+        logger.warning(f"No tool_use block in response for {filename} {chunk_label}")
+        return _empty_result(filename, f"(AI did not return structured data {chunk_label})")
+
+    # Extract token usage
+    token_usage = {}
+    if hasattr(response, "usage") and response.usage:
+        token_usage = {
+            "model": model,
+            "input_tokens": response.usage.input_tokens,
+            "output_tokens": response.usage.output_tokens,
+        }
+        logger.info(
+            f"Extraction tokens for {filename} {chunk_label}: "
+            f"input={response.usage.input_tokens}, output={response.usage.output_tokens}"
+        )
+
+    return {
+        "source_type": "document",
+        "source_name": Path(filename).stem,
+        "document_type": parsed.get("document_type", "other"),
+        "document_summary": parsed.get("document_summary", ""),
+        "confidence": parsed.get("confidence", "medium"),
+        "extraction_notes": parsed.get("extraction_notes", ""),
+        "key_insights": parsed.get("key_insights", []),
+        "business_rules": parsed.get("business_rules", []),
+        "entities": parsed.get("entities", []),
+        "attributes": parsed.get("attributes", []),
+        "measures": parsed.get("measures", []),
+        "metrics": parsed.get("metrics", []),
+        "systems": parsed.get("systems", []),
+        "relationships": parsed.get("relationships", []),
+        "processes": parsed.get("processes", []),
+        "perspectives": [],
+        "warnings": [],
+        "token_usage": token_usage,
+    }
+
+
 async def extract_elements_with_ai(
     extracted_content: list[dict],
     doc_type: str,
@@ -666,9 +893,10 @@ async def extract_elements_with_ai(
 ) -> dict:
     """Call Haiku to extract structured ontology elements from document content.
 
-    Uses Anthropic tool use to guarantee structured JSON output — no parsing
-    or repair needed. The tool schema defines the full extraction format including
-    enriched fields for business context, insights, and rules.
+    Uses Anthropic tool use to guarantee structured JSON output. For large
+    documents, automatically chunks content and runs parallel extraction
+    calls, then merges results. Haiku 4.5 has 8192 max output tokens, so
+    chunking ensures we get full extraction from dense documents.
 
     Args:
         extracted_content: List of page/section/slide dicts with text
@@ -681,6 +909,7 @@ async def extract_elements_with_ai(
     Returns:
         Dict matching the staged source format (entities, attributes, measures, etc.)
     """
+    import asyncio
     import os
 
     try:
@@ -705,54 +934,74 @@ async def extract_elements_with_ai(
             + ontology_context
         )
 
-    # Build content blocks
-    content = _build_content_blocks(
-        extracted_content, doc_type, filename,
-        image_data=image_data, image_filename=image_filename,
-    )
+    # For standalone images, no chunking — single call with vision
+    if image_data and image_filename:
+        content = _build_content_blocks(
+            [], "image", filename,
+            image_data=image_data, image_filename=image_filename,
+        )
+        try:
+            return await _extract_single_chunk(
+                client, AI_EXTRACTION_MODEL, system, content, filename,
+            )
+        except Exception as e:
+            logger.error(f"Haiku extraction failed for {filename}: {e}")
+            raise RuntimeError(f"AI extraction failed: {e}")
 
-    messages = [{"role": "user", "content": content}]
+    # Chunk large documents for parallel extraction
+    chunks = _chunk_content(extracted_content)
 
-    try:
-        response = await client.messages.create(
-            model=AI_EXTRACTION_MODEL,
-            max_tokens=8000,
-            system=system,
-            messages=messages,
-            tools=[EXTRACTION_TOOL_SCHEMA],
-            tool_choice={"type": "tool", "name": "extract_ontology_elements"},
+    if len(chunks) == 1:
+        # Small document — single call
+        content = _build_content_blocks(extracted_content, doc_type, filename)
+        try:
+            return await _extract_single_chunk(
+                client, AI_EXTRACTION_MODEL, system, content, filename,
+            )
+        except Exception as e:
+            logger.error(f"Haiku extraction failed for {filename}: {e}")
+            raise RuntimeError(f"AI extraction failed: {e}")
+
+    # Large document — parallel chunk extraction
+    logger.info(f"Chunking {filename} into {len(chunks)} parts for parallel extraction")
+
+    async def extract_chunk(i: int, chunk: list[dict]) -> dict:
+        label = f"(chunk {i + 1}/{len(chunks)})"
+        content = _build_content_blocks(chunk, doc_type, f"{filename} {label}")
+        return await _extract_single_chunk(
+            client, AI_EXTRACTION_MODEL, system, content, filename, label,
         )
 
-        # With tool_choice forced, the response will contain a tool_use block
-        parsed = None
-        for block in response.content:
-            if block.type == "tool_use" and block.name == "extract_ontology_elements":
-                parsed = block.input
-                break
+    try:
+        chunk_results = await asyncio.gather(
+            *(extract_chunk(i, chunk) for i, chunk in enumerate(chunks)),
+            return_exceptions=True,
+        )
 
-        if not parsed:
-            logger.warning(f"No tool_use block in extraction response for {filename}")
-            return _empty_result(filename, "(AI did not return structured data)")
+        # Filter out failures
+        successful = []
+        for i, result in enumerate(chunk_results):
+            if isinstance(result, Exception):
+                logger.warning(f"Chunk {i + 1}/{len(chunks)} failed for {filename}: {result}")
+            else:
+                successful.append(result)
 
-        # Normalize into our standard staged source format
-        return {
-            "source_type": "document",
-            "source_name": Path(filename).stem,
-            "document_type": parsed.get("document_type", "other"),
-            "document_summary": parsed.get("document_summary", ""),
-            "confidence": parsed.get("confidence", "medium"),
-            "key_insights": parsed.get("key_insights", []),
-            "business_rules": parsed.get("business_rules", []),
-            "entities": parsed.get("entities", []),
-            "attributes": parsed.get("attributes", []),
-            "measures": parsed.get("measures", []),
-            "metrics": parsed.get("metrics", []),
-            "systems": parsed.get("systems", []),
-            "relationships": parsed.get("relationships", []),
-            "processes": parsed.get("processes", []),
-            "perspectives": [],
-            "warnings": [],
-        }
+        if not successful:
+            raise RuntimeError("All chunks failed extraction")
+
+        merged = _merge_chunk_results(successful)
+        # Re-attach source metadata
+        merged["source_type"] = "document"
+        merged["source_name"] = Path(filename).stem
+        merged["perspectives"] = []
+        if len(successful) < len(chunks):
+            merged.setdefault("warnings", []).append(
+                f"{len(chunks) - len(successful)}/{len(chunks)} chunks failed"
+            )
+        else:
+            merged.setdefault("warnings", [])
+
+        return merged
 
     except Exception as e:
         logger.error(f"Haiku extraction failed for {filename}: {e}")
