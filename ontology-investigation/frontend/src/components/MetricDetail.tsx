@@ -1,5 +1,6 @@
 import { useMetricTrace } from '../hooks/useOntology';
 import { X, ArrowRight, Database, Calculator, Activity, Server } from 'lucide-react';
+import { CollapsibleSection } from './shared/CollapsibleSection';
 
 interface MetricDetailProps {
   metricId: string;
@@ -63,12 +64,12 @@ export function MetricDetail({ metricId, onClose }: MetricDetailProps) {
           </div>
 
           {/* Measures */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Calculator className="w-5 h-5 text-gray-500" />
-              <span className="font-medium text-gray-700">Calculated by Measures</span>
-            </div>
-            <div className="grid gap-3 ml-7">
+          <CollapsibleSection
+            title={`Calculated by Measures`}
+            icon={<Calculator className="w-4 h-4 text-gray-500" />}
+            badge={<span className="px-1.5 py-0.5 text-[10px] rounded-full bg-gray-200 text-gray-600">{trace.measures.length}</span>}
+          >
+            <div className="grid gap-3">
               {trace.measures.map((measure) => (
                 <div key={measure.id} className="bg-gray-50 p-3 rounded-lg border">
                   <h4 className="font-medium">{measure.name}</h4>
@@ -83,19 +84,19 @@ export function MetricDetail({ metricId, onClose }: MetricDetailProps) {
                 </div>
               ))}
             </div>
-          </div>
+          </CollapsibleSection>
 
           <div className="flex justify-center">
             <ArrowRight className="w-5 h-5 text-gray-400 rotate-90" />
           </div>
 
           {/* Attributes */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Database className="w-5 h-5 text-gray-500" />
-              <span className="font-medium text-gray-700">Sourced from Attributes</span>
-            </div>
-            <div className="grid gap-3 ml-7">
+          <CollapsibleSection
+            title={`Sourced from Attributes`}
+            icon={<Database className="w-4 h-4 text-gray-500" />}
+            badge={<span className="px-1.5 py-0.5 text-[10px] rounded-full bg-gray-200 text-gray-600">{trace.attributes.length}</span>}
+          >
+            <div className="grid gap-3">
               {trace.attributes.map((attr) => (
                 <div key={attr.id} className="bg-gray-50 p-3 rounded-lg border">
                   <div className="flex items-center justify-between">
@@ -118,19 +119,19 @@ export function MetricDetail({ metricId, onClose }: MetricDetailProps) {
                 </div>
               ))}
             </div>
-          </div>
+          </CollapsibleSection>
 
           <div className="flex justify-center">
             <ArrowRight className="w-5 h-5 text-gray-400 rotate-90" />
           </div>
 
           {/* Systems */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Server className="w-5 h-5 text-gray-500" />
-              <span className="font-medium text-gray-700">Data from Systems</span>
-            </div>
-            <div className="flex gap-3 ml-7 flex-wrap">
+          <CollapsibleSection
+            title={`Data from Systems`}
+            icon={<Server className="w-4 h-4 text-gray-500" />}
+            badge={<span className="px-1.5 py-0.5 text-[10px] rounded-full bg-gray-200 text-gray-600">{trace.systems.length}</span>}
+          >
+            <div className="flex gap-3 flex-wrap">
               {trace.systems.map((system) => (
                 <div
                   key={system.id}
@@ -141,7 +142,7 @@ export function MetricDetail({ metricId, onClose }: MetricDetailProps) {
                 </div>
               ))}
             </div>
-          </div>
+          </CollapsibleSection>
         </div>
       </div>
     </div>

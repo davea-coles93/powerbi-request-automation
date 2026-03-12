@@ -175,3 +175,51 @@ def get_step_full_lineage(step_id: str, db: Session = Depends(get_db)):
     if not result:
         raise HTTPException(status_code=404, detail="Process step not found")
     return result
+
+
+# ── Crystallisation Pathway Endpoints ─────────────────────────
+
+
+@router.get("/attribute/{attribute_id}/crystallisation-pathways")
+def get_crystallisation_pathways(attribute_id: str, db: Session = Depends(get_db)):
+    """
+    Get crystallisation pathways for an attribute.
+
+    For each process that crystallises or produces this attribute, returns
+    the contributing step chain with rolled-up cost stats (duration, manual
+    effort %, system switches, waste categories).
+    """
+    service = GraphService(db)
+    result = service.get_crystallisation_pathways(attribute_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Attribute not found")
+    return result
+
+
+@router.get("/metric/{metric_id}/total-cost")
+def get_business_question_cost(metric_id: str, db: Session = Depends(get_db)):
+    """
+    Get total crystallisation cost for answering a business question.
+
+    Traces metric → measures → attributes, computes crystallisation cost
+    for each attribute, and aggregates totals. Shows the full cost of
+    producing the data needed to answer a business question.
+    """
+    service = GraphService(db)
+    result = service.get_business_question_cost(metric_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Metric not found")
+    return result
+
+
+@router.get("/lineage-with-costs")
+def get_lineage_with_costs(db: Session = Depends(get_db)):
+    """
+    Get full lineage graph with crystallisation cost annotations.
+
+    Returns all metrics, measures, attributes, entities, and systems plus
+    a crystallisation_costs map keyed by attribute_id. Used as the data
+    source for the primary Lineage view.
+    """
+    service = GraphService(db)
+    return service.get_lineage_with_costs()

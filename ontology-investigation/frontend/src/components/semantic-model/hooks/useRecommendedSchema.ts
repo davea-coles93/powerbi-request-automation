@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useMetrics, useMeasures, useAttributes, useEntities, useSystems } from '../../../hooks/useOntology';
+import { useMetrics, useMeasures, useAttributes, useEntities, useSystems, useRelationships } from '../../../hooks/useOntology';
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -76,8 +76,9 @@ export function useRecommendedSchema(): RecommendedSchema {
   const { data: attributes = [], isLoading: attributesLoading } = useAttributes();
   const { data: entities = [], isLoading: entitiesLoading } = useEntities();
   const { data: systems = [], isLoading: systemsLoading } = useSystems();
+  const { data: entityRelationships = [], isLoading: relationshipsLoading } = useRelationships();
 
-  const isLoading = metricsLoading || measuresLoading || attributesLoading || entitiesLoading || systemsLoading;
+  const isLoading = metricsLoading || measuresLoading || attributesLoading || entitiesLoading || systemsLoading || relationshipsLoading;
 
   return useMemo(() => {
     if (isLoading || entities.length === 0) {
@@ -275,6 +276,42 @@ export function useRecommendedSchema(): RecommendedSchema {
       }
     }
 
+    // Dimension-to-dimension relationships from entity relationships
+    for (const rel of entityRelationships as any[]) {
+      if (!rel.is_active) continue;
+      const fromDimId = `dim-${rel.from_entity_id}`;
+      const toDimId = `dim-${rel.to_entity_id}`;
+      const fromDim = dimensionTables.find((t) => t.id === fromDimId);
+      const toDim = dimensionTables.find((t) => t.id === toDimId);
+      if (!fromDim || !toDim) continue;
+
+      // The "from" dimension gets an FK column pointing to the "to" dimension's PK
+      const toPk = toDim.columns[0];
+      if (!toPk) continue;
+
+      // Add FK column to the from dimension if it doesn't already have one
+      let fkCol = fromDim.columns.find((c) => c.name === toPk.name);
+      if (!fkCol) {
+        fkCol = {
+          id: `${fromDimId}-fk-${rel.to_entity_id}`,
+          name: toPk.name,
+          sourceAttributeId: '',
+          dataType: 'int',
+          description: `Foreign key to ${toDim.name}`,
+        };
+        fromDim.columns.push(fkCol);
+      }
+
+      relationships.push({
+        id: `rel-${fromDimId}-${toDimId}`,
+        fromTableId: fromDimId,
+        fromColumnId: fkCol.id,
+        toTableId: toDimId,
+        toColumnId: toPk.id,
+        label: `${fromDim.name} → ${toDim.name}`,
+      });
+    }
+
     // ── Step 5: Coverage stats ───────────────────────────────────────
 
     const tables = [...dimensionTables, ...factTables];
@@ -290,5 +327,5 @@ export function useRecommendedSchema(): RecommendedSchema {
     };
 
     return { tables, relationships, coverage, isLoading };
-  }, [metrics, measures, attributes, entities, systems, isLoading]);
+  }, [metrics, measures, attributes, entities, systems, entityRelationships, isLoading]);
 }

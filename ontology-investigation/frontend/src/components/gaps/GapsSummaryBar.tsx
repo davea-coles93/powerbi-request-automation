@@ -39,7 +39,7 @@ export function GapsSummaryBar({ gaps }: GapsSummaryBarProps) {
       </div>
       <div className="flex items-center gap-3 text-xs">
         <span className="text-green-600 font-medium">{resolvedCount} resolved</span>
-        <span className="text-gray-400">|</span>
+        <span className="text-gray-500">|</span>
         <span className="text-red-600 font-medium">{unresolvedCount} unresolved</span>
       </div>
     </div>

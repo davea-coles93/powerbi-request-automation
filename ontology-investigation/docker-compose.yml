@@ -44,6 +44,14 @@ services:
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - TMDL_SCAN_DIRS=/data/models,/data/sample-data
+      - AI_PROVIDER=${AI_PROVIDER:-anthropic}
+      - AI_MODEL=${AI_MODEL:-}
+      - AZURE_AI_PROJECT_ENDPOINT=${AZURE_AI_PROJECT_ENDPOINT:-}
+      - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION:-2024-05-01-preview}
+      - AZURE_AI_AGENT_ID=${AZURE_AI_AGENT_ID:-}
+      - AZURE_AI_SCOPE=${AZURE_AI_SCOPE:-https://ai.azure.com/.default}
+      - USE_AZURE_MANAGED_IDENTITY=${USE_AZURE_MANAGED_IDENTITY:-false}
+      - AZURE_AGENT_AUTH_TOKEN=${AZURE_AGENT_AUTH_TOKEN:-}
     profiles:
       - dev
 

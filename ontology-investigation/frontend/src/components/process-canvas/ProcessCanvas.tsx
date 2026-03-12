@@ -29,12 +29,20 @@ import { StepInspector } from './panel/StepInspector';
 import { HandoffInspector } from './panel/HandoffInspector';
 import { BulkActionsPanel } from './panel/BulkActionsPanel';
 
+export interface CrystallisationContext {
+  attributeId: string;
+  attributeName: string;
+  processId: string;
+  processName: string;
+}
+
 interface ProcessCanvasProps {
   processId?: string;
   workshopSession?: WorkshopSession;
+  crystallisationContext?: CrystallisationContext;
 }
 
-export function ProcessCanvas({ processId, workshopSession }: ProcessCanvasProps) {
+export function ProcessCanvas({ processId, workshopSession, crystallisationContext }: ProcessCanvasProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
   const [showProcessAI, setShowProcessAI] = useState(false);
@@ -70,8 +78,9 @@ export function ProcessCanvas({ processId, workshopSession }: ProcessCanvasProps
 
   // ── Sync processId prop → store ────────────────────────────
   useEffect(() => {
-    if (processId) setActiveProcessId(processId);
-  }, [processId, setActiveProcessId]);
+    const pid = crystallisationContext?.processId || processId;
+    if (pid) setActiveProcessId(pid);
+  }, [processId, crystallisationContext?.processId, setActiveProcessId]);
 
   // ── Auto-select first process ──────────────────────────────
   useEffect(() => {
@@ -324,15 +333,29 @@ export function ProcessCanvas({ processId, workshopSession }: ProcessCanvasProps
               </div>
             </div>
           ) : (
-            <button
-              onClick={() => setShowCreateProcess(true)}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 mx-auto"
-            >
-              <Plus className="w-5 h-5" />
-              Create Process
-            </button>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => setShowCreateProcess(true)}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <Plus className="w-5 h-5" />
+                Create Process
+              </button>
+              <button
+                onClick={() => setShowLibrary(true)}
+                className="px-6 py-3 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg font-medium hover:bg-purple-100 transition-colors flex items-center gap-2"
+              >
+                <BookOpen className="w-5 h-5" />
+                Import from Library
+              </button>
+            </div>
           )}
         </div>
+        {showLibrary && (
+          <ProcessTemplateLibrary
+            onClose={() => setShowLibrary(false)}
+          />
+        )}
       </div>
     );
   }

@@ -181,11 +181,14 @@ def _migrate_schema():
             existing_cols = {c["name"] for c in inspector.get_columns(table_name)}
             for col in table_cls.__table__.columns:
                 if col.name not in existing_cols:
-                    # Determine SQLite type
-                    col_type = col.type.compile(engine.dialect)
-                    conn.execute(
-                        text(f"ALTER TABLE {table_name} ADD COLUMN {col.name} {col_type}")
-                    )
+                    # Determine SQLite type; quote identifiers to handle reserved words.
+                    # col_type comes from SQLAlchemy's dialect compiler (e.g. "TEXT",
+                    # "VARCHAR", "JSON") — not user input — so it's safe to interpolate.
+                    col_type = str(col.type.compile(engine.dialect))
+                    quoted_table = f'"{table_name}"'
+                    quoted_col = f'"{col.name}"'
+                    stmt = f"ALTER TABLE {quoted_table} ADD COLUMN {quoted_col} {col_type}"
+                    conn.execute(text(stmt))
         conn.commit()
 
 

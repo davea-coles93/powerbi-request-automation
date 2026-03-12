@@ -1,66 +1,37 @@
+"""AI-powered ontology analysis service."""
+
 import json
-import os
-from sqlalchemy.orm import Session
 from typing import Optional
 
+from sqlalchemy.orm import Session
+
+from .base_ai_service import BaseAIService
 from .graph_service import GraphService
 
-# Try to import anthropic, but don't fail if not available
-try:
-    import anthropic
 
-    ANTHROPIC_AVAILABLE = True
-except ImportError:
-    ANTHROPIC_AVAILABLE = False
-
-
-class AIService:
+class AIService(BaseAIService):
     """Service for AI-powered ontology analysis."""
 
     def __init__(self, db: Optional[Session]):
-        self.db = db
+        super().__init__(db)
         self.graph_service = GraphService(db) if db else None
 
-        # Initialize Anthropic async client if available
-        self.client = None
-        if ANTHROPIC_AVAILABLE:
-            api_key = os.getenv("ANTHROPIC_API_KEY")
-            if api_key:
-                self.client = anthropic.AsyncAnthropic(api_key=api_key)
-
-    def is_configured(self) -> bool:
-        """Check if AI service is properly configured."""
-        return self.client is not None
-
     async def explain_metric(self, metric_id: str) -> Optional[dict]:
-        """
-        Generate a natural language explanation of a metric.
-        """
+        """Generate a natural language explanation of a metric."""
         if not self.graph_service:
             return None
 
-        # Get the metric trace
         trace = self.graph_service.trace_metric(metric_id)
         if not trace:
             return None
 
-        # Prepare context for LLM
-        context = self._prepare_metric_context(trace)
-
-        # If AI not configured, return a structured summary
-        if not self.client:
+        if not self.is_configured():
             return self._generate_fallback_explanation(trace)
 
-        # Call Claude API
-        message = await self.client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=1024,
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"""You are a business analyst explaining metrics to stakeholders.
+        context = self._prepare_metric_context(trace)
 
-Based on the following ontology information, provide a clear, non-technical explanation of this metric.
+        system = "You are a business analyst explaining metrics to stakeholders."
+        user_msg = f"""Based on the following ontology information, provide a clear, non-technical explanation of this metric.
 
 {context}
 
@@ -68,14 +39,22 @@ Provide:
 1. A brief explanation of what this metric tells the business (2-3 sentences)
 2. A summary of where the data comes from (the lineage)
 
-Be concise and business-focused, not technical.""",
-                }
-            ],
-        )
+Be concise and business-focused, not technical."""
 
-        explanation = message.content[0].text
+        # Collect streamed response
+        explanation = ""
+        async for chunk in self._stream_sse(system, [{"role": "user", "content": user_msg}], max_tokens=1024):
+            if chunk.startswith("data: "):
+                try:
+                    data = json.loads(chunk[6:].strip())
+                    if data.get("type") == "text":
+                        explanation += data.get("content", "")
+                except (json.JSONDecodeError, KeyError):
+                    pass
 
-        # Parse the response (simple split for now)
+        if not explanation:
+            return self._generate_fallback_explanation(trace)
+
         parts = explanation.split("\n\n")
         main_explanation = parts[0] if parts else explanation
         lineage_summary = parts[1] if len(parts) > 1 else "See trace for data lineage."
@@ -87,13 +66,10 @@ Be concise and business-focused, not technical.""",
         }
 
     async def find_gaps(self, focus_area: Optional[str] = None) -> dict:
-        """
-        Analyze the ontology and identify gaps.
-        """
+        """Analyze the ontology and identify gaps."""
         if not self.graph_service:
             return {"gaps": [], "recommendations": []}
 
-        # Get all current elements
         metrics = self.graph_service.metrics.get_all()
         measures = self.graph_service.measures.get_all()
         attributes = self.graph_service.attributes.get_all()
@@ -101,7 +77,6 @@ Be concise and business-focused, not technical.""",
         gaps = []
         recommendations = []
 
-        # Check for metrics without measures
         for metric in metrics:
             if not metric.calculated_by_measure_ids:
                 gaps.append({
@@ -110,7 +85,6 @@ Be concise and business-focused, not technical.""",
                     "issue": "Metric has no measures defined",
                 })
 
-        # Check for measures without attributes
         for measure in measures:
             if not measure.input_attribute_ids and not measure.input_measure_ids:
                 gaps.append({
@@ -119,7 +93,6 @@ Be concise and business-focused, not technical.""",
                     "issue": "Measure has no input attributes or measures",
                 })
 
-        # Check for orphan attributes (not used by any measure)
         used_attribute_ids = set()
         for measure in measures:
             used_attribute_ids.update(measure.input_attribute_ids)
@@ -132,7 +105,6 @@ Be concise and business-focused, not technical.""",
                     "issue": "Attribute is not used by any measure",
                 })
 
-        # Generate recommendations
         if gaps:
             recommendations.append(
                 f"Found {len(gaps)} gaps in the ontology that should be addressed."
@@ -147,21 +119,16 @@ Be concise and business-focused, not technical.""",
         return {"gaps": gaps, "recommendations": recommendations}
 
     async def suggest_measures(self, requirement: str) -> dict:
-        """
-        Suggest measures and attributes for a natural language requirement.
-        """
-        if not self.client:
+        """Suggest measures and attributes for a natural language requirement."""
+        if not self.is_configured():
             return {
                 "suggested_measures": [],
                 "suggested_attributes": [],
-                "rationale": "AI service not configured. Please set ANTHROPIC_API_KEY.",
+                "rationale": "AI service not configured. Set ANTHROPIC_API_KEY or configure Azure AI.",
             }
 
-        # Get current ontology context
         current_measures = self.graph_service.measures.get_all() if self.graph_service else []
-        current_attributes = (
-            self.graph_service.attributes.get_all() if self.graph_service else []
-        )
+        current_attributes = self.graph_service.attributes.get_all() if self.graph_service else []
 
         context = f"""Current measures in the ontology:
 {chr(10).join([f"- {m.name}: {m.description or 'No description'}" for m in current_measures[:20]])}
@@ -169,15 +136,8 @@ Be concise and business-focused, not technical.""",
 Current attributes in the ontology:
 {chr(10).join([f"- {a.name}: {a.description or 'No description'}" for a in current_attributes[:20]])}"""
 
-        message = await self.client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=1024,
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"""You are a business ontology expert helping design measures and attributes.
-
-The user has this requirement: "{requirement}"
+        system = "You are a business ontology expert helping design measures and attributes."
+        user_msg = f"""The user has this requirement: "{requirement}"
 
 {context}
 
@@ -186,19 +146,29 @@ Suggest:
 2. New attributes that would be needed (name, description, what entity it relates to)
 3. Brief rationale for your suggestions
 
-Consider what already exists and don't duplicate. Respond with ONLY valid JSON (no markdown fencing) with keys: suggested_measures, suggested_attributes, rationale""",
-                }
-            ],
-        )
+Consider what already exists and don't duplicate. Respond with ONLY valid JSON (no markdown fencing) with keys: suggested_measures, suggested_attributes, rationale"""
 
-        response_text = message.content[0].text
+        # Collect streamed response
+        response_text = ""
+        async for chunk in self._stream_sse(system, [{"role": "user", "content": user_msg}], max_tokens=1024):
+            if chunk.startswith("data: "):
+                try:
+                    data = json.loads(chunk[6:].strip())
+                    if data.get("type") == "text":
+                        response_text += data.get("content", "")
+                except (json.JSONDecodeError, KeyError):
+                    pass
 
-        # Try to parse JSON from the response
+        if not response_text:
+            return {
+                "suggested_measures": [],
+                "suggested_attributes": [],
+                "rationale": "AI service returned no response.",
+            }
+
         try:
-            # Strip markdown code fences if present
             cleaned = response_text.strip()
             if cleaned.startswith("```"):
-                # Remove opening fence (with optional language tag)
                 cleaned = cleaned.split("\n", 1)[1] if "\n" in cleaned else cleaned[3:]
             if cleaned.endswith("```"):
                 cleaned = cleaned[:-3]
@@ -209,7 +179,6 @@ Consider what already exists and don't duplicate. Respond with ONLY valid JSON (
                 "rationale": parsed.get("rationale", response_text),
             }
         except (json.JSONDecodeError, IndexError):
-            # Fallback: return raw text as rationale
             return {
                 "suggested_measures": [],
                 "suggested_attributes": [],
@@ -217,10 +186,7 @@ Consider what already exists and don't duplicate. Respond with ONLY valid JSON (
             }
 
     async def analyze_processes(self) -> dict:
-        """
-        Analyze processes for efficiency insights.
-        Returns rule-based insights about manual effort, waste, and system switching.
-        """
+        """Analyze processes for efficiency insights."""
         if not self.graph_service:
             return {"insights": [], "summary": "No data available."}
 
@@ -232,7 +198,6 @@ Consider what already exists and don't duplicate. Respond with ONLY valid JSON (
 
         for process in processes:
             for step in process.steps:
-                # High manual effort steps
                 if step.manual_effort_percentage and step.manual_effort_percentage >= 80:
                     insights.append({
                         "type": "high_manual_effort",
@@ -243,7 +208,6 @@ Consider what already exists and don't duplicate. Respond with ONLY valid JSON (
                         "estimated_savings": f"Up to {step.manual_effort_percentage - 20}% effort reduction",
                     })
 
-                # Waste categories
                 if step.waste_category:
                     insights.append({
                         "type": "waste_identified",
@@ -254,7 +218,6 @@ Consider what already exists and don't duplicate. Respond with ONLY valid JSON (
                         "estimated_savings": "Varies by waste type",
                     })
 
-                # Multi-system steps (system switching)
                 if step.systems_used_ids and len(step.systems_used_ids) >= 3:
                     system_names = [system_map.get(sid, sid) for sid in step.systems_used_ids]
                     insights.append({
@@ -266,7 +229,6 @@ Consider what already exists and don't duplicate. Respond with ONLY valid JSON (
                         "estimated_savings": "Reduced context switching time",
                     })
 
-                # Low automation potential on high-effort steps
                 if (step.automation_potential in ('High', 'Medium')
                         and step.manual_effort_percentage
                         and step.manual_effort_percentage >= 50):
@@ -279,8 +241,6 @@ Consider what already exists and don't duplicate. Respond with ONLY valid JSON (
                         "estimated_savings": f"Could automate {step.manual_effort_percentage}% of effort",
                     })
 
-        # Deduplicate - a step might trigger multiple insights, that's fine
-        # Sort by priority
         priority_order = {"high": 0, "medium": 1, "low": 2}
         insights.sort(key=lambda x: priority_order.get(x["priority"], 3))
 
@@ -296,13 +256,12 @@ Consider what already exists and don't duplicate. Respond with ONLY valid JSON (
         return {"insights": insights, "summary": summary}
 
     def _prepare_metric_context(self, trace: dict) -> str:
-        """Prepare rich context for LLM explanation."""
         metric = trace["metric"]
         measures = trace["measures"]
         attributes = trace["attributes"]
         systems = trace["systems"]
 
-        context = f"""METRIC: {metric['name']}
+        return f"""METRIC: {metric['name']}
 Business Question: {metric['business_question']}
 Perspectives: {', '.join(metric.get('perspective_ids', []))}
 
@@ -315,10 +274,8 @@ SOURCED FROM ATTRIBUTES:
 DATA ORIGINATES IN SYSTEMS:
 {chr(10).join([f"- {s['name']} ({s['type']})" for s in systems])}
 """
-        return context
 
     def _generate_fallback_explanation(self, trace: dict) -> dict:
-        """Generate a structured explanation without AI."""
         metric = trace["metric"]
         measures = trace["measures"]
         attributes = trace["attributes"]

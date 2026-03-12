@@ -1,0 +1,995 @@
+{
+  "knowledge_meta": {
+    "id": "services",
+    "name": "Professional & Engineering Services",
+    "icon": "💼",
+    "description": "Digital consulting, software engineering services, project-based delivery organisations. Covers project portfolio management, resource utilisation, timesheet-based billing, presales pipeline, and financial forecasting.",
+    "typical_organisations": [
+      "IT consulting firms",
+      "Digital agencies",
+      "Engineering services companies",
+      "Managed service providers",
+      "Professional services divisions within larger companies"
+    ]
+  },
+
+  "financial_discovery": {
+    "phases": [
+      {
+        "id": "fin_business_questions",
+        "name": "Business Questions",
+        "sequence": 1,
+        "description": "Identify the top financial questions leadership needs answered each period",
+        "questions": [
+          {
+            "id": "fq1",
+            "text": "What are the top 3 financial questions your leadership team asks each month or quarter?",
+            "follow_ups": [
+              "How quickly do you need those answers — same day, within a week, or is month-end reporting sufficient?",
+              "Who specifically asks these questions — CFO, MD, board?"
+            ],
+            "expected_outputs": ["metrics"],
+            "hints": [
+              "Common in services: 'What's our gross margin per project?', 'Are we on budget?', 'What does our pipeline look like?'",
+              "Revenue recognition timing is often a pain point — when does revenue get recognised vs when work is done?",
+              "Ask about the difference between forecast and actuals — services firms often struggle with forecast accuracy"
+            ]
+          },
+          {
+            "id": "fq2",
+            "text": "How do you measure project profitability? Is it per-project, per-account, per-practice, or all three?",
+            "follow_ups": [
+              "Do you use blended day rates or actual salary costs?",
+              "Are tool/licence costs allocated to projects or kept as overheads?"
+            ],
+            "expected_outputs": ["metrics", "measures"],
+            "hints": [
+              "Gross margin = (Revenue - Direct Costs) / Revenue. Direct costs typically = people cost (blended rate × days)",
+              "Some firms also allocate licence costs, travel, and subcontractor costs per project",
+              "Blended rates vs actual costs: blended is simpler but hides margin distortion from seniority mix"
+            ]
+          },
+          {
+            "id": "fq3",
+            "text": "What financial reports does your finance team produce each period? Walk me through the month-end close.",
+            "follow_ups": [
+              "How many days after month-end do you have final numbers?",
+              "What's the biggest bottleneck in the close process?"
+            ],
+            "expected_outputs": ["processes", "metrics"],
+            "hints": [
+              "Common bottleneck: timesheet approval — PMs haven't approved timesheets so finance can't post actuals",
+              "Oracle/ERP actuals often lag 5-10 working days after month-end",
+              "Variance analysis (budget vs actual vs forecast) is typically the most time-consuming step",
+              "Portfolio-level consolidation often involves manual Excel compilation across projects"
+            ]
+          },
+          {
+            "id": "fq4",
+            "text": "How do you forecast revenue and costs? Is it bottom-up from project forecasts or top-down from targets?",
+            "follow_ups": [
+              "How often are forecasts updated?",
+              "Do PMs own their forecasts or does finance create them?"
+            ],
+            "expected_outputs": ["measures", "attributes"],
+            "hints": [
+              "Bottom-up: PM forecasts hours remaining × rate = cost forecast. More accurate but depends on PM discipline",
+              "Top-down: finance sets targets and allocates. Faster but disconnected from project reality",
+              "Common pain: PM forecasts live in Excel, not in the project management tool. Version control issues",
+              "Forecast vs budget vs actuals is the triangle — most firms struggle to get all three in one view"
+            ]
+          }
+        ],
+        "common_metrics": [
+          {
+            "name": "Revenue & Gross Margin",
+            "business_question": "Are we profitable? What's our margin per project/account?",
+            "typical_measures": ["Revenue (actuals from GL)", "Total People Cost (blended rate × days)", "Gross Margin %"],
+            "perspective_ids": ["financial"]
+          },
+          {
+            "name": "Budget Adherence",
+            "business_question": "Are we spending within approved budgets?",
+            "typical_measures": ["Budget Variance", "Budget Burn Rate", "Forecast vs Budget"],
+            "perspective_ids": ["financial", "management"]
+          },
+          {
+            "name": "Forecast Accuracy",
+            "business_question": "Can we trust our forecasts for planning decisions?",
+            "typical_measures": ["Forecast Accuracy (forecast vs actuals)", "Forecast Trend (improving/degrading)"],
+            "perspective_ids": ["financial"]
+          },
+          {
+            "name": "Pipeline Health",
+            "business_question": "Do we have enough pipeline to sustain future revenue?",
+            "typical_measures": ["Weighted Pipeline Value", "Lead Conversion Rate", "Average Deal Size"],
+            "perspective_ids": ["financial", "management"]
+          }
+        ]
+      },
+      {
+        "id": "fin_metric_definition",
+        "name": "Metric Definition",
+        "sequence": 2,
+        "description": "Turn business questions into precise metric definitions with clear ownership",
+        "questions": [
+          {
+            "id": "fq5",
+            "text": "For each financial question you mentioned, let's define exactly what 'good' looks like. What are your targets or benchmarks?",
+            "follow_ups": [
+              "Are these targets set annually, quarterly, or per-project?",
+              "Who is accountable for each metric?"
+            ],
+            "expected_outputs": ["metrics"],
+            "hints": [
+              "Typical services benchmarks: 30-40% gross margin, 75-85% utilisation, <5% budget variance",
+              "Pipeline coverage ratio: typically 3x next quarter's revenue target",
+              "Forecast accuracy: top-quartile firms achieve ±5% by month 2 of quarter"
+            ]
+          },
+          {
+            "id": "fq6",
+            "text": "When you say 'profitability', what costs do you include? Just people, or also tools, travel, subcontractors?",
+            "follow_ups": [
+              "Do you distinguish between gross margin and contribution margin?",
+              "Are there different profitability views for different audiences?"
+            ],
+            "expected_outputs": ["measures"],
+            "hints": [
+              "Gross margin: Revenue - Direct People Cost",
+              "Contribution margin: Revenue - All Direct Costs (people + tools + travel + subs)",
+              "Net margin: After overhead allocation — useful but often contentious methodology",
+              "Most services firms start with gross margin as the primary profitability metric"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "fin_measure_tracing",
+        "name": "Measure Tracing",
+        "sequence": 3,
+        "description": "Trace each metric back to the calculations and data it requires",
+        "questions": [
+          {
+            "id": "fq7",
+            "text": "Let's trace your profitability metric. Revenue comes from where — your ERP/GL? And costs?",
+            "follow_ups": [
+              "Is revenue recognised on invoice, on timesheet approval, or on milestone completion?",
+              "Are there revenue adjustments or accruals that complicate this?"
+            ],
+            "expected_outputs": ["measures", "attributes"],
+            "hints": [
+              "Revenue recognition method matters enormously: time & materials (simpler) vs fixed-price (requires % complete)",
+              "People cost = blended day rate × approved days. Where does the blended rate come from?",
+              "Watch for: rate changes mid-project, different rates for different clients, on-shore vs off-shore rates"
+            ]
+          },
+          {
+            "id": "fq8",
+            "text": "For budget variance, where is the approved budget stored? And how do actuals flow in?",
+            "follow_ups": [
+              "Can the budget change after approval, or is it locked?",
+              "How do change requests affect the budget?"
+            ],
+            "expected_outputs": ["attributes", "measures"],
+            "hints": [
+              "Budget is often set at SOW signing and stored in the project management tool",
+              "Actuals typically come from the GL/ERP after month-end posting",
+              "The gap between 'actuals available' and 'budget approved' is where variance analysis happens",
+              "Change requests that modify budget are a common source of confusion — is it a new budget or a variance?"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "fin_data_sourcing",
+        "name": "Data Sourcing",
+        "sequence": 4,
+        "description": "Identify exactly where the data lives and how reliable it is",
+        "questions": [
+          {
+            "id": "fq9",
+            "text": "For each data point we've identified, which system is the source of truth? And is that system actually used, or do people use Excel instead?",
+            "follow_ups": [
+              "Are there reconciliation processes between systems?",
+              "What happens when the system data doesn't match Excel?"
+            ],
+            "expected_outputs": ["attributes", "systems"],
+            "hints": [
+              "Common pattern: ERP is 'official' source but Excel is 'real' source. Flag this as a shadow system risk",
+              "Project management tools (Mieruka, Jira, Monday, Smartsheet) often have data quality issues because PMs don't update them",
+              "HR systems (HiBob, BambooHR, Workday) are usually reliable for leave/availability but not integrated with project tools",
+              "Finance systems (Oracle, SAP, Xero, NetSuite) are source of truth for actuals but lag behind reality"
+            ]
+          },
+          {
+            "id": "fq10",
+            "text": "How much of your financial reporting is manual? Roughly what percentage of time is spent gathering data vs analysing it?",
+            "follow_ups": [
+              "Are there specific steps that are particularly painful or error-prone?",
+              "If you could automate one thing, what would have the biggest impact?"
+            ],
+            "expected_outputs": ["processes"],
+            "hints": [
+              "80/20 rule: most finance teams spend 80% gathering and 20% analysing. The goal is to flip this",
+              "System switching (Oracle → Excel → PowerPoint → Email) is the biggest waste category in services",
+              "Monthly portfolio reports that take 2+ days to compile are a strong automation candidate",
+              "Look for: manual data re-entry, copy-paste between systems, emailed spreadsheets as data transfer"
+            ]
+          }
+        ]
+      }
+    ],
+    "typical_systems": [
+      {
+        "name": "ERP / General Ledger",
+        "examples": ["Oracle Financials", "SAP", "NetSuite", "Xero", "QuickBooks"],
+        "role": "Financial system of record — revenue recognition, cost posting, actuals",
+        "typical_reliability": "High",
+        "common_issues": ["Actuals lag 5-10 days after month-end", "Chart of accounts may not map cleanly to project structure"]
+      },
+      {
+        "name": "Project Management / PSA",
+        "examples": ["Mieruka", "Mavenlink", "Kantata", "Monday.com", "Smartsheet", "Microsoft Project"],
+        "role": "Project tracking, resource allocation, budgets, timesheets",
+        "typical_reliability": "Medium",
+        "common_issues": ["Data staleness — PMs don't update regularly", "Single-project allocation limitation", "Performance issues driving Excel workarounds"]
+      },
+      {
+        "name": "Development / Delivery Tools",
+        "examples": ["Jira", "Azure DevOps", "GitHub", "GitLab", "Trello"],
+        "role": "Sprint tracking, story points, task management, time logging (granular)",
+        "typical_reliability": "Medium-High",
+        "common_issues": ["Not all teams use time logging", "Story point calibration varies across teams", "Multiple boards for different purposes"]
+      }
+    ]
+  },
+
+  "management_discovery": {
+    "phases": [
+      {
+        "id": "mgmt_monitoring_kpis",
+        "name": "Monitoring & KPIs",
+        "sequence": 1,
+        "description": "Understand what management monitors and how they know if things are on track",
+        "questions": [
+          {
+            "id": "mq1",
+            "text": "As a manager, what do you check first thing Monday morning to know if things are on track?",
+            "follow_ups": [
+              "How do you currently get this information — dashboard, email, meeting, or manual check?",
+              "What would you ideally see that you can't see today?"
+            ],
+            "expected_outputs": ["metrics"],
+            "hints": [
+              "Common: project RAG status, utilisation this week, overdue timesheets, pipeline movement",
+              "The gap between 'what I check' and 'what I'd like to check' reveals missing metrics",
+              "If the answer is 'I check Slack/Teams messages' — that's tribal knowledge, not a system"
+            ]
+          },
+          {
+            "id": "mq2",
+            "text": "How do you know if a project is in trouble? What are the early warning signs?",
+            "follow_ups": [
+              "At what point do you escalate — what triggers that decision?",
+              "Is there a formal RAG status process, or is it informal?"
+            ],
+            "expected_outputs": ["metrics", "measures"],
+            "hints": [
+              "Early warning signs: sprint velocity declining, burn rate exceeding plan, key resource departure, scope creep",
+              "RAG status is often subjective — PMs self-assess. Ask if there are objective criteria",
+              "Escalation triggers: >10% budget variance, missed milestone, client complaint, resource gap",
+              "The time between 'problem appears' and 'management knows' is the observability gap"
+            ]
+          },
+          {
+            "id": "mq3",
+            "text": "How do you track resource utilisation? What's your target, and how close do you get?",
+            "follow_ups": [
+              "Is utilisation measured weekly, monthly, or quarterly?",
+              "Do you distinguish between billable and non-billable utilisation?"
+            ],
+            "expected_outputs": ["metrics", "measures"],
+            "hints": [
+              "Utilisation = Billable Hours / Available Hours. Typical target: 75-85%",
+              "Available hours must account for leave, public holidays, training, internal work",
+              "Common pain: utilisation data requires combining project tool (allocation) + HR tool (leave) + timesheet (actuals)",
+              "Bench time (unallocated resources) is the inverse of utilisation — both views are valuable"
+            ]
+          },
+          {
+            "id": "mq4",
+            "text": "How do you monitor the presales pipeline? What visibility do you have into future work?",
+            "follow_ups": [
+              "How do you weight pipeline opportunities — by probability, by stage, or gut feel?",
+              "What's your pipeline coverage ratio target (pipeline ÷ quarterly revenue target)?"
+            ],
+            "expected_outputs": ["metrics", "measures"],
+            "hints": [
+              "Pipeline stages: Lead → Qualified → Proposal → Negotiation → Won/Lost",
+              "Weighted pipeline = Σ(deal value × probability). Unweighted overestimates future revenue",
+              "Conversion rate by stage helps identify where deals get stuck",
+              "Pipeline-to-revenue lag: how long from 'won' to 'first revenue'? This affects capacity planning"
+            ]
+          }
+        ],
+        "common_metrics": [
+          {
+            "name": "Project Delivery Performance",
+            "business_question": "Are we delivering what we committed to?",
+            "typical_measures": ["Sprint Velocity", "Sprint Completion Rate", "Milestone Adherence"],
+            "perspective_ids": ["operational", "management"]
+          },
+          {
+            "name": "Resource Utilisation Rate",
+            "business_question": "Are our people fully utilised, or do we have idle capacity?",
+            "typical_measures": ["Utilisation Rate", "Bench Time", "Capacity vs Demand"],
+            "perspective_ids": ["management"]
+          },
+          {
+            "name": "Timesheet Compliance",
+            "business_question": "Are timesheets being submitted and approved on time?",
+            "typical_measures": ["Submission Rate", "Approval Rate", "Days to Approve"],
+            "perspective_ids": ["management"]
+          },
+          {
+            "name": "Portfolio Risk Exposure",
+            "business_question": "What is our aggregate risk across all projects?",
+            "typical_measures": ["Risk Score (likelihood × impact)", "Number of Red projects", "Escalation Rate"],
+            "perspective_ids": ["management"]
+          }
+        ]
+      },
+      {
+        "id": "mgmt_connect_financial",
+        "name": "Connect Up to Financial",
+        "sequence": 2,
+        "description": "Link management KPIs to the financial metrics they feed",
+        "questions": [
+          {
+            "id": "mq5",
+            "text": "Which of your management KPIs directly impact financial outcomes? For example, does low utilisation directly reduce margin?",
+            "follow_ups": [
+              "Can you quantify the financial impact — e.g., each 1% utilisation drop costs £X?",
+              "Are there leading indicators that predict financial problems before they show up in the P&L?"
+            ],
+            "expected_outputs": ["metrics", "measures"],
+            "hints": [
+              "Utilisation → Revenue (fewer billable days = less revenue)",
+              "Budget variance → Profitability (overspend reduces margin)",
+              "Pipeline health → Future revenue (weak pipeline = revenue gap in 3-6 months)",
+              "Timesheet compliance → Financial reporting speed (late timesheets delay month-end close)"
+            ]
+          },
+          {
+            "id": "mq6",
+            "text": "When finance asks you for data at month-end, what do they need and how do you provide it?",
+            "follow_ups": [
+              "Is this a pull (they extract from systems) or a push (you send them reports)?",
+              "What format — Excel, system export, verbal update?"
+            ],
+            "expected_outputs": ["processes", "attributes"],
+            "hints": [
+              "Common: finance needs approved timesheets, forecast updates, and budget change requests",
+              "The handoff between management and finance is often the biggest bottleneck in month-end close",
+              "If the answer is 'I email them an Excel file' — that's a crystallisation point worth capturing"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "mgmt_connect_operational",
+        "name": "Connect Down to Operational",
+        "sequence": 3,
+        "description": "Link management monitoring to the operational data it depends on",
+        "questions": [
+          {
+            "id": "mq7",
+            "text": "What data do you need from your delivery teams to do your job? Think about what you chase people for.",
+            "follow_ups": [
+              "How reliable is the data you get — do you trust it or verify it?",
+              "What's the lag — how quickly does operational data reach you?"
+            ],
+            "expected_outputs": ["attributes", "measures"],
+            "hints": [
+              "Common: sprint progress from Jira, timesheets from PSA tool, risk updates from PMs",
+              "Trust issues often stem from: data entered retrospectively, aggregated instead of granular, self-reported",
+              "The lag between 'event happens' and 'manager sees it' determines decision speed"
+            ]
+          },
+          {
+            "id": "mq8",
+            "text": "How do you allocate resources to projects? Walk me through what happens when a new project starts.",
+            "follow_ups": [
+              "Can you allocate someone to multiple projects simultaneously?",
+              "What happens when demand exceeds capacity — how do you prioritise?"
+            ],
+            "expected_outputs": ["processes", "attributes"],
+            "hints": [
+              "Resource allocation is often the most painful process in services firms",
+              "Common issue: PSA tool only allows one project per person, so real allocation is in Excel",
+              "Fractional allocation (0.5 FTE on Project A, 0.3 on B, 0.2 on C) is common but hard to track",
+              "HiBob/BambooHR availability data often not integrated with project allocation tools",
+              "The gap between 'official allocation' and 'actual work being done' is a key data quality risk"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "mgmt_pain_points",
+        "name": "Pain Points & Workarounds",
+        "sequence": 4,
+        "description": "Identify where management work is painful, manual, or relies on workarounds",
+        "questions": [
+          {
+            "id": "mq9",
+            "text": "What's the most time-consuming part of your week that you wish was automated or simpler?",
+            "follow_ups": [
+              "How many hours per week do you spend on this?",
+              "Have you tried to fix it before — what happened?"
+            ],
+            "expected_outputs": ["processes"],
+            "hints": [
+              "Status reporting typically takes PMs 1-2 hours per project per week — across 5 projects that's a full day",
+              "Resource allocation reviews often require checking 3+ systems (PSA, HR, Excel)",
+              "Chasing timesheets is a common time sink — especially at month-end",
+              "Forecast updates often require re-building Excel models from scratch each month"
+            ]
+          },
+          {
+            "id": "mq10",
+            "text": "Are there any Excel spreadsheets that your team couldn't function without? What do they track that your systems can't?",
+            "follow_ups": [
+              "Who maintains these spreadsheets?",
+              "How many people have access to the 'real' version?"
+            ],
+            "expected_outputs": ["systems", "attributes"],
+            "hints": [
+              "Shadow systems in Excel are the #1 data quality risk in services firms",
+              "Common shadow spreadsheets: resource allocation tracker, project forecast model, pipeline tracker, rate card",
+              "These exist because the official tools can't do: multi-project allocation, granular forecasting, flexible reporting",
+              "Each shadow spreadsheet is a candidate for 'what should the system do that it doesn't'"
+            ]
+          }
+        ]
+      }
+    ],
+    "typical_systems": [
+      {
+        "name": "HR / People System",
+        "examples": ["HiBob", "BambooHR", "Workday", "SAP SuccessFactors"],
+        "role": "Employee data, leave/time-off, availability, org structure",
+        "typical_reliability": "High",
+        "common_issues": ["Not integrated with project tools", "Availability not reflected in real-time", "No concept of project allocation"]
+      },
+      {
+        "name": "Communication / Collaboration",
+        "examples": ["Microsoft Teams", "Slack", "Email"],
+        "role": "Decision-making, escalations, informal data sharing",
+        "typical_reliability": "Low (unstructured)",
+        "common_issues": ["Key decisions made in chat but not documented", "Tribal knowledge trapped in threads", "No audit trail for escalations"]
+      }
+    ]
+  },
+
+  "operational_discovery": {
+    "phases": [
+      {
+        "id": "ops_systems_people",
+        "name": "Systems & People",
+        "sequence": 1,
+        "description": "Map the systems people use daily and who uses them",
+        "questions": [
+          {
+            "id": "oq1",
+            "text": "Walk me through a typical day for someone on your delivery team. What systems do they touch?",
+            "follow_ups": [
+              "In what order do they use these systems?",
+              "Are there any systems they're supposed to use but often skip?"
+            ],
+            "expected_outputs": ["systems"],
+            "hints": [
+              "Typical developer day: Jira (check tasks) → IDE (code) → Git (commit) → Jira (update) → Slack/Teams (communicate) → PSA tool (log time, maybe)",
+              "Typical PM day: Email → PSA tool (check status) → Jira (review progress) → Excel (update forecast) → Teams (meetings) → PSA tool (approve timesheets)",
+              "Systems they 'skip' reveal data gaps — if developers don't log time in Jira, granular effort data is missing"
+            ]
+          },
+          {
+            "id": "oq2",
+            "text": "Who are the key roles in your delivery process? List them from most client-facing to most internal.",
+            "follow_ups": [
+              "Which roles create the most data? Which roles consume the most reports?",
+              "Are there any roles that bridge multiple teams or systems?"
+            ],
+            "expected_outputs": ["entities"],
+            "hints": [
+              "Common services roles: Account Manager, Project Manager, Scrum Master, Tech Lead, Developer, QA, Designer, BA",
+              "Bridging roles (PM, Scrum Master) are often the ones doing the most manual data entry across systems",
+              "Client-facing roles (Account Manager, PM) often maintain shadow systems for client reporting"
+            ]
+          },
+          {
+            "id": "oq3",
+            "text": "How many different tools does someone need to switch between to complete their main workflow?",
+            "follow_ups": [
+              "Which tool switches are the most frustrating?",
+              "Are there any integrations between these tools, or is it all manual?"
+            ],
+            "expected_outputs": ["systems", "processes"],
+            "hints": [
+              "3+ tool switches in a single workflow = high system switching waste",
+              "Common integration gaps: Jira ↔ PSA tool, HR tool ↔ PSA tool, PSA tool ↔ ERP",
+              "Manual integrations (copy-paste, re-keying) are the biggest source of data errors",
+              "Each tool switch is a potential data quality break point"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "ops_data_creation",
+        "name": "Data Creation",
+        "sequence": 2,
+        "description": "Understand where and how data is born — the point of activity",
+        "questions": [
+          {
+            "id": "oq4",
+            "text": "When work gets done (a story completed, a deliverable shipped, a milestone reached), how is that recorded?",
+            "follow_ups": [
+              "Is the recording automatic (e.g., Jira status change) or manual (e.g., someone updates a spreadsheet)?",
+              "How quickly is it recorded — real-time, same day, end of week?"
+            ],
+            "expected_outputs": ["attributes"],
+            "hints": [
+              "Automatic recording (Jira transitions, Git commits) = high reliability, real-time",
+              "Manual recording (timesheet entry, status updates) = variable reliability, often delayed",
+              "The gap between 'work done' and 'work recorded' is a data freshness risk",
+              "End-of-week batch entry (common for timesheets) reduces granularity and accuracy"
+            ]
+          },
+          {
+            "id": "oq5",
+            "text": "How do your team members log their time? Walk me through the timesheet process.",
+            "follow_ups": [
+              "Do they log against project codes, tasks, or both?",
+              "What's the typical delay between doing the work and logging the time?"
+            ],
+            "expected_outputs": ["attributes", "processes"],
+            "hints": [
+              "Time logging is the foundation of services firm financial data — if timesheets are wrong, everything downstream is wrong",
+              "Daily logging is ideal but rare. Weekly is common. Monthly is a data quality disaster",
+              "Dual time logging (Jira for tasks + PSA for billing) creates reconciliation headaches",
+              "Some firms log in 15-minute increments, others in half-days — granularity affects measure accuracy",
+              "Approval bottleneck: PMs who manage 5+ projects often batch-approve at month-end"
+            ]
+          },
+          {
+            "id": "oq6",
+            "text": "When a project changes scope or timeline, how is that captured and communicated?",
+            "follow_ups": [
+              "Is there a formal change request process?",
+              "Does a scope change update the budget, or does the original budget remain?"
+            ],
+            "expected_outputs": ["attributes", "processes"],
+            "hints": [
+              "Scope changes without budget updates = hidden cost overruns",
+              "Change requests captured in email but not in the project tool = audit trail gap",
+              "The link between scope change → budget update → forecast revision is often broken",
+              "Some firms track change requests in Jira, others in SharePoint, others in email only"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "ops_entities_relationships",
+        "name": "Entities & Relationships",
+        "sequence": 3,
+        "description": "Identify the core business objects and how they relate to each other",
+        "questions": [
+          {
+            "id": "oq7",
+            "text": "Let's map the hierarchy: do you have accounts, programmes, and projects? Or just projects? How are they related?",
+            "follow_ups": [
+              "Can a project belong to multiple programmes or accounts?",
+              "Is there a practice/capability/team dimension as well?"
+            ],
+            "expected_outputs": ["entities", "relationships"],
+            "hints": [
+              "Common hierarchy: Account → Programme → Project → Sprint/Phase",
+              "Some firms add: Practice/Capability (e.g., 'Data Engineering', 'UX Design') as a cross-cutting dimension",
+              "The hierarchy determines how financial data rolls up: project margin → programme margin → account margin",
+              "Resources may be allocated at project level but belong to a practice — creates a matrix"
+            ]
+          },
+          {
+            "id": "oq8",
+            "text": "How does a resource relate to a project? Is it a simple assignment, or are there phases, roles, and allocation percentages?",
+            "follow_ups": [
+              "Can allocation change over the project lifecycle?",
+              "How do you handle people who work across multiple projects simultaneously?"
+            ],
+            "expected_outputs": ["entities", "relationships", "attributes"],
+            "hints": [
+              "Resource-Project relationship often includes: role on project, allocation %, start/end dates, day rate",
+              "Multi-project allocation is the #1 pain point in services resource management",
+              "Some tools only support one project per person — leading to Excel shadow systems",
+              "The allocation vs actuals gap (planned 50% on Project A but only worked 30%) is a key management metric"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "ops_pain_workarounds",
+        "name": "Pain Points & Workarounds",
+        "sequence": 4,
+        "description": "Identify operational friction, manual effort, and shadow systems",
+        "questions": [
+          {
+            "id": "oq9",
+            "text": "What's the most annoying thing your delivery teams have to do that isn't 'real work'? Think admin, reporting, data entry.",
+            "follow_ups": [
+              "How much time per week does this take per person?",
+              "Has anyone tried to fix this? What happened?"
+            ],
+            "expected_outputs": ["processes"],
+            "hints": [
+              "Timesheet entry across multiple systems is consistently the top complaint",
+              "Status reports that require compiling data from 3+ sources",
+              "Updating the same information in multiple places (Jira, PSA, Excel, client report)",
+              "Chasing approvals (timesheets, expenses, change requests)",
+              "Manual effort × number of people × frequency = total waste in hours/month"
+            ]
+          },
+          {
+            "id": "oq10",
+            "text": "If you could wave a magic wand and fix one data problem in your organisation, what would it be?",
+            "follow_ups": [
+              "What's the impact of this data problem — cost, time, risk, or frustration?",
+              "Who else is affected by this problem?"
+            ],
+            "expected_outputs": ["attributes", "systems"],
+            "hints": [
+              "Common answers: 'accurate resource availability', 'real-time project financials', 'single source of truth for forecasts'",
+              "The magic wand question reveals the highest-impact improvement opportunity",
+              "Connect the answer back to the metrics chain: this data problem → affects this measure → distorts this metric → misleads this decision"
+            ]
+          }
+        ]
+      }
+    ],
+    "typical_systems": [
+      {
+        "name": "Document Management",
+        "examples": ["SharePoint", "Google Drive", "Confluence", "Notion"],
+        "role": "SOW storage, meeting notes, process documentation, templates",
+        "typical_reliability": "Medium",
+        "common_issues": ["Documents not consistently stored", "Version control issues", "Search is poor across large repositories"]
+      },
+      {
+        "name": "Reporting / BI",
+        "examples": ["Power BI", "Tableau", "Looker", "Excel"],
+        "role": "Dashboards, portfolio views, financial reports",
+        "typical_reliability": "Medium-High (when maintained)",
+        "common_issues": ["Data refresh lag", "Multiple conflicting reports", "Underlying data quality issues masked by visualisation"]
+      }
+    ]
+  },
+
+  "cross_perspective_connections": [
+    {
+      "from": "financial",
+      "to": "management",
+      "trigger_when": "revenue|margin|profitability|cost",
+      "description": "Revenue and margin calculations require approved timesheets and resource rates from management processes",
+      "suggested_question": "How do approved timesheets flow into your revenue recognition and cost allocation?"
+    },
+    {
+      "from": "financial",
+      "to": "operational",
+      "trigger_when": "actuals|cost|spend|budget variance",
+      "description": "Financial actuals originate from operational time logging and resource allocation",
+      "suggested_question": "Where does the actual effort data come from that feeds your financial actuals?"
+    },
+    {
+      "from": "management",
+      "to": "operational",
+      "trigger_when": "utilisation|utilization|capacity|allocation|resource",
+      "description": "Utilisation and capacity metrics depend on operational time logging and HR availability data",
+      "suggested_question": "How does actual time worked (from timesheets) combine with availability (from HR) to calculate utilisation?"
+    },
+    {
+      "from": "management",
+      "to": "financial",
+      "trigger_when": "forecast|budget|pipeline|revenue target",
+      "description": "Management forecasts and pipeline data feed financial planning and revenue projections",
+      "suggested_question": "How do project-level forecasts roll up into the financial forecast? Is it automatic or manual?"
+    },
+    {
+      "from": "operational",
+      "to": "management",
+      "trigger_when": "sprint|velocity|delivery|jira|stories|backlog",
+      "description": "Sprint and delivery metrics from operations feed management's project health monitoring",
+      "suggested_question": "How does sprint performance data flow into project RAG status and management reporting?"
+    },
+    {
+      "from": "operational",
+      "to": "financial",
+      "trigger_when": "timesheet|hours|days|billing|time log",
+      "description": "Timesheets are the primary data source for both billing/revenue and cost allocation",
+      "suggested_question": "After timesheets are approved, how do they become revenue and cost entries in the financial system?"
+    }
+  ],
+
+  "entity_patterns": {
+    "description": "Common entity structures found in professional services organisations",
+    "core_entities": [
+      {
+        "name": "Project",
+        "description": "A contracted engagement with a client, with defined scope, budget, and timeline",
+        "typical_core_attributes": ["Project Code", "Project Name", "Start Date", "End Date", "Stage/Status", "RAG Status"],
+        "perspective_lenses": {
+          "operational": "A container for work — sprints, tasks, deliverables. What needs to be built and for whom",
+          "management": "A unit of performance measurement — on time, on budget, delivering value. Where to focus attention",
+          "financial": "A cost collector and revenue generator — P&L at the project level. Profitability unit"
+        }
+      },
+      {
+        "name": "Resource",
+        "description": "A person who delivers work on projects (employee or contractor)",
+        "typical_core_attributes": ["Name", "Role", "Level/Grade", "Day Rate", "Capacity (available days)", "Skills"],
+        "perspective_lenses": {
+          "operational": "A worker with specific skills who executes tasks. What they can do and what they're working on",
+          "management": "A capacity unit to be allocated and utilised. Are they fully booked? Right-skilled for demand?",
+          "financial": "A cost item with a blended rate. People cost is the primary cost driver in services"
+        }
+      },
+      {
+        "name": "Account",
+        "description": "A client organisation that commissions projects",
+        "typical_core_attributes": ["Account Name", "Account Type", "Account Manager", "Status", "Sector/Industry"],
+        "perspective_lenses": {
+          "operational": "The client context — their technology, their people, their way of working",
+          "management": "A relationship to manage — satisfaction, growth potential, risk. Account health",
+          "financial": "A revenue stream — total revenue, margin, lifetime value. Strategic value"
+        }
+      },
+      {
+        "name": "Timesheet",
+        "description": "A record of time worked by a resource on a project for a period",
+        "typical_core_attributes": ["Resource", "Project", "Period", "Hours Submitted", "Hours Approved", "Status"],
+        "perspective_lenses": {
+          "operational": "A task I have to do — log my time accurately against the right codes",
+          "management": "Compliance data — are people logging on time? Are hours reasonable? Approval needed",
+          "financial": "Revenue and cost data — approved timesheets × rates = revenue/cost to post to GL"
+        }
+      },
+      {
+        "name": "Budget",
+        "description": "Financial envelope for a project — approved spend and forecast",
+        "typical_core_attributes": ["Project Code", "Approved Amount", "Currency", "Start Date", "End Date"],
+        "perspective_lenses": {
+          "operational": "A constraint — we have this much budget, so scope accordingly",
+          "management": "A tracking tool — are we on budget? What's the variance? Need to reforecast?",
+          "financial": "A financial control — approved envelope, variance analysis, change request impact"
+        }
+      },
+      {
+        "name": "Lead / Opportunity",
+        "description": "A potential future project in the presales pipeline",
+        "typical_core_attributes": ["Lead Name", "Client", "Estimated Value", "Probability", "Stage", "Expected Close Date"],
+        "perspective_lenses": {
+          "operational": "Future demand — we might need to staff this. What skills will it require?",
+          "management": "Pipeline management — is it qualified? Who's pursuing it? What's the conversion likelihood?",
+          "financial": "Future revenue — weighted pipeline value, revenue forecast impact, capacity planning input"
+        }
+      },
+      {
+        "name": "Programme",
+        "description": "A grouping of related projects under a client account, often with shared governance",
+        "typical_core_attributes": ["Programme Name", "Account", "Programme Manager", "Status"],
+        "perspective_lenses": {
+          "operational": "A scope boundary — projects in this programme share dependencies and resources",
+          "management": "A governance unit — programme-level RAG, cross-project resource balancing",
+          "financial": "A revenue/cost aggregation level between project and account"
+        }
+      },
+      {
+        "name": "SOW / Contract",
+        "description": "Statement of Work or contract defining scope, terms, and commercials",
+        "typical_core_attributes": ["SOW Number", "Project", "Value", "Type (T&M/Fixed)", "Start Date", "End Date", "Status"],
+        "perspective_lenses": {
+          "operational": "The scope agreement — what we've committed to deliver",
+          "management": "A commercial baseline — are we delivering within the agreed terms?",
+          "financial": "A contractual commitment — revenue recognition basis, payment terms, invoicing schedule"
+        }
+      },
+      {
+        "name": "Risk",
+        "description": "An identified project or portfolio risk with likelihood and impact assessment",
+        "typical_core_attributes": ["Description", "Likelihood", "Impact", "Status", "Mitigation", "Owner"],
+        "perspective_lenses": {
+          "operational": "A threat to delivery — what could go wrong and what's the contingency?",
+          "management": "A portfolio concern — aggregate risk exposure, escalation trigger",
+          "financial": "A financial exposure — potential cost impact, contingency budget requirement"
+        }
+      },
+      {
+        "name": "Licence / Tool",
+        "description": "A software licence or tool used in delivery or operations",
+        "typical_core_attributes": ["Tool Name", "Vendor", "Licence Count", "Cost", "Expiry Date", "Category"],
+        "perspective_lenses": {
+          "operational": "A tool I use daily — is it working? Do I have access?",
+          "management": "An asset to manage — usage, renewals, right-sizing",
+          "financial": "A cost line — total licence spend, cost per head, allocation to projects"
+        }
+      }
+    ],
+    "common_relationships": [
+      { "from": "Project", "to": "Account", "type": "belongs_to", "description": "Projects are commissioned by accounts" },
+      { "from": "Project", "to": "Programme", "type": "belongs_to", "description": "Projects may be grouped into programmes" },
+      { "from": "Programme", "to": "Account", "type": "belongs_to", "description": "Programmes exist under accounts" },
+      { "from": "Resource", "to": "Project", "type": "allocated_to", "description": "Resources are allocated to projects with role and percentage" },
+      { "from": "Timesheet", "to": "Resource", "type": "submitted_by", "description": "Timesheets are submitted by resources" },
+      { "from": "Timesheet", "to": "Project", "type": "logged_against", "description": "Time is logged against project codes" },
+      { "from": "Budget", "to": "Project", "type": "belongs_to", "description": "Each project has a budget envelope" },
+      { "from": "Lead", "to": "Account", "type": "associated_with", "description": "Leads come from existing or new accounts" },
+      { "from": "SOW", "to": "Project", "type": "governs", "description": "SOWs define the commercial terms for projects" },
+      { "from": "Risk", "to": "Project", "type": "belongs_to", "description": "Risks are identified per project" }
+    ]
+  },
+
+  "process_patterns": {
+    "description": "Common end-to-end processes in professional services organisations",
+    "processes": [
+      {
+        "name": "Lead to Project Pipeline",
+        "description": "From opportunity identification through presales to project kickoff",
+        "typical_steps": [
+          "Capture Lead/Opportunity → Presales Estimate → Qualify & Assess → Create SOW → Set Up Project in Systems → Allocate Resources"
+        ],
+        "key_pain_points": [
+          "Presales estimates done in Excel, not connected to delivery tools",
+          "SOW creation is slow (legal review) — delays project start",
+          "Setting up project across 3+ systems (ERP, PSA, Jira) is manual and error-prone",
+          "Resource allocation requires checking availability across HR + PSA + Excel"
+        ],
+        "perspective_flow": "management → management → management → management → management (with financial at SOW stage)"
+      },
+      {
+        "name": "Project Delivery Cycle",
+        "description": "Ongoing sprint-based or milestone-based delivery with status reporting",
+        "typical_steps": [
+          "Sprint Planning → Execute Work → Submit Timesheets → Approve Timesheets → Update RAG Status → Produce Status Report → Update Forecast"
+        ],
+        "key_pain_points": [
+          "Timesheets submitted late or inaccurately",
+          "Status reports require manual compilation from 3+ sources (Jira + PSA + Excel)",
+          "RAG status is subjective — no objective criteria",
+          "Forecast updates are manual and done in Excel, not in the project tool"
+        ],
+        "perspective_flow": "operational → operational → operational → management → management → management → financial"
+      },
+      {
+        "name": "Month-End Financial Close",
+        "description": "Monthly close including timesheet cutoff, actuals posting, and variance analysis",
+        "typical_steps": [
+          "Close Timesheet Period → Post Actuals to GL → Variance Analysis → Compile Portfolio Report"
+        ],
+        "key_pain_points": [
+          "Timesheet approval bottleneck — PMs approve late, delaying close",
+          "Actuals lag — ERP posting takes days after cutoff",
+          "Variance analysis requires manual comparison of budget, forecast, and actuals from different systems",
+          "Portfolio report compilation takes 1-2 days of manual Excel/PowerPoint work"
+        ],
+        "perspective_flow": "management → financial → financial → financial"
+      },
+      {
+        "name": "Resource Allocation & Capacity Planning",
+        "description": "Matching resource supply to project demand",
+        "typical_steps": [
+          "Review Capacity → Match Demand to Supply → Update Allocations → Review Costs"
+        ],
+        "key_pain_points": [
+          "Capacity data split across HR (leave) + PSA (allocation) + Excel (actual split)",
+          "Demand data comes from active projects + pipeline — different systems, different confidence levels",
+          "Multi-project allocation not supported by PSA tool — requires Excel workaround",
+          "Blended rates need regular review — new hires, rate changes, currency effects"
+        ],
+        "perspective_flow": "management → management → management → financial"
+      }
+    ]
+  },
+
+  "measure_taxonomy": {
+    "description": "Standard measures used in professional services, organised by category",
+    "categories": [
+      {
+        "name": "Revenue & Profitability",
+        "measures": [
+          { "name": "Revenue (Actuals)", "formula_pattern": "SUM(GL revenue entries)", "inputs": ["Revenue GL entries"], "perspective": "financial" },
+          { "name": "Total People Cost", "formula_pattern": "SUM(blended_rate × approved_days)", "inputs": ["Blended Day Rate", "Approved Days"], "perspective": "financial" },
+          { "name": "Gross Margin %", "formula_pattern": "(Revenue - People Cost) / Revenue × 100", "inputs": ["Revenue", "People Cost"], "perspective": "financial" },
+          { "name": "Contribution Margin", "formula_pattern": "Revenue - All Direct Costs", "inputs": ["Revenue", "People Cost", "Tool Cost", "Travel", "Subcontractors"], "perspective": "financial" },
+          { "name": "Revenue per Head", "formula_pattern": "Revenue / Headcount", "inputs": ["Revenue", "Headcount"], "perspective": "financial" }
+        ]
+      },
+      {
+        "name": "Budget & Forecast",
+        "measures": [
+          { "name": "Budget Variance", "formula_pattern": "Budget - Actuals", "inputs": ["Approved Budget", "Actuals"], "perspective": "financial" },
+          { "name": "Budget Burn Rate", "formula_pattern": "Actuals / Months Elapsed", "inputs": ["Actuals", "Project Start Date"], "perspective": "financial" },
+          { "name": "Forecast Accuracy", "formula_pattern": "1 - ABS(Forecast - Actuals) / Actuals", "inputs": ["Forecast", "Actuals"], "perspective": "financial" },
+          { "name": "Forecast vs Budget", "formula_pattern": "Forecast / Budget × 100", "inputs": ["Forecast", "Budget"], "perspective": "financial" },
+          { "name": "Estimated Cost at Completion", "formula_pattern": "Actuals + Remaining Forecast", "inputs": ["Actuals", "Remaining Forecast"], "perspective": "financial" }
+        ]
+      },
+      {
+        "name": "Utilisation & Capacity",
+        "measures": [
+          { "name": "Utilisation Rate", "formula_pattern": "Billable Hours / Available Hours × 100", "inputs": ["Approved Hours", "Available Hours", "Leave"], "perspective": "management" },
+          { "name": "Bench Time", "formula_pattern": "Available Hours - Allocated Hours", "inputs": ["Available Hours", "Allocated Hours"], "perspective": "management" },
+          { "name": "Capacity Gap", "formula_pattern": "Demand (hours) - Supply (hours)", "inputs": ["Demand by Role", "Available Capacity"], "perspective": "management" },
+          { "name": "Billable Days", "formula_pattern": "SUM(Approved Days)", "inputs": ["Approved Timesheet Days"], "perspective": "financial" },
+          { "name": "Resource Capacity", "formula_pattern": "Availability - Leave - Allocation", "inputs": ["Availability", "Time Off", "Current Allocation"], "perspective": "management" }
+        ]
+      },
+      {
+        "name": "Delivery Performance",
+        "measures": [
+          { "name": "Sprint Velocity", "formula_pattern": "AVG(Story Points, last N sprints)", "inputs": ["Completed Story Points"], "perspective": "operational" },
+          { "name": "Sprint Completion Rate", "formula_pattern": "Completed Points / Planned Points × 100", "inputs": ["Completed Points", "Planned Points"], "perspective": "operational" },
+          { "name": "Backlog Completion", "formula_pattern": "Completed / Total Backlog × 100", "inputs": ["Completed Stories", "Total Backlog"], "perspective": "operational" },
+          { "name": "Defect Rate", "formula_pattern": "Defects / Stories Delivered × 100", "inputs": ["Defect Count", "Stories Delivered"], "perspective": "operational" },
+          { "name": "Cycle Time", "formula_pattern": "AVG(Done Date - Start Date)", "inputs": ["Story Start Date", "Story Done Date"], "perspective": "operational" }
+        ]
+      },
+      {
+        "name": "Pipeline & Sales",
+        "measures": [
+          { "name": "Weighted Pipeline", "formula_pattern": "SUM(Deal Value × Probability)", "inputs": ["Pipeline Value", "Conversion Probability"], "perspective": "management" },
+          { "name": "Lead Conversion Rate", "formula_pattern": "Won / (Won + Lost) × 100", "inputs": ["Lead Status"], "perspective": "management" },
+          { "name": "Average Deal Size", "formula_pattern": "Total Pipeline Value / Number of Deals", "inputs": ["Pipeline Value", "Deal Count"], "perspective": "management" },
+          { "name": "Pipeline Coverage Ratio", "formula_pattern": "Pipeline Value / Quarterly Revenue Target", "inputs": ["Pipeline Value", "Revenue Target"], "perspective": "management" },
+          { "name": "Win Rate by Stage", "formula_pattern": "Conversions at Stage / Entries at Stage", "inputs": ["Stage Transitions"], "perspective": "management" }
+        ]
+      },
+      {
+        "name": "Compliance & Risk",
+        "measures": [
+          { "name": "Timesheet Submission Rate", "formula_pattern": "Submitted / Expected × 100", "inputs": ["Timesheets Submitted", "Expected Submissions"], "perspective": "management" },
+          { "name": "Timesheet Approval Rate", "formula_pattern": "Approved / Submitted × 100", "inputs": ["Approved Hours", "Submitted Hours"], "perspective": "management" },
+          { "name": "Risk Exposure Score", "formula_pattern": "SUM(Likelihood × Impact)", "inputs": ["Risk Likelihood", "Risk Impact"], "perspective": "management" },
+          { "name": "Escalation Rate", "formula_pattern": "Escalated Projects / Total Projects", "inputs": ["Escalated Count", "Total Projects"], "perspective": "management" }
+        ]
+      }
+    ]
+  },
+
+  "domain_vocabulary": {
+    "description": "Common terminology in professional services — helps the AI understand user language",
+    "terms": {
+      "T&M": "Time and Materials — billing model where client pays for actual hours at agreed rates",
+      "Fixed Price": "Billing model where client pays a fixed amount regardless of effort — risk sits with the provider",
+      "Blended Rate": "Average day rate across resource levels, used for simplified cost calculations",
+      "SOW": "Statement of Work — contractual document defining scope, deliverables, timeline, and cost",
+      "PSA": "Professional Services Automation — software for project, resource, and financial management",
+      "RAG Status": "Red/Amber/Green status indicator for project health",
+      "Bench": "Unallocated time — resources not assigned to billable projects",
+      "Utilisation": "Percentage of available time spent on billable work",
+      "Pipeline": "Future sales opportunities at various stages of qualification and negotiation",
+      "Burn Rate": "Rate of budget consumption over time",
+      "Run Rate": "Current spending extrapolated forward — what costs will be if nothing changes",
+      "EAC": "Estimate at Completion — current forecast of total project cost when finished",
+      "ETC": "Estimate to Complete — forecast of remaining cost from now to project end",
+      "WIP": "Work in Progress — work done but not yet billed or recognised as revenue",
+      "Accrual": "Financial adjustment to match revenue/costs to the period the work was performed",
+      "Reforecast": "Updated financial forecast based on latest information — typically monthly or quarterly",
+      "Change Request": "Formal request to modify project scope, timeline, or budget",
+      "Demand": "Future resource requirements from projects (active + pipeline)",
+      "Supply": "Available resource capacity after accounting for leave and existing allocations",
+      "Backfill": "Replacing a departing resource on a project with another person",
+      "Ramp Up": "Period when a new resource joins a project and is not yet fully productive",
+      "FTE": "Full-Time Equivalent — a measure of allocation (1 FTE = 100% of one person's time)",
+      "Crystallisation": "The moment when operational data becomes a frozen, trusted fact — e.g., timesheet approval crystallises hours for billing"
+    }
+  }
+}

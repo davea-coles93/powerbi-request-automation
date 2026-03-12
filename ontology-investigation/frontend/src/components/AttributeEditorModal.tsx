@@ -24,6 +24,7 @@ interface AttributeData {
   source_column?: string;
   source_connection?: string;
   constraints?: ConstraintData[];
+  perspective_ids?: string[];
 }
 
 interface AttributeEditorModalProps {
@@ -33,6 +34,7 @@ interface AttributeEditorModalProps {
   onSave: (attribute: AttributeData) => void;
   availableEntities?: Array<{ id: string; name: string }>;
   availableSystems?: Array<{ id: string; name: string }>;
+  availablePerspectives?: Array<{ id: string; name: string }>;
   onCreateEntity?: (entity: { name: string; description: string }) => Promise<{ id: string; name: string }>;
   onCreateSystem?: (system: { name: string; description: string }) => Promise<{ id: string; name: string }>;
 }
@@ -50,6 +52,7 @@ const defaultFormData: AttributeData = {
   source_column: '',
   source_connection: '',
   constraints: [],
+  perspective_ids: [],
 };
 
 export function AttributeEditorModal({
@@ -59,6 +62,7 @@ export function AttributeEditorModal({
   onSave,
   availableEntities = [],
   availableSystems = [],
+  availablePerspectives = [],
   onCreateEntity,
   onCreateSystem,
 }: AttributeEditorModalProps) {
@@ -78,6 +82,7 @@ export function AttributeEditorModal({
         ...defaultFormData,
         ...attribute,
         constraints: attribute.constraints ?? [],
+        perspective_ids: attribute.perspective_ids ?? [],
       });
     } else {
       setFormData({ ...defaultFormData });
@@ -355,6 +360,45 @@ export function AttributeEditorModal({
                 </div>
               </div>
             </div>
+
+            {/* Perspectives */}
+            {availablePerspectives.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Perspectives
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {availablePerspectives.map((p) => {
+                    const selected = (formData.perspective_ids ?? []).includes(p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          const ids = formData.perspective_ids ?? [];
+                          setFormData({
+                            ...formData,
+                            perspective_ids: selected
+                              ? ids.filter((id) => id !== p.id)
+                              : [...ids, p.id],
+                          });
+                        }}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                          selected
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {p.name}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Select which perspectives this attribute is relevant to
+                </p>
+              </div>
+            )}
 
             {/* Data Quality & Characteristics */}
             <div className="space-y-4 border-t pt-6">

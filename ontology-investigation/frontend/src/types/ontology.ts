@@ -620,3 +620,118 @@ export interface AIGapItem {
   affected_elements: string[];
   recommendation: string;
 }
+
+// ── Crystallisation Pathway Types ─────────────────────────────
+
+export interface CrystallisationPathway {
+  process_id: string;
+  process_name: string;
+  crystallising_step: ProcessStep;
+  contributing_steps: ProcessStep[];
+  total_duration_minutes: number;
+  weighted_manual_effort_pct: number;
+  system_switch_count: number;
+  systems_involved: { id: string; name: string }[];
+  waste_categories: string[];
+  crystallises: boolean;
+  produces: boolean;
+}
+
+export interface AttributeCrystallisationPathways {
+  attribute: Attribute;
+  pathways: CrystallisationPathway[];
+}
+
+export interface BusinessQuestionCost {
+  metric: Metric;
+  attribute_costs: Array<{
+    attribute: Attribute;
+    pathways: CrystallisationPathway[];
+    total_duration_minutes: number;
+    weighted_manual_effort_pct: number;
+    system_switch_count: number;
+    waste_categories: string[];
+  }>;
+  totals: {
+    total_duration_minutes: number;
+    weighted_manual_effort_pct: number;
+    total_system_switches: number;
+    waste_categories: string[];
+    attribute_count: number;
+  };
+}
+
+export interface CrystallisationCostSummary {
+  total_duration_minutes: number;
+  weighted_manual_effort_pct: number;
+  system_switch_count: number;
+  waste_categories: string[];
+  process_names: string[];
+}
+
+export interface LineageWithCosts {
+  metrics: Metric[];
+  measures: Measure[];
+  attributes: Attribute[];
+  entities: Entity[];
+  systems: System[];
+  crystallisation_costs: Record<string, CrystallisationCostSummary>;
+}
+
+// ── Guided Discovery Types ──────────────────────────────────
+
+export interface KnowledgePack {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+}
+
+export interface DiscoveryQuestion {
+  id: string;
+  text: string;
+  follow_ups: string[];
+  expected_outputs: string[];
+  hints: string[];
+}
+
+export interface DiscoveryPhase {
+  id: string;
+  name: string;
+  sequence: number;
+  description: string;
+  questions: DiscoveryQuestion[];
+}
+
+export interface DiscoverySessionState {
+  id: string;
+  perspective: 'financial' | 'management' | 'operational';
+  industry: string;
+  current_phase_index: number;
+  current_question_index: number;
+  total_phases: number;
+  total_questions: number;
+  questions_answered: number;
+  progress_pct: number;
+  current_phase: DiscoveryPhase | null;
+  current_question: DiscoveryQuestion | null;
+  captured_counts: Record<string, number>;
+  cross_perspective_notes: CrossPerspectiveNote[];
+  completed: boolean;
+}
+
+export interface CrossPerspectiveNote {
+  from_perspective: string;
+  to_perspective: string;
+  summary: string;
+  suggested_action: string;
+}
+
+export interface DiscoveryChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  proposals?: WorkshopProposals | null;
+  crossPerspectiveNotes?: CrossPerspectiveNote[];
+  timestamp: number;
+}

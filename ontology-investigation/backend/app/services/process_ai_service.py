@@ -5,31 +5,21 @@ Users can describe a process in natural language or paste workshop/meeting
 transcripts, and the AI extracts structured Process + ProcessSteps.
 """
 
-import json
-import os
 from typing import AsyncGenerator
 
 from sqlalchemy.orm import Session
 
-from ..db.repositories import (
-    PerspectiveRepository,
-    SystemRepository,
-    EntityRepository,
-    AttributeRepository,
-    ProcessRepository,
-)
+from ..db.repositories import ProcessRepository
 from ..models import Process, ProcessStep
-
-try:
-    import anthropic
-
-    ANTHROPIC_AVAILABLE = True
-except ImportError:
-    ANTHROPIC_AVAILABLE = False
+from .base_ai_service import BaseAIService
+from .ontology_context import OntologyContextBuilder
 
 
 SYSTEM_PROMPT = """\
 You are a process mapping expert conducting a structured workshop interview. Your job is to uncover the REAL process — the one people actually do, not the one in the procedure manual.
+
+## Crystallisation Framing
+Processes are crystallisation pathways. Every process exists to take raw, volatile attributes and crystallise them into frozen, trusted facts. When mapping a process, always think: "How does this attribute get from raw data to crystallised fact?" Each step along the way is part of the crystallisation pathway — data entry creates the attribute, review steps validate it, approval steps freeze it, and cutoff steps crystallise it for a specific reporting period. The cost of crystallisation (manual effort, system switching, waiting time) is the real cost of the process. High-waste steps are steps where crystallisation cost is unnecessarily high — manual re-keying, Excel workarounds, or email-based approvals that delay crystallisation.
 
 ## Your Core Approach: NEVER ASSUME — ALWAYS ASK
 
@@ -116,6 +106,7 @@ Each step needs:
 - **depends_on_step_ids**: which previous step IDs must complete first
 - **consumes_attribute_ids**: existing attribute IDs read/used
 - **produces_attribute_ids**: existing attribute IDs created/updated
+- **crystallizes_attribute_ids**: attribute IDs that become frozen facts at this step (e.g., a period-end cutoff crystallises production confirmations)
 
 ## Proposal Format
 Include exactly one process proposal block when ready:
@@ -158,104 +149,44 @@ Include exactly one process proposal block when ready:
 - System switching between more than 2 systems in one step is always waste
 - Email-based handoffs are always "Waiting Time" waste
 - Excel/manual workarounds should be flagged with high automation potential
+- Identify which steps are crystallisation points — where attributes transition from volatile to frozen. Use `crystallizes_attribute_ids` for these steps
+- Ask about timing: "When does this data become 'final'? Is there a cutoff date or approval that freezes it?"
+- Frame waste in terms of crystallisation cost: unnecessary manual effort to get an attribute from raw to crystallised is the real process burden
 """
 
 
-def _build_process_context(db: Session) -> str:
-    """Build context about existing systems, perspectives, and attributes."""
-    perspectives = PerspectiveRepository(db).get_all()
-    systems = SystemRepository(db).get_all()
-    entities = EntityRepository(db).get_all()
-    attributes = AttributeRepository(db).get_all()
-    processes = ProcessRepository(db).get_all()
-
-    sections = []
-
-    if perspectives:
-        lines = [f"  - {p.id}: {p.name}" for p in perspectives]
-        sections.append("AVAILABLE PERSPECTIVES:\n" + "\n".join(lines))
-
-    if systems:
-        lines = [f"  - {s.id}: {s.name} ({s.type})" for s in systems]
-        sections.append("EXISTING SYSTEMS (use these IDs in systems_used_ids):\n" + "\n".join(lines))
-
-    if entities:
-        lines = [f"  - {e.id}: {e.name}" for e in entities]
-        sections.append("EXISTING ENTITIES:\n" + "\n".join(lines))
-
-    if attributes:
-        lines = [f"  - {a.id}: {a.name} (entity: {a.entity_id}, system: {a.system_id})" for a in attributes[:30]]
-        if len(attributes) > 30:
-            lines.append(f"  ... and {len(attributes) - 30} more")
-        sections.append("EXISTING ATTRIBUTES (reference in consumes/produces):\n" + "\n".join(lines))
-
-    if processes:
-        lines = [f"  - {p.id}: {p.name} ({len(p.steps)} steps)" for p in processes]
-        sections.append("EXISTING PROCESSES:\n" + "\n".join(lines))
-
-    if not sections:
-        return "The ontology is currently EMPTY. Use generic perspective IDs: operational, management, financial."
-
-    return "## Current Ontology Context\n\n" + "\n\n".join(sections)
-
-
-class ProcessAIService:
+class ProcessAIService(BaseAIService):
     """Service for AI-powered process generation."""
-
-    def __init__(self, db: Session):
-        self.db = db
-        self.client = None
-        if ANTHROPIC_AVAILABLE:
-            api_key = os.getenv("ANTHROPIC_API_KEY")
-            if api_key:
-                self.client = anthropic.AsyncAnthropic(api_key=api_key)
-
-    def is_configured(self) -> bool:
-        return self.client is not None
 
     async def chat_stream(
         self,
         messages: list[dict],
     ) -> AsyncGenerator[str, None]:
         """Stream a process builder AI response via SSE."""
-        if not self.client:
-            yield 'data: {"type":"error","content":"AI service not configured. Set ANTHROPIC_API_KEY."}\n\n'
-            return
-
-        context = _build_process_context(self.db)
+        context = OntologyContextBuilder(self.db).with_processes()
         full_system = f"{SYSTEM_PROMPT}\n\n{context}"
 
-        try:
-            async with self.client.messages.stream(
-                model="claude-sonnet-4-20250514",
-                max_tokens=4000,
-                system=full_system,
-                messages=messages,
-            ) as stream:
-                async for text in stream.text_stream:
-                    payload = json.dumps({"type": "text", "content": text})
-                    yield f"data: {payload}\n\n"
-
-            yield 'data: {"type":"done"}\n\n'
-
-        except Exception as e:
-            payload = json.dumps({"type": "error", "content": str(e)})
-            yield f"data: {payload}\n\n"
+        async for chunk in self._stream_sse(full_system, messages, max_tokens=4000):
+            yield chunk
 
     def materialize_process(self, proposal: dict) -> dict:
         """Create a process from an accepted proposal."""
+        from ..utils import generate_id
+
         process_data = proposal.get("process", {})
         steps_data = proposal.get("steps", [])
 
-        proc_id = process_data.get("id", "")
+        proc_id = generate_id(process_data.get("id", "") or process_data.get("name", ""))
         repo = ProcessRepository(self.db)
 
-        # Check for duplicate — suffix if exists
         if repo.get_by_id(proc_id):
-            i = 2
-            while repo.get_by_id(f"{proc_id}_{i}"):
-                i += 1
-            proc_id = f"{proc_id}_{i}"
+            base_id = proc_id
+            for i in range(2, 52):
+                proc_id = f"{base_id}_{i}"
+                if not repo.get_by_id(proc_id):
+                    break
+            else:
+                raise ValueError(f"Too many copies of process '{base_id}' exist")
 
         steps = []
         for s in steps_data:

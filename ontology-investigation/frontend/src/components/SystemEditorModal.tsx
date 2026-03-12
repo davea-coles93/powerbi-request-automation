@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { Modal, ModalCancelButton, ModalSubmitButton } from './shared/Modal';
 import { System, SystemType, ReliabilityLevel, IntegrationStatus } from '../types/ontology';
 
 interface SystemEditorModalProps {
@@ -53,24 +53,14 @@ export function SystemEditorModal({ isOpen, onClose, system, onSave }: SystemEdi
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900">
-            {system ? 'Edit System' : 'New System'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={system ? 'Edit System' : 'New System'}
+      maxWidth="2xl"
+    >
+      <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Basic Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
@@ -194,22 +184,10 @@ export function SystemEditorModal({ isOpen, onClose, system, onSave }: SystemEdi
 
           {/* Actions */}
           <div className="flex gap-3 justify-end border-t pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              {system ? 'Update System' : 'Create System'}
-            </button>
+            <ModalCancelButton onClick={onClose} />
+            <ModalSubmitButton>{system ? 'Update System' : 'Create System'}</ModalSubmitButton>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

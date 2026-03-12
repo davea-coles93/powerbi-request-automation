@@ -38,6 +38,7 @@ from app.models.workshop import (
 )
 from app.services.graph_service import GraphService
 from app.services.workshop_service import WorkshopService
+from app.utils import generate_id
 
 
 router = APIRouter(prefix="/api/discovery", tags=["discovery"])
@@ -157,11 +158,6 @@ SHEET_NAME_MAP = {
 }
 
 
-def _generate_id(name: str) -> str:
-    """Generate a slug-style ID from a name."""
-    return name.lower().strip().replace(" ", "_").replace("-", "_")
-
-
 def _parse_json_field(value: str) -> Optional[list]:
     """Try to parse a string as JSON list. Returns None if not valid JSON."""
     if not value or not value.strip():
@@ -172,7 +168,10 @@ def _parse_json_field(value: str) -> Optional[list]:
         parsed = json.loads(value)
         if isinstance(parsed, list):
             return parsed
-        return [parsed]
+        if isinstance(parsed, (str, int, float)):
+            return [parsed]
+        # Reject dicts and other complex types — fields expect flat lists
+        return None
     except (json.JSONDecodeError, TypeError):
         pass
     # Try comma-separated
@@ -217,7 +216,7 @@ def _row_to_model(row: dict, column_mapping: dict, entity_type: str) -> dict:
 
     # Auto-generate ID if not provided
     if "id" not in model_data and "name" in model_data:
-        model_data["id"] = _generate_id(model_data["name"])
+        model_data["id"] = generate_id(model_data["name"])
 
     return model_data
 
@@ -295,10 +294,15 @@ async def import_csv(
             detail=f"Invalid entity_type '{entity_type}'. Must be one of: {list(ENTITY_TYPE_MAP.keys())}",
         )
 
-    # Read the CSV content
+    # Read the CSV content (limit to 10MB)
+    MAX_CSV_SIZE = 10 * 1024 * 1024
     try:
         content = await file.read()
+        if len(content) > MAX_CSV_SIZE:
+            raise HTTPException(status_code=413, detail=f"CSV file too large. Maximum size is 10MB.")
         text = content.decode("utf-8-sig")  # Handle BOM in Excel-exported CSVs
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to read CSV file: {str(e)}")
 
@@ -352,7 +356,7 @@ async def import_csv(
 
             # Auto-generate ID if missing
             if "id" not in model_data:
-                model_data["id"] = _generate_id(model_data["name"])
+                model_data["id"] = generate_id(model_data["name"])
 
             # Create the model instance (validates data)
             item = model_class(**model_data)
@@ -367,7 +371,8 @@ async def import_csv(
             created += 1
 
         except Exception as e:
-            errors.append(f"Row {i}: {str(e)}")
+            # Sanitize: only include exception class and first 200 chars
+            errors.append(f"Row {i}: {type(e).__name__}: {str(e)[:200]}")
 
     return ImportResult(
         success=created > 0 or not errors,
@@ -398,10 +403,15 @@ async def import_excel(
             detail="openpyxl is not installed. Run: pip install openpyxl",
         )
 
-    # Read the Excel file
+    # Read the Excel file (limit to 25MB)
+    MAX_EXCEL_SIZE = 25 * 1024 * 1024
     try:
         content = await file.read()
+        if len(content) > MAX_EXCEL_SIZE:
+            raise HTTPException(status_code=413, detail="Excel file too large. Maximum size is 25MB.")
         wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to read Excel file: {str(e)}")
 
@@ -409,78 +419,79 @@ async def import_excel(
     summary = {}
     all_errors = []
 
-    for sheet_name in wb.sheetnames:
-        # Normalize sheet name to entity type
-        normalized = sheet_name.strip().lower().replace(" ", "_").replace("-", "_")
-        entity_type = SHEET_NAME_MAP.get(normalized)
+    try:
+        for sheet_name in wb.sheetnames:
+            # Normalize sheet name to entity type
+            normalized = sheet_name.strip().lower().replace(" ", "_").replace("-", "_")
+            entity_type = SHEET_NAME_MAP.get(normalized)
 
-        if not entity_type:
-            all_errors.append(f"Sheet '{sheet_name}': unrecognized entity type, skipping")
-            continue
+            if not entity_type:
+                all_errors.append(f"Sheet '{sheet_name}': unrecognized entity type, skipping")
+                continue
 
-        ws = wb[sheet_name]
-        rows = list(ws.iter_rows(values_only=True))
+            ws = wb[sheet_name]
+            rows = list(ws.iter_rows(values_only=True))
 
-        if len(rows) < 2:
-            all_errors.append(f"Sheet '{sheet_name}': no data rows found, skipping")
-            continue
+            if len(rows) < 2:
+                all_errors.append(f"Sheet '{sheet_name}': no data rows found, skipping")
+                continue
 
-        # First row is headers
-        headers = [str(h).strip() if h else "" for h in rows[0]]
+            # First row is headers
+            headers = [str(h).strip() if h else "" for h in rows[0]]
 
-        # Auto-detect column mapping
-        mapping = _auto_detect_mapping(headers, entity_type)
-        if not mapping:
-            all_errors.append(
-                f"Sheet '{sheet_name}': could not detect column mapping for headers {headers}, skipping"
-            )
-            continue
+            # Auto-detect column mapping
+            mapping = _auto_detect_mapping(headers, entity_type)
+            if not mapping:
+                all_errors.append(
+                    f"Sheet '{sheet_name}': could not detect column mapping for headers {headers}, skipping"
+                )
+                continue
 
-        type_info = ENTITY_TYPE_MAP[entity_type]
-        repo = type_info["repo_class"](db)
-        model_class = type_info["model_class"]
+            type_info = ENTITY_TYPE_MAP[entity_type]
+            repo = type_info["repo_class"](db)
+            model_class = type_info["model_class"]
 
-        created = 0
-        for row_idx, row_data in enumerate(rows[1:], start=2):
-            try:
-                # Build row dict from headers and values
-                row_dict = {}
-                for col_idx, header in enumerate(headers):
-                    if header and col_idx < len(row_data):
-                        value = row_data[col_idx]
-                        if value is not None:
-                            row_dict[header] = str(value)
+            created = 0
+            for row_idx, row_data in enumerate(rows[1:], start=2):
+                try:
+                    # Build row dict from headers and values
+                    row_dict = {}
+                    for col_idx, header in enumerate(headers):
+                        if header and col_idx < len(row_data):
+                            value = row_data[col_idx]
+                            if value is not None:
+                                row_dict[header] = str(value)
 
-                model_data = _row_to_model(row_dict, mapping, entity_type)
+                    model_data = _row_to_model(row_dict, mapping, entity_type)
 
-                # Skip empty rows
-                if not model_data or not model_data.get("name"):
-                    continue
+                    # Skip empty rows
+                    if not model_data or not model_data.get("name"):
+                        continue
 
-                # Auto-generate ID if missing
-                if "id" not in model_data:
-                    model_data["id"] = _generate_id(model_data["name"])
+                    # Auto-generate ID if missing
+                    if "id" not in model_data:
+                        model_data["id"] = generate_id(model_data["name"])
 
-                item = model_class(**model_data)
+                    item = model_class(**model_data)
 
-                # Check for duplicates
-                existing = repo.get_by_id(item.id)
-                if existing:
-                    all_errors.append(
-                        f"Sheet '{sheet_name}', row {row_idx}: id '{item.id}' already exists, skipping"
-                    )
-                    continue
+                    # Check for duplicates
+                    existing = repo.get_by_id(item.id)
+                    if existing:
+                        all_errors.append(
+                            f"Sheet '{sheet_name}', row {row_idx}: id '{item.id}' already exists, skipping"
+                        )
+                        continue
 
-                repo.create(item)
-                created += 1
+                    repo.create(item)
+                    created += 1
 
-            except Exception as e:
-                all_errors.append(f"Sheet '{sheet_name}', row {row_idx}: {str(e)}")
+                except Exception as e:
+                    all_errors.append(f"Sheet '{sheet_name}', row {row_idx}: {type(e).__name__}: {str(e)[:200]}")
 
-        sheets_processed.append(sheet_name)
-        summary[sheet_name] = created
-
-    wb.close()
+            sheets_processed.append(sheet_name)
+            summary[sheet_name] = created
+    finally:
+        wb.close()
 
     return ExcelImportResult(
         success=len(sheets_processed) > 0,

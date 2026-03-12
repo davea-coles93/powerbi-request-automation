@@ -1,0 +1,415 @@
+{
+  "knowledge_meta": {
+    "id": "_base",
+    "name": "Universal Discovery Framework",
+    "icon": "🧭",
+    "description": "Industry-agnostic question frameworks, perspective definitions, and cross-perspective connection rules. This pack is always loaded alongside an industry-specific pack."
+  },
+
+  "perspective_definitions": {
+    "financial": {
+      "name": "Financial",
+      "purpose": "Account for and report financial position",
+      "primary_concern": "What's the financial position?",
+      "discovery_approach": "top-down",
+      "discovery_description": "Start with the business questions leadership asks, then trace backwards to the data needed to answer them. Financial discovery defines the DEMAND — what data is needed and why.",
+      "typical_actors": ["CFO", "Finance Director", "Finance Manager", "Controller", "Cost Accountant"],
+      "key_principle": "Every metric must answer a business question. If nobody asks the question, the metric doesn't matter."
+    },
+    "management": {
+      "name": "Management",
+      "purpose": "Measure and monitor performance",
+      "primary_concern": "How are we performing?",
+      "discovery_approach": "middle-out",
+      "discovery_description": "Connect upward to financial metrics and downward to operational data. Management is the MEASUREMENT FUNCTION — it translates operational reality into performance indicators that feed financial decisions.",
+      "typical_actors": ["Operations Manager", "Project Manager", "Team Lead", "Resource Manager", "PMO Lead"],
+      "key_principle": "Management is not a layer — it's a perspective. Every operational area has a management view. The question is: how do we measure if this area is performing well?"
+    },
+    "operational": {
+      "name": "Operational",
+      "purpose": "Execute and record business activities",
+      "primary_concern": "What work is being done?",
+      "discovery_approach": "bottom-up",
+      "discovery_description": "Map what actually happens on the ground — who does what, using which systems, creating what data. Operational discovery reveals the SUPPLY — what data actually exists and where it's born.",
+      "typical_actors": ["Floor Operators", "Developers", "Clerks", "Technicians", "Analysts", "Individual Contributors"],
+      "key_principle": "Data is born at the point of activity. The closer to the activity, the more reliable the data. Every step away introduces delay, interpretation, and potential error."
+    }
+  },
+
+  "financial_discovery": {
+    "phases": [
+      {
+        "id": "fin_business_questions",
+        "name": "Business Questions",
+        "sequence": 1,
+        "description": "Identify the top questions leadership asks about financial performance",
+        "questions": [
+          {
+            "id": "base_fq1",
+            "text": "What are the top 3 financial questions your leadership team asks each period?",
+            "follow_ups": [
+              "How quickly do you need those answers?",
+              "Who asks these questions and in what context (board meeting, monthly review, ad-hoc)?"
+            ],
+            "expected_outputs": ["metrics"],
+            "hints": [
+              "Common: revenue vs target, cost variance, profitability by segment, cash position",
+              "The frequency of asking reveals urgency — daily questions need real-time data, quarterly questions can tolerate month-end cycles"
+            ]
+          },
+          {
+            "id": "base_fq2",
+            "text": "What decisions depend on these financial answers? What happens differently if the answer is good vs bad?",
+            "follow_ups": [
+              "How quickly does a decision need to be made once the data is available?"
+            ],
+            "expected_outputs": ["metrics"],
+            "hints": [
+              "Connect metrics to decisions: 'If margin drops below X, we do Y' — this validates the metric matters",
+              "If no decision changes based on the answer, the metric may not be worth tracking"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "fin_metric_definition",
+        "name": "Metric Definition",
+        "sequence": 2,
+        "description": "Define metrics precisely — what exactly is being measured and how",
+        "questions": [
+          {
+            "id": "base_fq3",
+            "text": "For each question, let's define exactly what we're measuring. What does 'good' look like — what's the target or benchmark?",
+            "follow_ups": [
+              "Is this measured at the total level, or broken down by segment/project/product?"
+            ],
+            "expected_outputs": ["metrics"],
+            "hints": [
+              "A metric without a target is just a number. Targets create context for interpretation",
+              "Segmentation reveals where the insight lives — overall margin may look fine but one segment could be losing money"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "fin_measure_tracing",
+        "name": "Measure Tracing",
+        "sequence": 3,
+        "description": "Trace each metric to the calculations that produce it",
+        "questions": [
+          {
+            "id": "base_fq4",
+            "text": "How do you calculate this metric today? Walk me through the formula — what numbers go in?",
+            "follow_ups": [
+              "Where does each number come from?",
+              "Are there any adjustments or manual steps in the calculation?"
+            ],
+            "expected_outputs": ["measures"],
+            "hints": [
+              "Metrics → Measures → Attributes is the tracing chain",
+              "Manual adjustments often hide important business logic that should be documented",
+              "If the formula is 'it's in an Excel formula somewhere', that's a shadow system"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "fin_data_sourcing",
+        "name": "Data Sourcing",
+        "sequence": 4,
+        "description": "Identify where the raw data lives and how reliable it is",
+        "questions": [
+          {
+            "id": "base_fq5",
+            "text": "For each data point, which system is the source of truth? Is that the same system where people actually maintain the data?",
+            "follow_ups": [
+              "How fresh is this data — real-time, daily, weekly, monthly?",
+              "What happens when the data is wrong — who notices and how is it corrected?"
+            ],
+            "expected_outputs": ["attributes", "systems"],
+            "hints": [
+              "Source of truth ≠ where data is used. The gap between them is where data quality breaks",
+              "Freshness determines how current your metrics can be — you can't have real-time KPIs from monthly data"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+
+  "management_discovery": {
+    "phases": [
+      {
+        "id": "mgmt_monitoring",
+        "name": "Monitoring & KPIs",
+        "sequence": 1,
+        "description": "Understand what managers monitor and how they know things are on track",
+        "questions": [
+          {
+            "id": "base_mq1",
+            "text": "What do you check first thing to know if things are running smoothly? What signals trouble?",
+            "follow_ups": [
+              "How do you currently get this information?",
+              "What's the gap between 'problem happens' and 'you know about it'?"
+            ],
+            "expected_outputs": ["metrics"],
+            "hints": [
+              "The monitoring question reveals what managers actually care about vs what they're told to care about",
+              "Early warning indicators are more valuable than lagging indicators — but harder to define"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "mgmt_connect_up",
+        "name": "Connect Up to Financial",
+        "sequence": 2,
+        "description": "Link management KPIs to the financial outcomes they influence",
+        "questions": [
+          {
+            "id": "base_mq2",
+            "text": "Which of your KPIs have a direct financial impact? If this KPI degrades, what happens to the bottom line?",
+            "follow_ups": [
+              "Can you quantify the financial impact?",
+              "Are there leading indicators that predict financial problems before they show up?"
+            ],
+            "expected_outputs": ["metrics", "measures"],
+            "hints": [
+              "This connection is the value chain: operational excellence → management KPIs → financial outcomes",
+              "Leading indicators (e.g., declining velocity) predict lagging outcomes (e.g., budget overrun)"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "mgmt_connect_down",
+        "name": "Connect Down to Operational",
+        "sequence": 3,
+        "description": "Link management monitoring to the operational data it depends on",
+        "questions": [
+          {
+            "id": "base_mq3",
+            "text": "What data do you need from the people doing the work? What do you chase them for?",
+            "follow_ups": [
+              "How reliable is the data you receive?",
+              "What's the lag between activity and your visibility of it?"
+            ],
+            "expected_outputs": ["attributes"],
+            "hints": [
+              "The 'chase' question reveals data gaps — things managers need but can't easily get",
+              "Reliability and freshness are the two dimensions of data quality from a management perspective"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "mgmt_pain_points",
+        "name": "Pain Points",
+        "sequence": 4,
+        "description": "Identify management pain points and workarounds",
+        "questions": [
+          {
+            "id": "base_mq4",
+            "text": "What's the most time-consuming part of your management role that feels like it should be easier?",
+            "follow_ups": [
+              "How many hours per week does this take?",
+              "Are there Excel spreadsheets you couldn't function without?"
+            ],
+            "expected_outputs": ["processes"],
+            "hints": [
+              "Pain points reveal process improvement opportunities",
+              "Shadow spreadsheets reveal gaps in system capability"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+
+  "operational_discovery": {
+    "phases": [
+      {
+        "id": "ops_systems",
+        "name": "Systems & People",
+        "sequence": 1,
+        "description": "Map the systems and roles involved in daily operations",
+        "questions": [
+          {
+            "id": "base_oq1",
+            "text": "Walk me through a typical day. What systems do people touch, and in what order?",
+            "follow_ups": [
+              "Which systems are essential vs optional?",
+              "How many tool switches happen in a single workflow?"
+            ],
+            "expected_outputs": ["systems"],
+            "hints": [
+              "Tool switches = potential data breaks. 3+ switches in one workflow = high waste",
+              "Systems people skip reveal data gaps downstream"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "ops_data_creation",
+        "name": "Data Creation",
+        "sequence": 2,
+        "description": "Understand where and how data is born at the point of activity",
+        "questions": [
+          {
+            "id": "base_oq2",
+            "text": "When work gets done, how is it recorded? Is the recording automatic or manual?",
+            "follow_ups": [
+              "How quickly is it recorded — real-time, same day, end of week?",
+              "What happens if recording is delayed or missed?"
+            ],
+            "expected_outputs": ["attributes"],
+            "hints": [
+              "Automatic recording = high reliability. Manual = variable. Batch entry = low granularity",
+              "The gap between 'work done' and 'work recorded' is the freshness risk"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "ops_entities",
+        "name": "Entities & Relationships",
+        "sequence": 3,
+        "description": "Identify core business objects and their relationships",
+        "questions": [
+          {
+            "id": "base_oq3",
+            "text": "What are the main 'things' you work with — orders, products, customers, projects, tickets? How do they relate?",
+            "follow_ups": [
+              "Is there a hierarchy — e.g., customer → order → line item?",
+              "Do the same things mean different things to different teams?"
+            ],
+            "expected_outputs": ["entities", "relationships"],
+            "hints": [
+              "Entity identification is the foundation. Get the nouns right first, then the relationships",
+              "If the same entity means different things to different teams — that's a lens, not a new entity"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "ops_pain_points",
+        "name": "Pain Points & Workarounds",
+        "sequence": 4,
+        "description": "Identify operational friction, manual effort, and shadow systems",
+        "questions": [
+          {
+            "id": "base_oq4",
+            "text": "What's the most annoying admin task that takes you away from your real work?",
+            "follow_ups": [
+              "How much time per week does this take?",
+              "If you could fix one data problem, what would it be?"
+            ],
+            "expected_outputs": ["processes"],
+            "hints": [
+              "Admin friction × people × frequency = total waste hours/month",
+              "The 'magic wand' question reveals the highest-impact opportunity"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+
+  "cross_perspective_connections": [
+    {
+      "from": "financial",
+      "to": "operational",
+      "trigger_when": "cost|expense|spend|actuals|raw data|source system",
+      "description": "Financial costs originate from operational data capture. Tracing costs back to their source reveals data quality risks.",
+      "suggested_question": "Where does this cost data originate? Who enters it and in which system?"
+    },
+    {
+      "from": "financial",
+      "to": "management",
+      "trigger_when": "report|variance|budget|forecast|performance",
+      "description": "Financial reports depend on management-curated data like approvals, status updates, and forecasts.",
+      "suggested_question": "What management processes feed this financial report? Is there a handoff or approval step?"
+    },
+    {
+      "from": "management",
+      "to": "operational",
+      "trigger_when": "data quality|late|missing|inaccurate|not updated|stale",
+      "description": "Management data quality issues often stem from operational data capture gaps.",
+      "suggested_question": "Why is this data unreliable — is it a capture problem at the operational level?"
+    },
+    {
+      "from": "management",
+      "to": "financial",
+      "trigger_when": "impact|bottom line|cost of|value of|ROI",
+      "description": "Management insights need financial context to drive decisions.",
+      "suggested_question": "What's the financial impact of this KPI? Can we quantify the cost of poor performance here?"
+    },
+    {
+      "from": "operational",
+      "to": "management",
+      "trigger_when": "nobody looks|not used|why do we|report|dashboard",
+      "description": "Operational data that nobody monitors suggests missing management metrics.",
+      "suggested_question": "Is anyone monitoring this data at a management level? Should they be?"
+    },
+    {
+      "from": "operational",
+      "to": "financial",
+      "trigger_when": "billing|invoice|revenue|payment|cost allocation",
+      "description": "Operational activities directly drive financial transactions.",
+      "suggested_question": "How does this operational activity translate into a financial entry? What's the chain?"
+    }
+  ],
+
+  "waste_categories": {
+    "description": "Standard waste categories for process step classification",
+    "categories": [
+      {
+        "id": "manual_data_entry",
+        "name": "Manual Data Entry",
+        "description": "Information that could be captured automatically but requires human typing",
+        "indicators": ["Re-keying data from one system to another", "Manually filling forms", "Copying values from email/chat into a system"]
+      },
+      {
+        "id": "system_switching",
+        "name": "System Switching",
+        "description": "Tasks that require switching between multiple systems to complete",
+        "indicators": ["Opening 3+ tools for one task", "Copy-paste between applications", "Looking up information in one tool to enter in another"]
+      },
+      {
+        "id": "manual_verification",
+        "name": "Manual Verification",
+        "description": "Checking that data is correct when it could be validated automatically",
+        "indicators": ["Spot-checking calculations", "Reviewing data that came from another system", "Reconciling two sources manually"]
+      },
+      {
+        "id": "waiting_time",
+        "name": "Waiting Time",
+        "description": "Delays caused by approvals, system processing, or data availability",
+        "indicators": ["Waiting for approvals", "Waiting for data refresh", "Waiting for another team's output"]
+      },
+      {
+        "id": "physical_media",
+        "name": "Physical Media",
+        "description": "Paper, printed reports, or physical artifacts that could be digital",
+        "indicators": ["Printing reports for meetings", "Physical sign-off", "Paper forms"]
+      }
+    ]
+  },
+
+  "crystallisation_guide": {
+    "description": "Framework for identifying when data crystallises — becomes a frozen, trusted fact",
+    "key_questions": [
+      "At what point does this data become 'official' — i.e., decisions are made based on it?",
+      "Is there an approval step that locks the data?",
+      "Can the data be changed after it's been used for reporting?",
+      "What process step makes this data go from 'draft/tentative' to 'final/committed'?"
+    ],
+    "common_crystallisation_points": [
+      { "trigger": "Approval", "example": "Timesheet approval crystallises hours for billing" },
+      { "trigger": "Period Close", "example": "Month-end close crystallises financial actuals" },
+      { "trigger": "System Posting", "example": "GL posting crystallises revenue and cost entries" },
+      { "trigger": "Sign-off", "example": "SOW signing crystallises scope, budget, and timeline" },
+      { "trigger": "Cutoff", "example": "Inventory cutoff crystallises stock quantities for valuation" }
+    ]
+  }
+}

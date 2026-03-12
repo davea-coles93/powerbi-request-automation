@@ -40,50 +40,42 @@ class GraphService:
         if not metric:
             return None
 
-        # Get measures that calculate this metric
-        measures = []
+        # Get measures that calculate this metric (batch)
+        direct_measures = self.measures.get_by_ids(metric.calculated_by_measure_ids)
+
+        # Collect chained measure IDs and attribute IDs
+        chained_measure_ids = set()
         all_attribute_ids = set()
-        for measure_id in metric.calculated_by_measure_ids:
-            measure = self.measures.get_by_id(measure_id)
-            if measure:
-                measures.append(measure.model_dump())
-                all_attribute_ids.update(measure.input_attribute_ids)
-                # Also check for chained measures
-                for input_measure_id in measure.input_measure_ids:
-                    input_measure = self.measures.get_by_id(input_measure_id)
-                    if input_measure:
-                        measures.append(input_measure.model_dump())
-                        all_attribute_ids.update(input_measure.input_attribute_ids)
+        for measure in direct_measures:
+            all_attribute_ids.update(measure.input_attribute_ids)
+            chained_measure_ids.update(measure.input_measure_ids)
 
-        # Get attributes
-        attributes_list = []
-        system_ids = set()
-        entity_ids = set()
-        for attr_id in all_attribute_ids:
-            attr = self.attributes.get_by_id(attr_id)
-            if attr:
-                attributes_list.append(attr.model_dump())
-                system_ids.add(attr.system_id)
-                entity_ids.add(attr.entity_id)
+        # Batch-fetch chained measures
+        chained_measures = self.measures.get_by_ids(list(chained_measure_ids))
+        for measure in chained_measures:
+            all_attribute_ids.update(measure.input_attribute_ids)
 
-        # Get systems
-        systems = []
-        for sys_id in system_ids:
-            system = self.systems.get_by_id(sys_id)
-            if system:
-                systems.append(system.model_dump())
+        all_measures = direct_measures + chained_measures
+        seen_ids = set()
+        measures = []
+        for m in all_measures:
+            if m.id not in seen_ids:
+                seen_ids.add(m.id)
+                measures.append(m.model_dump())
 
-        # Get entities
-        entities = []
-        for ent_id in entity_ids:
-            entity = self.entities.get_by_id(ent_id)
-            if entity:
-                entities.append(entity.model_dump())
+        # Get attributes (batch)
+        attributes_batch = self.attributes.get_by_ids(list(all_attribute_ids))
+        system_ids = {attr.system_id for attr in attributes_batch}
+        entity_ids = {attr.entity_id for attr in attributes_batch}
+
+        # Get systems and entities (batch)
+        systems = [s.model_dump() for s in self.systems.get_by_ids(list(system_ids))]
+        entities = [e.model_dump() for e in self.entities.get_by_ids(list(entity_ids))]
 
         return {
             "metric": metric.model_dump(),
             "measures": measures,
-            "attributes": attributes_list,
+            "attributes": [a.model_dump() for a in attributes_batch],
             "systems": systems,
             "entities": entities,
         }
@@ -148,19 +140,11 @@ class GraphService:
             m for m in all_measures if measure_id in m.input_measure_ids
         ]
 
-        # Get attributes this measure depends on
-        depends_on_attributes = []
-        for attr_id in measure.input_attribute_ids:
-            attr = self.attributes.get_by_id(attr_id)
-            if attr:
-                depends_on_attributes.append(attr.model_dump())
+        # Get attributes this measure depends on (batch)
+        depends_on_attributes = [a.model_dump() for a in self.attributes.get_by_ids(measure.input_attribute_ids)]
 
-        # Get other measures this measure depends on
-        depends_on_measures = []
-        for dep_measure_id in measure.input_measure_ids:
-            dep_measure = self.measures.get_by_id(dep_measure_id)
-            if dep_measure:
-                depends_on_measures.append(dep_measure.model_dump())
+        # Get other measures this measure depends on (batch)
+        depends_on_measures = [m.model_dump() for m in self.measures.get_by_ids(measure.input_measure_ids)]
 
         return {
             "measure": measure.model_dump(),
@@ -192,26 +176,15 @@ class GraphService:
         if not step:
             return None
 
-        # Get attributes produced by this step
-        produced_attributes = []
-        for attr_id in step.produces_attribute_ids:
-            attr = self.attributes.get_by_id(attr_id)
-            if attr:
-                produced_attributes.append(attr.model_dump())
+        # Get attributes produced/consumed/crystallized by this step (batch)
+        all_attr_ids = list(set(
+            step.produces_attribute_ids + step.consumes_attribute_ids + step.crystallizes_attribute_ids
+        ))
+        all_attrs_batch = {a.id: a for a in self.attributes.get_by_ids(all_attr_ids)}
 
-        # Get attributes consumed by this step
-        consumed_attributes = []
-        for attr_id in step.consumes_attribute_ids:
-            attr = self.attributes.get_by_id(attr_id)
-            if attr:
-                consumed_attributes.append(attr.model_dump())
-
-        # Get attributes crystallized by this step
-        crystallized_attributes = []
-        for attr_id in step.crystallizes_attribute_ids:
-            attr = self.attributes.get_by_id(attr_id)
-            if attr:
-                crystallized_attributes.append(attr.model_dump())
+        produced_attributes = [all_attrs_batch[aid].model_dump() for aid in step.produces_attribute_ids if aid in all_attrs_batch]
+        consumed_attributes = [all_attrs_batch[aid].model_dump() for aid in step.consumes_attribute_ids if aid in all_attrs_batch]
+        crystallized_attributes = [all_attrs_batch[aid].model_dump() for aid in step.crystallizes_attribute_ids if aid in all_attrs_batch]
 
         # Find measures that use the produced attributes
         all_attribute_ids = set(step.produces_attribute_ids + step.crystallizes_attribute_ids)
@@ -229,22 +202,18 @@ class GraphService:
             if any(measure_id in affected_measure_ids for measure_id in metric.calculated_by_measure_ids):
                 affected_metrics.append(metric.model_dump())
 
-        # Get systems used by this step
-        systems_used = []
-        for system_id in getattr(step, 'systems_used_ids', []):
-            system = self.systems.get_by_id(system_id)
-            if system:
-                systems_used.append(system.model_dump())
+        # Get systems used by this step (batch)
+        systems_used = [s.model_dump() for s in self.systems.get_by_ids(step.systems_used_ids)]
 
         # Build waste analysis
         waste_analysis = None
-        if hasattr(step, 'estimated_duration_minutes') and step.estimated_duration_minutes:
+        if step.estimated_duration_minutes:
             waste_analysis = {
                 "task_duration_minutes": step.estimated_duration_minutes,
-                "automation_potential": getattr(step, 'automation_potential', None),
-                "waste_category": getattr(step, 'waste_category', None),
-                "manual_effort_percentage": getattr(step, 'manual_effort_percentage', None),
-                "is_wasteful": getattr(step, 'automation_potential', None) in ['High', 'Medium'],
+                "automation_potential": step.automation_potential,
+                "waste_category": step.waste_category,
+                "manual_effort_percentage": step.manual_effort_percentage,
+                "is_wasteful": step.automation_potential in ['High', 'Medium'],
             }
 
             # Calculate potential time savings
@@ -280,31 +249,23 @@ class GraphService:
         # Get measures for this perspective
         measures = self.measures.get_by_perspective(perspective_id)
 
-        # Get all attributes referenced by these measures
+        # Get all attributes referenced by these measures (batch)
         attribute_ids = set()
         for measure in measures:
             attribute_ids.update(measure.input_attribute_ids)
 
-        attributes_list = []
-        for attr_id in attribute_ids:
-            attr = self.attributes.get_by_id(attr_id)
-            if attr:
-                attributes_list.append(attr)
+        attributes_list = self.attributes.get_by_ids(list(attribute_ids))
 
-        # Get entities from attributes
+        # Get entities from attributes (batch)
         entity_ids = {attr.entity_id for attr in attributes_list}
-        entities = []
-        for ent_id in entity_ids:
-            entity = self.entities.get_by_id(ent_id)
-            if entity:
-                entities.append(entity)
+        entities = self.entities.get_by_ids(list(entity_ids))
 
         # Get process steps for this perspective
         process_steps = []
         for process in self.processes.get_all():
             for step in process.steps:
                 if step.perspective_id == perspective_id:
-                    step_dict = step.model_dump() if hasattr(step, 'model_dump') else step
+                    step_dict = step.model_dump()
                     step_with_process = {**step_dict, "process_id": process.id, "process_name": process.name}
                     process_steps.append(step_with_process)
 
@@ -328,13 +289,9 @@ class GraphService:
         # Get attributes for this entity
         attributes_list = self.attributes.get_by_entity(entity_id)
 
-        # Get systems from attributes
+        # Get systems from attributes (batch)
         system_ids = {attr.system_id for attr in attributes_list}
-        systems = []
-        for sys_id in system_ids:
-            system = self.systems.get_by_id(sys_id)
-            if system:
-                systems.append(system)
+        systems = self.systems.get_by_ids(list(system_ids))
 
         return {
             "entity": entity.model_dump(),
@@ -366,17 +323,17 @@ class GraphService:
 
         # If parent_step_id is specified, only show its sub-steps
         if parent_step_id:
-            steps_to_show = [s for s in process.steps if getattr(s, 'parent_step_id', None) == parent_step_id]
+            steps_to_show = [s for s in process.steps if s.parent_step_id == parent_step_id]
         # Otherwise, if perspective_level is specified, filter by level and show only top-level steps
         elif perspective_level:
             steps_to_show = [
                 s for s in process.steps
-                if getattr(s, 'perspective_level', 'financial') == perspective_level
-                and not getattr(s, 'parent_step_id', None)
+                if s.perspective_level == perspective_level
+                and not s.parent_step_id
             ]
         else:
             # Default: show only top-level steps (no parent)
-            steps_to_show = [s for s in process.steps if not getattr(s, 'parent_step_id', None)]
+            steps_to_show = [s for s in process.steps if not s.parent_step_id]
 
         for step in steps_to_show:
             nodes.append({
@@ -384,17 +341,16 @@ class GraphService:
                 "label": step.name,
                 "sequence": step.sequence,
                 "perspective_id": step.perspective_id,
-                "actor": getattr(step, "actor", None),
-                "has_sub_steps": getattr(step, "has_sub_steps", False),
-                "perspective_level": getattr(step, "perspective_level", "financial"),
-                "estimated_duration_minutes": getattr(step, "estimated_duration_minutes", None),
-                "automation_potential": getattr(step, "automation_potential", None),
-                "waste_category": getattr(step, "waste_category", None),
-                "manual_effort_percentage": getattr(step, "manual_effort_percentage", None),
-                "systems_used_ids": getattr(step, "systems_used_ids", []),
-                "consumes_attribute_ids": getattr(step, "consumes_attribute_ids", []),
-                "produces_attribute_ids": getattr(step, "produces_attribute_ids", []),
-                "uses_metric_ids": getattr(step, "uses_metric_ids", []),
+                "actor": step.actor,
+                "has_sub_steps": step.has_sub_steps,
+                "estimated_duration_minutes": step.estimated_duration_minutes,
+                "automation_potential": step.automation_potential,
+                "waste_category": step.waste_category,
+                "manual_effort_percentage": step.manual_effort_percentage,
+                "systems_used_ids": step.systems_used_ids,
+                "consumes_attribute_ids": step.consumes_attribute_ids,
+                "produces_attribute_ids": step.produces_attribute_ids,
+                "uses_metric_ids": step.uses_metric_ids,
             })
 
             # Create edges for dependencies
@@ -422,16 +378,18 @@ class GraphService:
         if not process:
             return None
 
+        # Collect all crystallized attribute IDs and batch-fetch
+        all_cryst_ids = set()
+        for step in process.steps:
+            all_cryst_ids.update(step.crystallizes_attribute_ids)
+        attr_map = {a.id: a for a in self.attributes.get_by_ids(list(all_cryst_ids))}
+
         crystallization_map = []
 
         for step in process.steps:
             crystallizes = step.crystallizes_attribute_ids
             if crystallizes:
-                crystallized_attrs = []
-                for attr_id in crystallizes:
-                    attr = self.attributes.get_by_id(attr_id)
-                    if attr:
-                        crystallized_attrs.append(attr)
+                crystallized_attrs = [attr_map[aid] for aid in crystallizes if aid in attr_map]
                 crystallization_map.append({
                     "step_id": step.id,
                     "step_name": step.name,
@@ -458,13 +416,27 @@ class GraphService:
         if not measure:
             return None
 
-        # Build Power BI source mappings from input attributes
-        power_bi_sources = []
+        # Build Power BI source mappings from input attributes (batch)
         consumed_attr_ids = set(measure.input_attribute_ids)
 
-        for attr_id in measure.input_attribute_ids:
-            attr = self.attributes.get_by_id(attr_id)
+        # Also collect attribute IDs from chained measures
+        input_measures = self.measures.get_by_ids(measure.input_measure_ids)
+        for input_measure in input_measures:
+            consumed_attr_ids.update(input_measure.input_attribute_ids)
+
+        # Batch-fetch all needed attributes
+        all_attrs = {a.id: a for a in self.attributes.get_by_ids(list(consumed_attr_ids))}
+
+        power_bi_sources = []
+        seen_attr_ids = set()
+        for attr_id in list(measure.input_attribute_ids) + [
+            aid for im in input_measures for aid in im.input_attribute_ids
+        ]:
+            if attr_id in seen_attr_ids:
+                continue
+            attr = all_attrs.get(attr_id)
             if attr and (attr.source_table or attr.source_column):
+                seen_attr_ids.add(attr_id)
                 power_bi_sources.append({
                     "attribute_id": attr.id,
                     "attribute_name": attr.name,
@@ -472,23 +444,6 @@ class GraphService:
                     "source_column": attr.source_column,
                     "entity_id": attr.entity_id,
                 })
-
-        # Also check input measures (chained) for their attributes
-        for input_measure_id in measure.input_measure_ids:
-            input_measure = self.measures.get_by_id(input_measure_id)
-            if input_measure:
-                for attr_id in input_measure.input_attribute_ids:
-                    consumed_attr_ids.add(attr_id)
-                    attr = self.attributes.get_by_id(attr_id)
-                    if attr and (attr.source_table or attr.source_column):
-                        if not any(s["attribute_id"] == attr.id for s in power_bi_sources):
-                            power_bi_sources.append({
-                                "attribute_id": attr.id,
-                                "attribute_name": attr.name,
-                                "source_table": attr.source_table,
-                                "source_column": attr.source_column,
-                                "entity_id": attr.entity_id,
-                            })
 
         # Find process steps that produce or crystallize attributes this measure consumes
         connected_steps = []
@@ -498,19 +453,18 @@ class GraphService:
                 crystallized = set(step.crystallizes_attribute_ids)
                 shared = consumed_attr_ids & (produced | crystallized)
                 if shared:
-                    shared_attrs = []
-                    for aid in shared:
-                        a = self.attributes.get_by_id(aid)
-                        if a:
-                            shared_attrs.append({"id": a.id, "name": a.name})
+                    shared_attrs = [
+                        {"id": all_attrs[aid].id, "name": all_attrs[aid].name}
+                        for aid in shared if aid in all_attrs
+                    ]
                     connected_steps.append({
                         "process_id": process.id,
                         "process_name": process.name,
                         "step_id": step.id,
                         "step_name": step.name,
                         "shared_attributes": shared_attrs,
-                        "manual_effort_percentage": getattr(step, "manual_effort_percentage", None),
-                        "waste_category": getattr(step, "waste_category", None),
+                        "manual_effort_percentage": step.manual_effort_percentage,
+                        "waste_category": step.waste_category,
                     })
 
         return {
@@ -640,3 +594,264 @@ class GraphService:
                 ))
 
         return gaps
+
+    # ── Crystallisation Pathway Engine ───────────────────────────
+    #
+    # NOTE: Pathway backward-walks follow depends_on_step_ids within a single
+    # process only. Cross-process dependencies (e.g. an attribute produced in
+    # Process A that is consumed in Process B) are not currently traced as a
+    # single connected chain. Each process is analysed independently.
+
+    def get_crystallisation_pathways(self, attribute_id: str) -> dict | None:
+        """
+        Get all crystallisation pathways for an attribute.
+
+        For a given attribute, finds every process step that crystallises or
+        produces it, walks backward through step dependencies to collect the
+        contributing chain, and rolls up cost stats per pathway.
+        """
+        attribute = self.attributes.get_by_id(attribute_id)
+        if not attribute:
+            return None
+
+        all_processes = self.processes.get_all()
+        pathways = []
+
+        for process in all_processes:
+            # Build step lookup for backward walking
+            step_map = {s.id: s for s in process.steps}
+
+            for step in process.steps:
+                crystallises = attribute_id in step.crystallizes_attribute_ids
+                produces = attribute_id in step.produces_attribute_ids
+                if not crystallises and not produces:
+                    continue
+
+                # Walk backward through depends_on_step_ids to collect chain
+                contributing_steps = []
+                visited = set()
+                queue = [step.id]
+                while queue:
+                    sid = queue.pop(0)
+                    if sid in visited:
+                        continue
+                    visited.add(sid)
+                    s = step_map.get(sid)
+                    if s:
+                        contributing_steps.append(s)
+                        for dep_id in s.depends_on_step_ids:
+                            if dep_id not in visited and dep_id in step_map:
+                                queue.append(dep_id)
+
+                # Sort by sequence
+                contributing_steps.sort(key=lambda s: s.sequence)
+
+                # Roll up stats
+                total_duration = 0
+                weighted_manual_sum = 0
+                total_weighted_duration = 0
+                all_system_ids = set()
+                waste_cats = set()
+
+                for cs in contributing_steps:
+                    dur = cs.estimated_duration_minutes or 0
+                    total_duration += dur
+                    manual = cs.manual_effort_percentage
+                    if manual is not None and dur > 0:
+                        weighted_manual_sum += manual * dur
+                        total_weighted_duration += dur
+                    for sid in cs.systems_used_ids:
+                        all_system_ids.add(sid)
+                    if cs.waste_category:
+                        waste_cats.add(cs.waste_category)
+
+                weighted_manual_pct = (
+                    round(weighted_manual_sum / total_weighted_duration)
+                    if total_weighted_duration > 0 else 0
+                )
+
+                # Resolve system names
+                systems_involved = []
+                for sid in all_system_ids:
+                    system = self.systems.get_by_id(sid)
+                    if system:
+                        systems_involved.append({"id": system.id, "name": system.name})
+
+                pathways.append({
+                    "process_id": process.id,
+                    "process_name": process.name,
+                    "crystallising_step": step.model_dump(),
+                    "contributing_steps": [s.model_dump() for s in contributing_steps],
+                    "total_duration_minutes": total_duration,
+                    "weighted_manual_effort_pct": weighted_manual_pct,
+                    "system_switch_count": max(0, len(all_system_ids) - 1),
+                    "systems_involved": systems_involved,
+                    "waste_categories": sorted(waste_cats),
+                    "crystallises": crystallises,
+                    "produces": produces,
+                })
+
+        return {
+            "attribute": attribute.model_dump(),
+            "pathways": pathways,
+        }
+
+    def get_business_question_cost(self, metric_id: str) -> dict | None:
+        """
+        Get total crystallisation cost for answering a business question.
+
+        Traces metric → measures → attributes, then computes crystallisation
+        cost for each attribute and aggregates totals.
+        """
+        trace = self.trace_metric(metric_id)
+        if not trace:
+            return None
+
+        attribute_costs = []
+        total_duration = 0
+        total_weighted_manual_sum = 0
+        total_weighted_duration = 0
+        total_system_switches = 0
+        all_waste_cats = set()
+
+        for attr_dict in trace["attributes"]:
+            attr_id = attr_dict["id"]
+            pathways_result = self.get_crystallisation_pathways(attr_id)
+            pathways = pathways_result["pathways"] if pathways_result else []
+
+            attr_duration = sum(p["total_duration_minutes"] for p in pathways)
+            attr_manual_sum = sum(
+                p["weighted_manual_effort_pct"] * p["total_duration_minutes"]
+                for p in pathways if p["total_duration_minutes"] > 0
+            )
+            attr_weighted_dur = sum(
+                p["total_duration_minutes"] for p in pathways
+                if p["total_duration_minutes"] > 0
+            )
+            attr_switches = sum(p["system_switch_count"] for p in pathways)
+            attr_waste = set()
+            for p in pathways:
+                attr_waste.update(p["waste_categories"])
+
+            attribute_costs.append({
+                "attribute": attr_dict,
+                "pathways": pathways,
+                "total_duration_minutes": attr_duration,
+                "weighted_manual_effort_pct": (
+                    round(attr_manual_sum / attr_weighted_dur)
+                    if attr_weighted_dur > 0 else 0
+                ),
+                "system_switch_count": attr_switches,
+                "waste_categories": sorted(attr_waste),
+            })
+
+            total_duration += attr_duration
+            total_weighted_manual_sum += attr_manual_sum
+            total_weighted_duration += attr_weighted_dur
+            total_system_switches += attr_switches
+            all_waste_cats.update(attr_waste)
+
+        return {
+            "metric": trace["metric"],
+            "attribute_costs": attribute_costs,
+            "totals": {
+                "total_duration_minutes": total_duration,
+                "weighted_manual_effort_pct": (
+                    round(total_weighted_manual_sum / total_weighted_duration)
+                    if total_weighted_duration > 0 else 0
+                ),
+                "total_system_switches": total_system_switches,
+                "waste_categories": sorted(all_waste_cats),
+                "attribute_count": len(attribute_costs),
+            },
+        }
+
+    def get_lineage_with_costs(self) -> dict:
+        """
+        Get full lineage graph with crystallisation cost annotations.
+
+        Returns all metrics, measures, attributes, entities, systems plus a
+        crystallisation_costs map keyed by attribute_id with rolled-up stats.
+        """
+        all_metrics = self.metrics.get_all()
+        all_measures = self.measures.get_all()
+        all_attributes = self.attributes.get_all()
+        all_entities = self.entities.get_all()
+        all_systems = self.systems.get_all()
+        all_processes = self.processes.get_all()
+
+        # Pre-compute crystallisation costs for all attributes in one pass
+        # Build a map: attribute_id → list of (process, step) that crystallise/produce it
+        attr_step_map: dict[str, list[tuple]] = {}
+        step_maps: dict[str, dict] = {}
+
+        for process in all_processes:
+            s_map = {s.id: s for s in process.steps}
+            step_maps[process.id] = s_map
+            for step in process.steps:
+                for attr_id in step.crystallizes_attribute_ids + step.produces_attribute_ids:
+                    if attr_id not in attr_step_map:
+                        attr_step_map[attr_id] = []
+                    attr_step_map[attr_id].append((process, step))
+
+        crystallisation_costs = {}
+
+        for attr in all_attributes:
+            entries = attr_step_map.get(attr.id, [])
+            if not entries:
+                continue
+
+            total_duration = 0
+            weighted_manual_sum = 0
+            total_weighted_dur = 0
+            all_sys_ids = set()
+            waste_cats = set()
+            process_names = set()
+
+            for process, step in entries:
+                # Walk backward to collect contributing chain
+                s_map = step_maps[process.id]
+                visited = set()
+                queue = [step.id]
+                while queue:
+                    sid = queue.pop(0)
+                    if sid in visited:
+                        continue
+                    visited.add(sid)
+                    s = s_map.get(sid)
+                    if s:
+                        dur = s.estimated_duration_minutes or 0
+                        total_duration += dur
+                        manual = s.manual_effort_percentage
+                        if manual is not None and dur > 0:
+                            weighted_manual_sum += manual * dur
+                            total_weighted_dur += dur
+                        for sys_id in s.systems_used_ids:
+                            all_sys_ids.add(sys_id)
+                        if s.waste_category:
+                            waste_cats.add(s.waste_category)
+                        for dep_id in s.depends_on_step_ids:
+                            if dep_id not in visited and dep_id in s_map:
+                                queue.append(dep_id)
+
+                process_names.add(process.name)
+
+            crystallisation_costs[attr.id] = {
+                "total_duration_minutes": total_duration,
+                "weighted_manual_effort_pct": (
+                    round(weighted_manual_sum / total_weighted_dur)
+                    if total_weighted_dur > 0 else 0
+                ),
+                "system_switch_count": max(0, len(all_sys_ids) - 1),
+                "waste_categories": sorted(waste_cats),
+                "process_names": sorted(process_names),
+            }
+
+        return {
+            "metrics": [m.model_dump() for m in all_metrics],
+            "measures": [m.model_dump() for m in all_measures],
+            "attributes": [a.model_dump() for a in all_attributes],
+            "entities": [e.model_dump() for e in all_entities],
+            "systems": [s.model_dump() for s in all_systems],
+            "crystallisation_costs": crystallisation_costs,
+        }

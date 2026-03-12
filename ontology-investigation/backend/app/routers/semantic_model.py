@@ -1,6 +1,10 @@
 """API endpoints for semantic model management."""
+import io
+import zipfile
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from starlette.responses import StreamingResponse
 from typing import List
 
 from app.db.database import get_db
@@ -11,6 +15,8 @@ from app.models.semantic_model import (
     DAXExport,
 )
 from app.services.semantic_model_service import SemanticModelService
+from app.services.tmdl_export_service import generate_tmdl_export
+from app.services.fabric_ontology_export_service import generate_fabric_ontology_export
 
 router = APIRouter(prefix="/api/semantic-model", tags=["semantic-model"])
 
@@ -65,4 +71,59 @@ def get_mapping_status(db: Session = Depends(get_db)):
     """Get gap analysis of ontology-to-semantic-model mapping."""
     service = SemanticModelService(db)
     return service.analyze_mapping_gaps()
+
+
+@router.get("/export-tmdl")
+def export_tmdl(db: Session = Depends(get_db)):
+    """Export the recommended semantic model as a downloadable TMDL zip file."""
+    tmdl_files = generate_tmdl_export(db)
+
+    # Create in-memory zip
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for filepath, content in sorted(tmdl_files.items()):
+            zf.writestr(filepath, content)
+    buffer.seek(0)
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": "attachment; filename=ontology_model.zip"
+        },
+    )
+
+
+@router.get("/export-fabric-ontology")
+def export_fabric_ontology(
+    name: str = "BusinessOntology",
+    db: Session = Depends(get_db),
+):
+    """Export the ontology as a Microsoft Fabric IQ Ontology definition zip.
+
+    The zip follows Fabric's folder structure:
+      .platform, definition.json, EntityTypes/*/definition.json,
+      RelationshipTypes/*/definition.json
+    """
+    fabric_files = generate_fabric_ontology_export(db, ontology_name=name)
+
+    if not fabric_files:
+        raise HTTPException(
+            status_code=404,
+            detail="No entities found — nothing to export.",
+        )
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for filepath, content in sorted(fabric_files.items()):
+            zf.writestr(filepath, content)
+    buffer.seek(0)
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": "attachment; filename=fabric_ontology.zip"
+        },
+    )
 

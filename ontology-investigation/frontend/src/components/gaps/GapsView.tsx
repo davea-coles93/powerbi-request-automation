@@ -14,6 +14,7 @@ import {
   useMaterializeElement,
 } from '../../hooks/useOntology';
 import { StepLineageDrawer } from '../StepLineageDrawer';
+import { BusinessQuestionCostCards } from './BusinessQuestionCostCards';
 import { EfficiencySummaryCards } from './EfficiencySummaryCards';
 import { AutomationOpportunities } from './AutomationOpportunities';
 import { AnnualROISummary } from './AnnualROISummary';
@@ -202,6 +203,8 @@ export function GapsView() {
           </div>
         </div>
 
+        <BusinessQuestionCostCards />
+
         <EfficiencySummaryCards efficiency={efficiency} />
 
         <AutomationOpportunities
@@ -254,7 +257,7 @@ export function GapsView() {
                             className="accent-purple-600"
                           />
                           <span className="text-gray-700 truncate">{s.name}</span>
-                          <span className="text-xs text-gray-400 ml-auto flex-shrink-0">{s.date}</span>
+                          <span className="text-xs text-gray-500 ml-auto flex-shrink-0">{s.date}</span>
                         </label>
                       ))}
                     </div>

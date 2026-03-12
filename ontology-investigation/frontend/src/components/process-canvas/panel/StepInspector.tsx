@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Lock, ExternalLink, Copy, Trash2, Pencil } from 'lucide-react';
 import { ConfirmDeleteDialog } from '../../ConfirmDeleteDialog';
+import { PropertyRow } from '../../shared/PropertyRow';
 import { useCanvasStore } from '../hooks/useCanvasStore';
 import { useProcessData } from '../hooks/useProcessData';
 import { perspectiveLabels, automationColors } from '../nodes/perspectiveConfig';
@@ -260,15 +261,6 @@ export function StepInspector() {
         }}
         onCancel={() => setShowDeleteConfirm(false)}
       />
-    </div>
-  );
-}
-
-function PropertyRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between text-sm">
-      <span className="text-gray-500">{label}</span>
-      <span className="text-gray-700 font-medium">{value}</span>
     </div>
   );
 }

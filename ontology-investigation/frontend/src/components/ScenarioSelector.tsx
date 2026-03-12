@@ -1,11 +1,16 @@
-import { useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Trash2, Download, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useQueryClient } from '@tanstack/react-query';
 import { useScenarioStatus, useLoadScenario, useClearWorkspace } from '../hooks/useOntology';
+import { exportOntology, importOntology } from '../services/api';
 
 export function ScenarioSelector() {
   const [isOpen, setIsOpen] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
   const { data: status, isLoading } = useScenarioStatus();
   const loadScenario = useLoadScenario();
   const clearWorkspace = useClearWorkspace();
@@ -36,12 +41,41 @@ export function ScenarioSelector() {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      await exportOntology();
+      toast.success('Ontology exported');
+    } catch (error) {
+      console.error('Failed to export ontology:', error);
+      toast.error('Failed to export ontology');
+    }
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const result = await importOntology(file);
+      toast.success(result.message);
+      queryClient.invalidateQueries();
+      setIsOpen(false);
+    } catch (error) {
+      console.error('Failed to import ontology:', error);
+      toast.error('Failed to import ontology');
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   if (isLoading || !status) {
     return null;
   }
 
   const currentScenario = status.available_scenarios.find(s => s.id === status.current_scenario);
-  const isBusy = loadScenario.isPending || clearWorkspace.isPending;
+  const isBusy = loadScenario.isPending || clearWorkspace.isPending || isImporting;
 
   return (
     <div className="relative">
@@ -53,7 +87,7 @@ export function ScenarioSelector() {
         <span className="text-lg">{currentScenario?.icon || (status.current_scenario === null ? '📄' : '🏭')}</span>
         <div className="flex flex-col items-start">
           <span className="text-xs text-gray-500 font-medium">Scenario</span>
-          <span className="text-sm font-semibold text-gray-900">
+          <span className="text-sm font-semibold text-gray-900 max-w-[180px] truncate">
             {currentScenario?.name || (status.current_scenario === null ? 'Custom Workspace' : 'Select Scenario')}
           </span>
         </div>
@@ -118,6 +152,42 @@ export function ScenarioSelector() {
                   </button>
                 );
               })}
+
+              {/* Divider + Save / Restore */}
+              <div className="my-2 border-t border-gray-200" />
+
+              <button
+                onClick={handleExport}
+                disabled={isBusy}
+                className="w-full text-left p-3 rounded-lg hover:bg-blue-50 text-gray-600 hover:text-blue-700 transition-colors flex items-center gap-3"
+              >
+                <Download className="w-4 h-4" />
+                <div>
+                  <span className="text-sm font-medium">Save Ontology</span>
+                  <p className="text-xs text-gray-400">Export current state as JSON</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isBusy || isImporting}
+                className="w-full text-left p-3 rounded-lg hover:bg-blue-50 text-gray-600 hover:text-blue-700 transition-colors flex items-center gap-3"
+              >
+                <Upload className="w-4 h-4" />
+                <div>
+                  <span className="text-sm font-medium">
+                    {isImporting ? 'Importing...' : 'Restore Ontology'}
+                  </span>
+                  <p className="text-xs text-gray-400">Load from a saved JSON file</p>
+                </div>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                className="hidden"
+                onChange={handleImportFile}
+              />
 
               {/* Divider + Clear Workspace */}
               <div className="my-2 border-t border-gray-200" />

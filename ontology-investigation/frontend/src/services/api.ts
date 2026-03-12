@@ -38,6 +38,9 @@ import type {
   MaterializeResult,
   ProcessProposal,
   MaterializeProcessResult,
+  AttributeCrystallisationPathways,
+  BusinessQuestionCost,
+  LineageWithCosts,
 } from '../types/ontology';
 
 const api = axios.create({
@@ -205,8 +208,38 @@ export const getSemanticTable = (tableId: string) =>
 export const getMappingStatus = () =>
   api.get<MappingStatus>('/semantic-model/mapping-status').then((res) => res.data);
 
+export const exportTmdl = async () => {
+  const response = await api.get('/semantic-model/export-tmdl', {
+    responseType: 'blob',
+  });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', 'ontology_model.zip');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
+
 export const exportTableDAX = (tableId: string) =>
   api.get(`/semantic-model/tables/${tableId}/export-dax`).then((res) => res.data);
+
+export const exportFabricOntology = async (name?: string) => {
+  const params = name ? { name } : {};
+  const response = await api.get('/semantic-model/export-fabric-ontology', {
+    responseType: 'blob',
+    params,
+  });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', 'fabric_ontology.zip');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
 
 // Scenarios endpoints
 export const getScenarioStatus = () =>
@@ -222,6 +255,16 @@ export const analyzeImpact = (attributeId: string) =>
 // Measure usage
 export const getMeasureUsage = (measureId: string) =>
   api.get(`/graph/measure/${measureId}/usage`).then((res) => res.data);
+
+// Crystallisation pathway queries
+export const getCrystallisationPathways = (attributeId: string) =>
+  api.get<AttributeCrystallisationPathways>(`/graph/attribute/${attributeId}/crystallisation-pathways`).then((res) => res.data);
+
+export const getBusinessQuestionCost = (metricId: string) =>
+  api.get<BusinessQuestionCost>(`/graph/metric/${metricId}/total-cost`).then((res) => res.data);
+
+export const getLineageWithCosts = () =>
+  api.get<LineageWithCosts>('/graph/lineage-with-costs').then((res) => res.data);
 
 // TMDL Ingestion endpoints
 export const listAvailableModels = () =>
@@ -320,6 +363,30 @@ export const importTemplate = (id: string) =>
 // Clear workspace
 export const clearWorkspace = () =>
   api.post<{ success: boolean; message: string }>('/scenarios/clear').then((res) => res.data);
+
+// Ontology save / restore
+export const exportOntology = async () => {
+  const response = await api.get('/scenarios/export', { responseType: 'blob' });
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', 'ontology_export.json');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
+
+export const importOntology = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post<{ success: boolean; message: string; counts: Record<string, number> }>(
+    '/scenarios/import',
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return response.data;
+};
 
 // Workshop AI endpoints
 export const workshopAIChatStream = async (
@@ -494,6 +561,94 @@ export const gapAIAnalyzeStream = async (
         }
       } catch {
         // skip malformed lines
+      }
+    }
+  }
+  onDone();
+};
+
+// ── Guided Discovery ───────────────────────────────────────────────────────
+
+export const getKnowledgePacks = () =>
+  api.get('/ai/discovery/knowledge').then((res) => res.data);
+
+export const startDiscoverySession = (perspective: string, industry: string) =>
+  api.post('/ai/discovery/sessions', { perspective, industry }).then((res) => res.data);
+
+export const getDiscoverySession = (sessionId: string) =>
+  api.get(`/ai/discovery/sessions/${sessionId}`).then((res) => res.data);
+
+export const skipDiscoveryQuestion = (sessionId: string) =>
+  api.post(`/ai/discovery/sessions/${sessionId}/skip`).then((res) => res.data);
+
+export const goBackDiscoveryQuestion = (sessionId: string) =>
+  api.post(`/ai/discovery/sessions/${sessionId}/back`).then((res) => res.data);
+
+export const captureDiscoveryElements = (sessionId: string, proposals: WorkshopProposals) =>
+  api.post(`/ai/discovery/sessions/${sessionId}/capture`, { proposals }).then((res) => res.data);
+
+export const materializeDiscoverySession = (sessionId: string) =>
+  api.post(`/ai/discovery/sessions/${sessionId}/materialize`).then((res) => res.data);
+
+export const getDiscoverySummary = (sessionId: string) =>
+  api.get(`/ai/discovery/sessions/${sessionId}/summary`).then((res) => res.data);
+
+export const discoveryAIChatStream = async (
+  sessionId: string,
+  message: string,
+  onText: (text: string) => void,
+  onDone: () => void,
+  onError: (error: string) => void,
+  onSessionUpdate?: (session: any) => void,
+  signal?: AbortSignal,
+) => {
+  const response = await fetch(`/api/ai/discovery/sessions/${sessionId}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message }),
+    signal,
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ detail: response.statusText }));
+    onError(err.detail || 'Discovery chat request failed');
+    return;
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    onError('No response stream');
+    return;
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      try {
+        const payload = JSON.parse(line.slice(6));
+        if (payload.type === 'text') {
+          onText(payload.content);
+        } else if (payload.type === 'session_update') {
+          onSessionUpdate?.(payload.session);
+        } else if (payload.type === 'done') {
+          onDone();
+          return;
+        } else if (payload.type === 'error') {
+          onError(payload.content);
+          return;
+        }
+      } catch {
+        // skip malformed SSE lines
       }
     }
   }

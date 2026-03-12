@@ -1,6 +1,55 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Database, Columns, Calculator, Link2, AlertTriangle } from 'lucide-react';
+import { ChevronDown, ChevronRight, Database, Columns, Calculator, Link2, AlertTriangle, Copy, Check, Code } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useRecommendedSchema, type RecommendedTable } from '../hooks/useRecommendedSchema';
+import { generateDAXScript } from '../../../utils/daxExport';
+
+function CopyDAXButton({ table }: { table: RecommendedTable }) {
+  const [copied, setCopied] = useState(false);
+
+  if (table.measures.length === 0) return null;
+
+  const handleCopy = async () => {
+    const script = generateDAXScript(table);
+    await navigator.clipboard.writeText(script);
+    setCopied(true);
+    toast.success(`DAX for ${table.name} copied to clipboard`);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); handleCopy(); }}
+      className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+      title="Copy DAX measures to clipboard"
+    >
+      {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+      {copied ? 'Copied' : 'Copy DAX'}
+    </button>
+  );
+}
+
+function FormulaStatusBadge({ formula }: { formula?: string }) {
+  if (!formula) {
+    return (
+      <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600 font-medium">
+        No DAX
+      </span>
+    );
+  }
+  if (formula.startsWith('TODO:')) {
+    return (
+      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">
+        Placeholder
+      </span>
+    );
+  }
+  return (
+    <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium">
+      <Code className="w-2.5 h-2.5 inline -mt-px mr-0.5" />DAX
+    </span>
+  );
+}
 
 export function RecommendedTablesView() {
   const { tables, relationships, coverage, isLoading } = useRecommendedSchema();
@@ -235,14 +284,18 @@ function TableCard({ table, allTables, isExpanded, onToggle }: {
           {/* DAX Measures */}
           {table.measures.length > 0 && (
             <div>
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
-                <Calculator className="w-3 h-3" /> DAX Measures ({table.measures.length})
-              </h4>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                  <Calculator className="w-3 h-3" /> DAX Measures ({table.measures.length})
+                </h4>
+                <CopyDAXButton table={table} />
+              </div>
               <div className="grid gap-1">
                 {table.measures.map((m) => (
                   <div key={m.id} className="px-2 py-1.5 rounded bg-gray-50">
                     <div className="flex items-center gap-2 text-sm">
                       <span className="font-mono text-gray-800 flex-1">{m.name}</span>
+                      <FormulaStatusBadge formula={m.formula} />
                       {m.metricIds.length > 0 && (
                         <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
                           {m.metricIds.length} metric{m.metricIds.length !== 1 ? 's' : ''}

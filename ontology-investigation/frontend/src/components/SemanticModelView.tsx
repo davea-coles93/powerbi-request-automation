@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { Layers, Table2, AlertTriangle, X, Columns, Calculator, Link2, Upload } from 'lucide-react';
+import { Layers, Table2, AlertTriangle, X, Columns, Calculator, Link2, Upload, Download, Copy, Check, Code } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { StarSchemaView, RecommendedTablesView, useRecommendedSchema } from './semantic-model';
 import { GapAnalysisDashboard } from './GapAnalysisDashboard';
 import { useMappingStatus } from '../hooks/useOntology';
+import { exportTmdl, exportFabricOntology } from '../services/api';
+import { generateDAXScript } from '../utils/daxExport';
 import type { RecommendedTable } from './semantic-model';
 
 interface SemanticModelViewProps {
@@ -150,9 +153,9 @@ export function SemanticModelView({ onImportTmdl }: SemanticModelViewProps) {
           </div>
         )}
 
-        {/* Import button */}
-        {onImportTmdl && (
-          <div className="px-4 py-4 border-t border-gray-100">
+        {/* Import / Export buttons */}
+        <div className="px-4 py-4 border-t border-gray-100 space-y-2">
+          {onImportTmdl && (
             <button
               onClick={onImportTmdl}
               className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-all"
@@ -160,8 +163,26 @@ export function SemanticModelView({ onImportTmdl }: SemanticModelViewProps) {
               <Upload className="w-4 h-4" />
               Import from Power BI
             </button>
-          </div>
-        )}
+          )}
+          <button
+            onClick={() => {
+              exportTmdl().catch((err) => console.error('TMDL export failed:', err));
+            }}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-all"
+          >
+            <Download className="w-4 h-4" />
+            Export TMDL
+          </button>
+          <button
+            onClick={() => {
+              exportFabricOntology().catch((err) => console.error('Fabric ontology export failed:', err));
+            }}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-violet-600 bg-violet-50 hover:bg-violet-100 transition-all"
+          >
+            <Download className="w-4 h-4" />
+            Export Fabric Ontology
+          </button>
+        </div>
       </div>
 
       {/* Main content */}
@@ -203,6 +224,53 @@ function CoverageBar({ label, mapped, total }: { label: string; mapped: number; 
   );
 }
 
+function CopyDAXButton({ table }: { table: RecommendedTable }) {
+  const [copied, setCopied] = useState(false);
+
+  if (table.measures.length === 0) return null;
+
+  const handleCopy = async () => {
+    const script = generateDAXScript(table);
+    await navigator.clipboard.writeText(script);
+    setCopied(true);
+    toast.success(`DAX for ${table.name} copied to clipboard`);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+      title="Copy DAX measures to clipboard"
+    >
+      {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+      {copied ? 'Copied' : 'Copy DAX'}
+    </button>
+  );
+}
+
+function FormulaStatusBadge({ formula }: { formula?: string }) {
+  if (!formula) {
+    return (
+      <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600 font-medium">
+        No DAX
+      </span>
+    );
+  }
+  if (formula.startsWith('TODO:')) {
+    return (
+      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">
+        Placeholder
+      </span>
+    );
+  }
+  return (
+    <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium">
+      <Code className="w-2.5 h-2.5 inline -mt-px mr-0.5" />DAX
+    </span>
+  );
+}
+
 function TableDetailPanel({
   table,
   tables,
@@ -213,6 +281,7 @@ function TableDetailPanel({
   onClose: () => void;
 }) {
   const isFact = table.tableType === 'Fact';
+  const withFormula = table.measures.filter((m) => m.formula && !m.formula.startsWith('TODO:')).length;
 
   return (
     <div className="w-80 bg-white border-l border-gray-200 flex flex-col overflow-y-auto">
@@ -268,27 +337,38 @@ function TableDetailPanel({
         {/* DAX Measures */}
         {table.measures.length > 0 && (
           <div>
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Calculator className="w-3 h-3" /> Measures ({table.measures.length})
-            </h4>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                <Calculator className="w-3 h-3" /> Measures ({table.measures.length})
+              </h4>
+              {withFormula > 0 && (
+                <span className="text-[10px] text-gray-400">
+                  {withFormula}/{table.measures.length} with DAX
+                </span>
+              )}
+            </div>
             <div className="space-y-1">
               {table.measures.map((m) => (
                 <div key={m.id} className="px-2 py-1.5 rounded bg-gray-50">
                   <div className="flex items-center gap-2 text-xs">
                     <span className="font-mono text-gray-800 flex-1 truncate">{m.name}</span>
-                    {m.metricIds.length > 0 && (
-                      <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
-                        {m.metricIds.length} metric{m.metricIds.length !== 1 ? 's' : ''}
-                      </span>
-                    )}
+                    <FormulaStatusBadge formula={m.formula} />
                   </div>
                   {m.formula && (
                     <div className="text-[10px] font-mono text-gray-500 mt-1 truncate">
                       = {m.formula}
                     </div>
                   )}
+                  {m.metricIds.length > 0 && (
+                    <div className="text-[10px] text-gray-400 mt-0.5">
+                      {m.metricIds.length} metric{m.metricIds.length !== 1 ? 's' : ''}
+                    </div>
+                  )}
                 </div>
               ))}
+            </div>
+            <div className="mt-2">
+              <CopyDAXButton table={table} />
             </div>
           </div>
         )}

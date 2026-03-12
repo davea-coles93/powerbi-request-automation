@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { Modal, ModalCancelButton, ModalSubmitButton } from './shared/Modal';
 
 interface MetricData {
   id?: string;
@@ -73,32 +73,16 @@ export function MetricEditorModal({
     onClose();
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-auto">
-        <form onSubmit={handleSubmit}>
-          {/* Header */}
-          <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center z-10">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">
-                {metric ? 'Edit Metric' : 'Create New Metric'}
-              </h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Define a business KPI or performance indicator
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="p-6 space-y-6">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={metric ? 'Edit Metric' : 'Create New Metric'}
+      subtitle="Define a business KPI or performance indicator"
+      maxWidth="4xl"
+    >
+      <form onSubmit={handleSubmit}>
+        <div className="p-6 space-y-6">
             {/* Basic Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
@@ -256,23 +240,11 @@ export function MetricEditorModal({
           </div>
 
           {/* Footer */}
-          <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-            >
-              Save Metric
-            </button>
+          <div className="border-t px-6 py-4 flex justify-end gap-3">
+            <ModalCancelButton onClick={onClose} />
+            <ModalSubmitButton>Save Metric</ModalSubmitButton>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

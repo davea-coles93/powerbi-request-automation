@@ -50,7 +50,11 @@ class BaseRepository(Generic[T, DBModel]):
     def create(self, data: T) -> T:
         db_item = self.model_class(**data.model_dump())
         self.db.add(db_item)
-        self.db.commit()
+        try:
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
         self.db.refresh(db_item)
         return self._to_pydantic(db_item)
 
@@ -60,7 +64,11 @@ class BaseRepository(Generic[T, DBModel]):
             return None
         for key, value in data.model_dump().items():
             setattr(db_item, key, value)
-        self.db.commit()
+        try:
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
         self.db.refresh(db_item)
         return self._to_pydantic(db_item)
 
@@ -69,12 +77,20 @@ class BaseRepository(Generic[T, DBModel]):
         if not db_item:
             return False
         self.db.delete(db_item)
-        self.db.commit()
+        try:
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
         return True
 
     def exists(self, id: str) -> bool:
         """Check if an item with the given ID exists."""
-        return self.db.query(self.model_class).filter(self.model_class.id == id).first() is not None
+        from sqlalchemy import select, func
+        count = self.db.execute(
+            select(func.count()).where(self.model_class.id == id)
+        ).scalar()
+        return count > 0
 
     def upsert(self, data: T, strategy: str = "skip") -> tuple[T, str]:
         """Insert or update based on whether the ID already exists.
@@ -93,19 +109,36 @@ class BaseRepository(Generic[T, DBModel]):
         if existing is None:
             db_item = self.model_class(**data.model_dump())
             self.db.add(db_item)
-            self.db.commit()
+            try:
+                self.db.commit()
+            except Exception:
+                self.db.rollback()
+                raise
             self.db.refresh(db_item)
             return self._to_pydantic(db_item), "created"
 
         if strategy == "update":
             for key, value in data.model_dump().items():
                 setattr(existing, key, value)
-            self.db.commit()
+            try:
+                self.db.commit()
+            except Exception:
+                self.db.rollback()
+                raise
             self.db.refresh(existing)
             return self._to_pydantic(existing), "updated"
 
         # Default: skip
         return self._to_pydantic(existing), "skipped"
+
+    def get_by_ids(self, ids: list[str]) -> list[T]:
+        """Fetch multiple items by their IDs in a single query."""
+        if not ids:
+            return []
+        items = self.db.query(self.model_class).filter(
+            self.model_class.id.in_(ids)
+        ).all()
+        return [self._to_pydantic(item) for item in items]
 
     def _to_pydantic(self, db_item: DBModel) -> T:
         return self.pydantic_class.model_validate(
@@ -150,13 +183,15 @@ class MeasureRepository(BaseRepository[Measure, MeasureDB]):
         super().__init__(db, MeasureDB, Measure)
 
     def get_by_perspective(self, perspective_id: str) -> list[Measure]:
-        # SQLite JSON contains query
-        items = self.db.query(self.model_class).all()
-        return [
-            self._to_pydantic(item)
-            for item in items
-            if perspective_id in (item.perspective_ids or [])
-        ]
+        # perspective_ids is stored as JSON array string; filter in Python
+        # to avoid fragile LIKE patterns that can match partial IDs
+        all_items = self.db.query(self.model_class).all()
+        results = []
+        for item in all_items:
+            pydantic_item = self._to_pydantic(item)
+            if pydantic_item.perspective_ids and perspective_id in pydantic_item.perspective_ids:
+                results.append(pydantic_item)
+        return results
 
 
 class MetricRepository(BaseRepository[Metric, MetricDB]):
@@ -164,12 +199,15 @@ class MetricRepository(BaseRepository[Metric, MetricDB]):
         super().__init__(db, MetricDB, Metric)
 
     def get_by_perspective(self, perspective_id: str) -> list[Metric]:
-        items = self.db.query(self.model_class).all()
-        return [
-            self._to_pydantic(item)
-            for item in items
-            if perspective_id in (item.perspective_ids or [])
-        ]
+        # perspective_ids is stored as JSON array string; filter in Python
+        # to avoid fragile LIKE patterns that can match partial IDs
+        all_items = self.db.query(self.model_class).all()
+        results = []
+        for item in all_items:
+            pydantic_item = self._to_pydantic(item)
+            if pydantic_item.perspective_ids and perspective_id in pydantic_item.perspective_ids:
+                results.append(pydantic_item)
+        return results
 
 
 class ProcessRepository(BaseRepository[Process, ProcessDB]):

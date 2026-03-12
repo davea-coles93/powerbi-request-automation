@@ -32,7 +32,7 @@ export function GapCard({ gap, onUpdate, onDelete, onMaterialize, isMaterializin
             className={`p-1 rounded transition-colors ${
               gap.resolved
                 ? 'text-green-600 hover:text-green-700 bg-green-100'
-                : 'text-gray-400 hover:text-green-500'
+                : 'text-gray-500 hover:text-green-500'
             }`}
             title={gap.resolved ? 'Mark unresolved' : 'Mark resolved'}
           >
@@ -40,7 +40,7 @@ export function GapCard({ gap, onUpdate, onDelete, onMaterialize, isMaterializin
           </button>
           <button
             onClick={() => onDelete(gap.id)}
-            className="p-1 text-gray-400 hover:text-red-500 rounded transition-colors"
+            className="p-1 text-gray-500 hover:text-red-500 rounded transition-colors"
             title="Delete gap"
           >
             <Trash2 className="w-3.5 h-3.5" />

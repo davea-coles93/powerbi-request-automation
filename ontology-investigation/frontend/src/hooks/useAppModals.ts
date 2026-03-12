@@ -1,121 +1,30 @@
-import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import * as api from '../services/api';
+import { useModalStore } from './useModalStore';
 
 /**
- * Manages all modal state (open/close, selected item) and CRUD handlers
- * for the editor modals rendered in App.tsx.
+ * Combines the global modal store (open/close state) with CRUD handlers
+ * that need React's QueryClient.
  *
- * Extracts ~160 lines of boilerplate from App into a single hook.
+ * App.tsx uses this hook for the full interface (state + handlers).
+ * Components that only need to OPEN a modal can use useModalStore directly.
  */
 export function useAppModals() {
   const queryClient = useQueryClient();
-
-  // --- Modal open/close state ---
-  const [isEntityEditorOpen, setIsEntityEditorOpen] = useState(false);
-  const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
-  const [isSystemEditorOpen, setIsSystemEditorOpen] = useState(false);
-  const [selectedSystem, setSelectedSystem] = useState<any | null>(null);
-  const [isAttributeEditorOpen, setIsAttributeEditorOpen] = useState(false);
-  const [selectedAttribute, setSelectedAttribute] = useState<any | null>(null);
-  const [isMeasureEditorOpen, setIsMeasureEditorOpen] = useState(false);
-  const [selectedMeasure, setSelectedMeasure] = useState<any | null>(null);
-  const [isMeasureUsageOpen, setIsMeasureUsageOpen] = useState(false);
-  const [measureUsageData, setMeasureUsageData] = useState<any | null>(null);
-  const [isMetricEditorOpen, setIsMetricEditorOpen] = useState(false);
-  const [selectedMetric, setSelectedMetric] = useState<any | null>(null);
-  const [isPerspectiveEditorOpen, setIsPerspectiveEditorOpen] = useState(false);
-  const [selectedPerspectiveForEdit, setSelectedPerspectiveForEdit] = useState<any | null>(null);
-  const [isTmdlImportOpen, setIsTmdlImportOpen] = useState(false);
-  const [isExcelImportOpen, setIsExcelImportOpen] = useState(false);
-  const [detailMetricId, setDetailMetricId] = useState<string | null>(null);
-
-  // --- Open helpers (used as callbacks by child components) ---
-
-  const openEntityEditor = (entity?: any) => {
-    setSelectedEntity(entity ?? null);
-    setIsEntityEditorOpen(true);
-  };
-  const closeEntityEditor = () => {
-    setIsEntityEditorOpen(false);
-    setSelectedEntity(null);
-  };
-
-  const openSystemEditor = (system?: any) => {
-    setSelectedSystem(system ?? null);
-    setIsSystemEditorOpen(true);
-  };
-  const closeSystemEditor = () => {
-    setIsSystemEditorOpen(false);
-    setSelectedSystem(null);
-  };
-
-  const openAttributeEditor = (attribute?: any) => {
-    setSelectedAttribute(attribute ?? null);
-    setIsAttributeEditorOpen(true);
-  };
-  const closeAttributeEditor = () => {
-    setIsAttributeEditorOpen(false);
-    setSelectedAttribute(null);
-  };
-
-  const openMeasureEditor = (measure?: any) => {
-    setSelectedMeasure(measure ?? null);
-    setIsMeasureEditorOpen(true);
-  };
-  const closeMeasureEditor = () => {
-    setIsMeasureEditorOpen(false);
-    setSelectedMeasure(null);
-  };
-
-  const openMeasureUsage = (measure: any) => {
-    setMeasureUsageData(measure);
-    setIsMeasureUsageOpen(true);
-  };
-  const closeMeasureUsage = () => {
-    setIsMeasureUsageOpen(false);
-    setMeasureUsageData(null);
-  };
-
-  const openMetricEditor = (metric?: any) => {
-    setSelectedMetric(metric ?? null);
-    setIsMetricEditorOpen(true);
-  };
-  const closeMetricEditor = () => {
-    setIsMetricEditorOpen(false);
-    setSelectedMetric(null);
-  };
-
-  const openPerspectiveEditor = (perspective?: any) => {
-    setSelectedPerspectiveForEdit(perspective ?? null);
-    setIsPerspectiveEditorOpen(true);
-  };
-  const closePerspectiveEditor = () => {
-    setIsPerspectiveEditorOpen(false);
-    setSelectedPerspectiveForEdit(null);
-  };
-
-  const openTmdlImport = () => setIsTmdlImportOpen(true);
-  const closeTmdlImport = () => setIsTmdlImportOpen(false);
-
-  const openExcelImport = () => setIsExcelImportOpen(true);
-  const closeExcelImport = () => setIsExcelImportOpen(false);
-
-  const openMetricDetail = (metricId: string) => setDetailMetricId(metricId);
-  const closeMetricDetail = () => setDetailMetricId(null);
+  const store = useModalStore();
 
   // --- CRUD handlers ---
 
   const handleSaveEntity = async (entityData: any) => {
     try {
-      if (selectedEntity) {
+      if (store.selectedEntity) {
         await api.updateEntity(entityData.id, entityData);
       } else {
         await api.createEntity(entityData);
       }
       queryClient.invalidateQueries({ queryKey: ['entities'] });
-      toast.success(selectedEntity ? 'Entity updated' : 'Entity created');
+      toast.success(store.selectedEntity ? 'Entity updated' : 'Entity created');
     } catch (error) {
       console.error('Error saving entity:', error);
       toast.error('Failed to save entity. Please try again.');
@@ -124,7 +33,7 @@ export function useAppModals() {
 
   const handleSaveSystem = async (systemData: any) => {
     try {
-      if (selectedSystem) {
+      if (store.selectedSystem) {
         await api.updateSystem(systemData.id, systemData);
       } else {
         await api.createSystem(systemData);
@@ -138,13 +47,13 @@ export function useAppModals() {
 
   const handleSaveAttribute = async (attributeData: any) => {
     try {
-      if (selectedAttribute) {
+      if (store.selectedAttribute) {
         await api.updateAttribute(attributeData.id, attributeData);
       } else {
         await api.createAttribute(attributeData);
       }
       queryClient.invalidateQueries({ queryKey: ['attributes'] });
-      toast.success(selectedAttribute ? 'Attribute updated' : 'Attribute created');
+      toast.success(store.selectedAttribute ? 'Attribute updated' : 'Attribute created');
     } catch (error) {
       console.error('Error saving attribute:', error);
       toast.error('Failed to save attribute. Please try again.');
@@ -153,13 +62,13 @@ export function useAppModals() {
 
   const handleSaveMeasure = async (measureData: any) => {
     try {
-      if (selectedMeasure) {
+      if (store.selectedMeasure) {
         await api.updateMeasure(measureData.id, measureData);
       } else {
         await api.createMeasure(measureData);
       }
       queryClient.invalidateQueries({ queryKey: ['measures'] });
-      toast.success(selectedMeasure ? 'Measure updated' : 'Measure created');
+      toast.success(store.selectedMeasure ? 'Measure updated' : 'Measure created');
     } catch (error) {
       console.error('Error saving measure:', error);
       toast.error('Failed to save measure. Please try again.');
@@ -168,13 +77,13 @@ export function useAppModals() {
 
   const handleSaveMetric = async (metricData: any) => {
     try {
-      if (selectedMetric) {
+      if (store.selectedMetric) {
         await api.updateMetric(metricData.id, metricData);
       } else {
         await api.createMetric(metricData);
       }
       queryClient.invalidateQueries({ queryKey: ['metrics'] });
-      toast.success(selectedMetric ? 'Metric updated' : 'Metric created');
+      toast.success(store.selectedMetric ? 'Metric updated' : 'Metric created');
     } catch (error) {
       console.error('Error saving metric:', error);
       toast.error('Failed to save metric. Please try again.');
@@ -238,13 +147,13 @@ export function useAppModals() {
 
   const handleSavePerspective = async (perspectiveData: any) => {
     try {
-      if (selectedPerspectiveForEdit) {
+      if (store.selectedPerspectiveForEdit) {
         await api.updatePerspective(perspectiveData.id, perspectiveData);
       } else {
         await api.createPerspective(perspectiveData);
       }
       queryClient.invalidateQueries({ queryKey: ['perspectives'] });
-      toast.success(selectedPerspectiveForEdit ? 'Perspective updated' : 'Perspective created');
+      toast.success(store.selectedPerspectiveForEdit ? 'Perspective updated' : 'Perspective created');
     } catch (error) {
       console.error('Error saving perspective:', error);
       toast.error('Failed to save perspective.');
@@ -267,7 +176,6 @@ export function useAppModals() {
     toast.success('Data imported successfully');
   };
 
-  /** Inline entity creation from within the attribute editor */
   const handleInlineCreateEntity = async (data: { name: string; description: string }) => {
     const id = data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     const entity = { id, name: data.name, description: data.description, core_attributes: [], lenses: [] };
@@ -277,7 +185,6 @@ export function useAppModals() {
     return { id, name: data.name };
   };
 
-  /** Inline system creation from within the attribute editor */
   const handleInlineCreateSystem = async (data: { name: string; description: string }) => {
     const id = data.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     const system = { id, name: data.name, description: data.description, type: 'Other' as const };
@@ -290,71 +197,71 @@ export function useAppModals() {
   return {
     // Modal states (for rendering modals)
     entityEditor: {
-      isOpen: isEntityEditorOpen,
-      selected: selectedEntity,
+      isOpen: store.isEntityEditorOpen,
+      selected: store.selectedEntity,
       onSave: handleSaveEntity,
-      onClose: closeEntityEditor,
+      onClose: store.closeEntityEditor,
     },
     systemEditor: {
-      isOpen: isSystemEditorOpen,
-      selected: selectedSystem,
+      isOpen: store.isSystemEditorOpen,
+      selected: store.selectedSystem,
       onSave: handleSaveSystem,
-      onClose: closeSystemEditor,
+      onClose: store.closeSystemEditor,
     },
     attributeEditor: {
-      isOpen: isAttributeEditorOpen,
-      selected: selectedAttribute,
+      isOpen: store.isAttributeEditorOpen,
+      selected: store.selectedAttribute,
       onSave: handleSaveAttribute,
-      onClose: closeAttributeEditor,
+      onClose: store.closeAttributeEditor,
     },
     measureEditor: {
-      isOpen: isMeasureEditorOpen,
-      selected: selectedMeasure,
+      isOpen: store.isMeasureEditorOpen,
+      selected: store.selectedMeasure,
       onSave: handleSaveMeasure,
-      onClose: closeMeasureEditor,
+      onClose: store.closeMeasureEditor,
     },
     measureUsage: {
-      isOpen: isMeasureUsageOpen,
-      data: measureUsageData,
-      onClose: closeMeasureUsage,
+      isOpen: store.isMeasureUsageOpen,
+      data: store.measureUsageData,
+      onClose: store.closeMeasureUsage,
     },
     metricEditor: {
-      isOpen: isMetricEditorOpen,
-      selected: selectedMetric,
+      isOpen: store.isMetricEditorOpen,
+      selected: store.selectedMetric,
       onSave: handleSaveMetric,
-      onClose: closeMetricEditor,
+      onClose: store.closeMetricEditor,
     },
     perspectiveEditor: {
-      isOpen: isPerspectiveEditorOpen,
-      selected: selectedPerspectiveForEdit,
+      isOpen: store.isPerspectiveEditorOpen,
+      selected: store.selectedPerspectiveForEdit,
       onSave: handleSavePerspective,
-      onClose: closePerspectiveEditor,
+      onClose: store.closePerspectiveEditor,
     },
     tmdlImport: {
-      isOpen: isTmdlImportOpen,
-      onClose: closeTmdlImport,
+      isOpen: store.isTmdlImportOpen,
+      onClose: store.closeTmdlImport,
     },
     excelImport: {
-      isOpen: isExcelImportOpen,
-      onClose: closeExcelImport,
+      isOpen: store.isExcelImportOpen,
+      onClose: store.closeExcelImport,
       onImported: handleImported,
     },
     metricDetail: {
-      metricId: detailMetricId,
-      onClose: closeMetricDetail,
+      metricId: store.detailMetricId,
+      onClose: store.closeMetricDetail,
     },
 
     // Open actions (for passing to child components as callbacks)
-    openEntityEditor,
-    openSystemEditor,
-    openAttributeEditor,
-    openMeasureEditor,
-    openMeasureUsage,
-    openMetricEditor,
-    openMetricDetail,
-    openPerspectiveEditor,
-    openTmdlImport,
-    openExcelImport,
+    openEntityEditor: store.openEntityEditor,
+    openSystemEditor: store.openSystemEditor,
+    openAttributeEditor: store.openAttributeEditor,
+    openMeasureEditor: store.openMeasureEditor,
+    openMeasureUsage: store.openMeasureUsage,
+    openMetricEditor: store.openMetricEditor,
+    openMetricDetail: store.openMetricDetail,
+    openPerspectiveEditor: store.openPerspectiveEditor,
+    openTmdlImport: store.openTmdlImport,
+    openExcelImport: store.openExcelImport,
 
     // Delete handlers (for passing to child components)
     handleDeleteSystem,

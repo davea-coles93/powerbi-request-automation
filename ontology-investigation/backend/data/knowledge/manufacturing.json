@@ -1,0 +1,634 @@
+{
+  "knowledge_meta": {
+    "id": "manufacturing",
+    "name": "Manufacturing Operations",
+    "icon": "🏭",
+    "description": "Discrete and process manufacturing. Covers production tracking, quality control, inventory management, COGS lineage, and month-end close.",
+    "typical_organisations": [
+      "Discrete manufacturers (automotive, electronics, machinery)",
+      "Process manufacturers (chemicals, food & beverage, pharmaceuticals)",
+      "Assembly operations",
+      "Contract manufacturers"
+    ]
+  },
+
+  "financial_discovery": {
+    "phases": [
+      {
+        "id": "fin_business_questions",
+        "name": "Business Questions",
+        "sequence": 1,
+        "description": "Identify the top financial questions leadership asks about manufacturing performance",
+        "questions": [
+          {
+            "id": "fq1",
+            "text": "What are the top 3 financial questions your leadership asks each period about manufacturing performance?",
+            "follow_ups": [
+              "How quickly do you need these answers — real-time, daily, or month-end?",
+              "Do you need answers at the plant level, product level, or both?"
+            ],
+            "expected_outputs": ["metrics"],
+            "hints": [
+              "Common: 'What's our COGS?', 'What's our yield/scrap rate?', 'Are we hitting production targets?', 'What's the variance to standard cost?'",
+              "COGS (Cost of Goods Sold) is typically the #1 financial question in manufacturing",
+              "Standard cost vs actual cost variance is a key control metric"
+            ]
+          },
+          {
+            "id": "fq2",
+            "text": "How do you calculate Cost of Goods Sold? What components go into it?",
+            "follow_ups": [
+              "Is it standard costing or actual costing?",
+              "How do you handle overhead allocation?"
+            ],
+            "expected_outputs": ["metrics", "measures"],
+            "hints": [
+              "COGS = Material Cost + Labor Cost + Overhead. Each has sub-components",
+              "Material: raw material consumption, BOM (Bill of Materials) costing, purchase price variance",
+              "Labor: direct labor hours × rate, shift premiums, overtime",
+              "Overhead: machine hours × rate, utilities, depreciation — allocated per cost center or product",
+              "Standard costing: compare actual to standard, analyse variances (price, usage, efficiency)"
+            ]
+          },
+          {
+            "id": "fq3",
+            "text": "Walk me through your month-end close for manufacturing. What's the sequence and what takes the longest?",
+            "follow_ups": [
+              "How many days after month-end do you have final numbers?",
+              "What's the biggest bottleneck?"
+            ],
+            "expected_outputs": ["processes"],
+            "hints": [
+              "Typical sequence: production cutoff → inventory count/valuation → goods issue posting → labor posting → overhead allocation → variance analysis → GL close",
+              "Production cutoff (confirming all production orders) is often the bottleneck",
+              "Inventory valuation depends on completed production orders — delays cascade",
+              "WIP (Work in Progress) valuation is particularly tricky — partly completed orders"
+            ]
+          },
+          {
+            "id": "fq4",
+            "text": "How do you track inventory value? Is it real-time or do you rely on periodic physical counts?",
+            "follow_ups": [
+              "How often do you do physical inventory counts?",
+              "What's the typical variance between system and physical count?"
+            ],
+            "expected_outputs": ["measures", "attributes"],
+            "hints": [
+              "Perpetual inventory (real-time system tracking) vs periodic (physical count-based)",
+              "Even with perpetual systems, physical counts reveal discrepancies — cycle counting vs full count",
+              "Inventory accuracy directly affects COGS accuracy",
+              "WMS (Warehouse Management System) data vs ERP inventory records — reconciliation needed"
+            ]
+          }
+        ],
+        "common_metrics": [
+          {
+            "name": "Cost of Goods Sold (COGS)",
+            "business_question": "What does it cost us to produce what we sell?",
+            "typical_measures": ["Material Cost", "Direct Labor Cost", "Manufacturing Overhead", "Standard Cost Variance"],
+            "perspective_ids": ["financial"]
+          },
+          {
+            "name": "Gross Margin by Product",
+            "business_question": "Which products are most/least profitable?",
+            "typical_measures": ["Revenue per Product", "COGS per Product", "Gross Margin %"],
+            "perspective_ids": ["financial"]
+          },
+          {
+            "name": "Inventory Valuation",
+            "business_question": "What's our inventory worth and is it accurate?",
+            "typical_measures": ["Raw Material Value", "WIP Value", "Finished Goods Value", "Inventory Accuracy"],
+            "perspective_ids": ["financial"]
+          },
+          {
+            "name": "Cost Variance Analysis",
+            "business_question": "Why do our actual costs differ from standard?",
+            "typical_measures": ["Price Variance", "Usage Variance", "Efficiency Variance", "Volume Variance"],
+            "perspective_ids": ["financial"]
+          }
+        ]
+      },
+      {
+        "id": "fin_metric_definition",
+        "name": "Metric Definition",
+        "sequence": 2,
+        "description": "Define manufacturing financial metrics precisely",
+        "questions": [
+          {
+            "id": "fq5",
+            "text": "Let's define your COGS precisely. Which cost elements are included, and at what level do you track them?",
+            "follow_ups": [
+              "Do you use standard cost or actual cost for reporting?",
+              "How are standard costs set and how often are they updated?"
+            ],
+            "expected_outputs": ["measures"],
+            "hints": [
+              "Direct material: raw material per BOM × purchase price (or standard price)",
+              "Direct labor: hours × labor rate by cost center",
+              "Variable overhead: machine hours × variable rate",
+              "Fixed overhead: allocated based on volume or activity"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "fin_measure_tracing",
+        "name": "Measure Tracing",
+        "sequence": 3,
+        "description": "Trace manufacturing financial metrics to their source data",
+        "questions": [
+          {
+            "id": "fq6",
+            "text": "For material cost, where does the consumption data come from? Is it based on actual consumption or BOM-based backflushing?",
+            "follow_ups": [
+              "How accurate is the BOM — is it maintained?",
+              "What happens with scrap and rework — is it captured?"
+            ],
+            "expected_outputs": ["attributes"],
+            "hints": [
+              "Backflushing: system calculates material based on BOM × production quantity. Simple but inaccurate if BOM is wrong or scrap isn't captured",
+              "Actual consumption: operators record what they actually used. More accurate but requires discipline",
+              "Scrap/rework creates a gap between BOM consumption and actual consumption"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "fin_data_sourcing",
+        "name": "Data Sourcing",
+        "sequence": 4,
+        "description": "Identify system sources for manufacturing financial data",
+        "questions": [
+          {
+            "id": "fq7",
+            "text": "Which systems hold the production data that feeds your financial reports? Is it one ERP or multiple systems?",
+            "follow_ups": [
+              "Is there a gap between what the shop floor system records and what the ERP sees?",
+              "How is data transferred between systems — real-time integration or batch?"
+            ],
+            "expected_outputs": ["systems", "attributes"],
+            "hints": [
+              "Common pattern: MES (shop floor) → ERP (financial posting). Integration quality varies",
+              "Real-time integration means financial data is current. Batch (daily/weekly) means lag",
+              "Manual bridges (Excel uploads) between systems are a data quality risk",
+              "Look for: shop floor systems, WMS, quality systems, ERP, costing systems"
+            ]
+          }
+        ]
+      }
+    ],
+    "typical_systems": [
+      {
+        "name": "ERP",
+        "examples": ["SAP ECC/S4HANA", "Oracle E-Business Suite", "Microsoft Dynamics 365", "Infor"],
+        "role": "Financial system of record — production orders, material management, costing, GL",
+        "typical_reliability": "High",
+        "common_issues": ["Complex configuration", "Master data quality", "Backflush vs actual consumption discrepancies"]
+      },
+      {
+        "name": "MES (Manufacturing Execution System)",
+        "examples": ["Siemens Opcenter", "Rockwell FactoryTalk", "MPDV", "Custom systems"],
+        "role": "Shop floor execution — production confirmations, quality data, machine data",
+        "typical_reliability": "High (near real-time)",
+        "common_issues": ["Integration with ERP", "Legacy systems", "Operator data entry quality"]
+      },
+      {
+        "name": "WMS (Warehouse Management System)",
+        "examples": ["SAP EWM", "Manhattan Associates", "Blue Yonder", "Custom"],
+        "role": "Inventory tracking — goods receipt, storage, picking, shipping",
+        "typical_reliability": "High",
+        "common_issues": ["Inventory accuracy drift", "Cycle count discrepancies", "Integration with production orders"]
+      }
+    ]
+  },
+
+  "management_discovery": {
+    "phases": [
+      {
+        "id": "mgmt_monitoring_kpis",
+        "name": "Monitoring & KPIs",
+        "sequence": 1,
+        "description": "Understand how production managers monitor performance",
+        "questions": [
+          {
+            "id": "mq1",
+            "text": "What do you check first thing at the start of a shift or day to know if production is on track?",
+            "follow_ups": [
+              "Is this data on a dashboard, a whiteboard, or in your head?",
+              "How quickly do you know when something goes wrong?"
+            ],
+            "expected_outputs": ["metrics"],
+            "hints": [
+              "Common: OEE, production output vs plan, downtime, quality rejects, safety incidents",
+              "Real-time visibility vs end-of-shift reports — the gap determines response time",
+              "Whiteboard/paper-based tracking = manual data entry opportunity"
+            ]
+          },
+          {
+            "id": "mq2",
+            "text": "How do you measure production efficiency? Do you use OEE or a different approach?",
+            "follow_ups": [
+              "What are your current OEE targets?",
+              "Which of the three OEE components (availability, performance, quality) is the biggest challenge?"
+            ],
+            "expected_outputs": ["metrics", "measures"],
+            "hints": [
+              "OEE = Availability × Performance × Quality. World-class = 85%+",
+              "Availability: uptime / planned production time. Affected by breakdowns, changeovers, setup",
+              "Performance: actual output / theoretical max output. Affected by slow cycles, minor stops",
+              "Quality: good parts / total parts. Affected by defects, rework, scrap"
+            ]
+          }
+        ],
+        "common_metrics": [
+          {
+            "name": "OEE (Overall Equipment Effectiveness)",
+            "business_question": "How effectively are we using our equipment?",
+            "typical_measures": ["Availability Rate", "Performance Rate", "Quality Rate"],
+            "perspective_ids": ["management"]
+          },
+          {
+            "name": "Production Output vs Plan",
+            "business_question": "Are we producing what we planned to produce?",
+            "typical_measures": ["Actual Output", "Planned Output", "Plan Adherence %"],
+            "perspective_ids": ["management", "operational"]
+          },
+          {
+            "name": "Quality Performance",
+            "business_question": "What's our defect/scrap rate and is it improving?",
+            "typical_measures": ["First Pass Yield", "Scrap Rate", "Rework Rate", "Customer Returns"],
+            "perspective_ids": ["management"]
+          },
+          {
+            "name": "On-Time Delivery",
+            "business_question": "Are we delivering to customers on time?",
+            "typical_measures": ["OTIF (On-Time In-Full)", "Late Orders", "Lead Time"],
+            "perspective_ids": ["management"]
+          }
+        ]
+      },
+      {
+        "id": "mgmt_connect_financial",
+        "name": "Connect Up to Financial",
+        "sequence": 2,
+        "description": "Link production KPIs to financial impact",
+        "questions": [
+          {
+            "id": "mq3",
+            "text": "How does production performance affect your costs? For example, what's the cost of scrap or downtime?",
+            "follow_ups": [
+              "Can you put a £/$ value on 1% improvement in OEE?",
+              "Are these cost impacts tracked or estimated?"
+            ],
+            "expected_outputs": ["measures"],
+            "hints": [
+              "Scrap cost = scrap quantity × material cost. Often surprisingly large",
+              "Downtime cost = lost production minutes × production rate × margin per unit",
+              "Quality failures: internal (scrap/rework cost) + external (returns, warranty, reputation)"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "mgmt_connect_operational",
+        "name": "Connect Down to Operational",
+        "sequence": 3,
+        "description": "Link management monitoring to shop floor data",
+        "questions": [
+          {
+            "id": "mq4",
+            "text": "What data do you need from the shop floor that you don't currently get reliably?",
+            "follow_ups": [
+              "Is the data captured but not surfaced? Or not captured at all?",
+              "What would change if you had perfect real-time visibility?"
+            ],
+            "expected_outputs": ["attributes"],
+            "hints": [
+              "Common gaps: actual cycle times, root cause of downtime, operator-level quality data",
+              "Data captured on paper but not digitised is a common pattern in manufacturing",
+              "Real-time visibility enables proactive intervention vs reactive firefighting"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "mgmt_pain_points",
+        "name": "Pain Points",
+        "sequence": 4,
+        "description": "Identify management pain points in manufacturing",
+        "questions": [
+          {
+            "id": "mq5",
+            "text": "What's the most manual or time-consuming part of your production management process?",
+            "follow_ups": [
+              "How many hours per week does this take?",
+              "Are there any whiteboards or paper logs that should be digital?"
+            ],
+            "expected_outputs": ["processes"],
+            "hints": [
+              "Production scheduling done in Excel instead of planning system",
+              "Quality data captured on paper inspection sheets",
+              "Shift handover done verbally without documentation",
+              "Downtime logging done retrospectively at end of shift"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+
+  "operational_discovery": {
+    "phases": [
+      {
+        "id": "ops_systems_people",
+        "name": "Systems & People",
+        "sequence": 1,
+        "description": "Map the shop floor systems and roles",
+        "questions": [
+          {
+            "id": "oq1",
+            "text": "Walk me through a typical production shift. What happens from start to finish, and what systems are involved?",
+            "follow_ups": [
+              "At which points do operators interact with systems (scan, enter, confirm)?",
+              "Are there any steps that are still paper-based?"
+            ],
+            "expected_outputs": ["systems", "processes"],
+            "hints": [
+              "Typical flow: receive work order → stage materials → set up machine → run production → confirm quantities → quality check → goods receipt",
+              "Each system interaction is a data capture point. Each paper step is a data gap",
+              "Look for: MES terminals, barcode scanners, quality stations, ERP confirmations"
+            ]
+          },
+          {
+            "id": "oq2",
+            "text": "Who are the key roles on the shop floor? Who creates data vs who consumes reports?",
+            "follow_ups": [
+              "Which roles bridge between shop floor and office/management?",
+              "Are there any roles that do significant data entry as part of their job?"
+            ],
+            "expected_outputs": ["entities"],
+            "hints": [
+              "Common roles: Machine Operator, Quality Inspector, Shift Supervisor, Material Handler, Maintenance Technician, Production Planner",
+              "Shift Supervisors often bridge shop floor and management — they're the key data producers",
+              "Quality Inspectors produce critical data (pass/fail, measurements) that feeds metrics"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "ops_data_creation",
+        "name": "Data Creation",
+        "sequence": 2,
+        "description": "Understand where production data is born",
+        "questions": [
+          {
+            "id": "oq3",
+            "text": "When a production order is completed, what exactly gets recorded and in which system?",
+            "follow_ups": [
+              "Is the confirmation automatic (machine data) or manual (operator enters)?",
+              "What's the typical delay between completing production and confirming in the system?"
+            ],
+            "expected_outputs": ["attributes"],
+            "hints": [
+              "Production confirmation typically records: quantity produced, quantity scrapped, labor time, machine time",
+              "Automatic confirmation from MES = high accuracy. Manual SAP confirmation at end of shift = lower accuracy",
+              "The delay between production and confirmation directly affects financial data freshness",
+              "Backflushing materials vs actual consumption recording — a key design choice"
+            ]
+          },
+          {
+            "id": "oq4",
+            "text": "How is quality data captured? Is there an inspection system, or is it done on paper/Excel?",
+            "follow_ups": [
+              "Is quality checked at every stage or only at final inspection?",
+              "How is non-conformance handled — is there a formal NCR process?"
+            ],
+            "expected_outputs": ["attributes", "systems"],
+            "hints": [
+              "In-process inspection vs end-of-line inspection — affects when quality problems are caught",
+              "SPC (Statistical Process Control) data from machines = real-time quality monitoring",
+              "Paper inspection sheets = data exists but isn't digitised or analysable",
+              "NCR (Non-Conformance Report) process tracks defects but often lags behind production"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "ops_entities_relationships",
+        "name": "Entities & Relationships",
+        "sequence": 3,
+        "description": "Map manufacturing business objects",
+        "questions": [
+          {
+            "id": "oq5",
+            "text": "What are the main things you work with — production orders, work orders, batches, lots? What's the hierarchy?",
+            "follow_ups": [
+              "Can you trace a finished product back to its raw materials?",
+              "How do you track material lots for quality traceability?"
+            ],
+            "expected_outputs": ["entities", "relationships"],
+            "hints": [
+              "Common hierarchy: Sales Order → Production Order → Operation/Routing Step → Material Component",
+              "Lot/batch traceability is critical in regulated industries (pharma, food)",
+              "Bill of Materials (BOM) defines the material structure; Routing defines the process steps",
+              "Work center / machine is the physical resource where production happens"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "ops_pain_workarounds",
+        "name": "Pain Points & Workarounds",
+        "sequence": 4,
+        "description": "Identify manufacturing operational pain points",
+        "questions": [
+          {
+            "id": "oq6",
+            "text": "What's the most frustrating part of the production process from a data/systems perspective?",
+            "follow_ups": [
+              "Are there any paper-based workarounds that everyone relies on?",
+              "What data would you love to have that you don't currently get?"
+            ],
+            "expected_outputs": ["processes"],
+            "hints": [
+              "Common frustrations: slow ERP confirmations, duplicate data entry, poor quality data integration",
+              "Paper travelers that carry production information between stations",
+              "Manual downtime logging that's often incomplete or inaccurate",
+              "Inventory discrepancies discovered during physical counts"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+
+  "cross_perspective_connections": [
+    {
+      "from": "financial",
+      "to": "operational",
+      "trigger_when": "COGS|cost of goods|material cost|labor cost|production cost",
+      "description": "COGS requires production confirmations, material consumption, and labor recording from the shop floor",
+      "suggested_question": "Where does production cost data originate? Is it confirmed from actual production or calculated from BOM?"
+    },
+    {
+      "from": "financial",
+      "to": "management",
+      "trigger_when": "variance|standard cost|overhead|allocation",
+      "description": "Cost variances require management's production planning data to calculate efficiency and volume variances",
+      "suggested_question": "How are standard costs set and maintained? Who owns the variance analysis?"
+    },
+    {
+      "from": "management",
+      "to": "operational",
+      "trigger_when": "OEE|downtime|scrap|quality|yield",
+      "description": "Production KPIs depend on accurate shop floor data capture",
+      "suggested_question": "How is downtime/scrap data captured on the shop floor — automatically or manually?"
+    },
+    {
+      "from": "management",
+      "to": "financial",
+      "trigger_when": "cost of downtime|cost of scrap|cost of quality",
+      "description": "Production inefficiency needs financial quantification to justify improvement investment",
+      "suggested_question": "Can you put a financial value on this production issue? What does 1% improvement save?"
+    },
+    {
+      "from": "operational",
+      "to": "management",
+      "trigger_when": "nobody tracks|not measured|manual log|paper",
+      "description": "Untracked operational data means missing management visibility",
+      "suggested_question": "Is anyone monitoring this data at a management level? What decisions would it inform?"
+    },
+    {
+      "from": "operational",
+      "to": "financial",
+      "trigger_when": "inventory|goods issue|goods receipt|consumption|backflush",
+      "description": "Inventory movements drive financial valuations and COGS",
+      "suggested_question": "How do inventory transactions become financial entries? Is it real-time or batch?"
+    }
+  ],
+
+  "entity_patterns": {
+    "description": "Common entity structures in manufacturing",
+    "core_entities": [
+      {
+        "name": "Production Order",
+        "description": "An instruction to produce a quantity of a product",
+        "typical_core_attributes": ["Order Number", "Material/Product", "Planned Quantity", "Actual Quantity", "Status", "Planned Start", "Planned End"],
+        "perspective_lenses": {
+          "operational": "A work instruction — what to produce, how much, on which machine, with what materials",
+          "management": "A performance unit — on time, on quality, on cost. Completion tracking",
+          "financial": "A cost collector — all material, labor, and overhead costs accumulated against this order"
+        }
+      },
+      {
+        "name": "Material / Product",
+        "description": "A raw material, semi-finished good, or finished product",
+        "typical_core_attributes": ["Material Number", "Description", "Type (Raw/Semi/Finished)", "Unit of Measure", "Standard Cost"],
+        "perspective_lenses": {
+          "operational": "Something we consume, transform, or produce. What's in stock? What's needed?",
+          "management": "A unit of analysis — yield rates, quality metrics, demand forecasting",
+          "financial": "A cost carrier — standard cost, actual cost, purchase price, valuation"
+        }
+      },
+      {
+        "name": "Work Center / Machine",
+        "description": "A physical location or machine where production operations are performed",
+        "typical_core_attributes": ["Work Center ID", "Name", "Capacity", "Cost Center", "Hourly Rate"],
+        "perspective_lenses": {
+          "operational": "Where I work — what's running, what's broken, what needs maintenance",
+          "management": "A capacity unit — OEE, utilisation, planned vs actual hours",
+          "financial": "A cost center — overhead rates, depreciation, maintenance costs"
+        }
+      },
+      {
+        "name": "Quality Inspection",
+        "description": "A quality check performed on materials or production output",
+        "typical_core_attributes": ["Inspection Lot", "Material", "Inspection Type", "Result", "Defect Code"],
+        "perspective_lenses": {
+          "operational": "A check I perform — pass/fail, measurements, visual inspection",
+          "management": "Quality performance data — first pass yield, defect patterns, SPC",
+          "financial": "Cost of quality — scrap value, rework cost, warranty exposure"
+        }
+      },
+      {
+        "name": "Inventory Location",
+        "description": "A physical or logical storage location for materials",
+        "typical_core_attributes": ["Location ID", "Warehouse", "Zone", "Bin", "Material Stored", "Quantity"],
+        "perspective_lenses": {
+          "operational": "Where things are — put away, pick, move, count",
+          "management": "Accuracy and flow — inventory turns, fill rates, space utilisation",
+          "financial": "Valuation — stock value, ageing, write-downs, carrying cost"
+        }
+      }
+    ]
+  },
+
+  "measure_taxonomy": {
+    "description": "Standard measures in manufacturing",
+    "categories": [
+      {
+        "name": "Cost & Profitability",
+        "measures": [
+          { "name": "Material Cost", "formula_pattern": "SUM(consumption_qty × unit_cost)", "inputs": ["Material Consumption", "Unit Cost"], "perspective": "financial" },
+          { "name": "Direct Labor Cost", "formula_pattern": "SUM(labor_hours × labor_rate)", "inputs": ["Labor Hours", "Labor Rate"], "perspective": "financial" },
+          { "name": "Manufacturing Overhead", "formula_pattern": "SUM(machine_hours × overhead_rate)", "inputs": ["Machine Hours", "Overhead Rate"], "perspective": "financial" },
+          { "name": "COGS", "formula_pattern": "Material + Labor + Overhead", "inputs": ["Material Cost", "Labor Cost", "Overhead"], "perspective": "financial" },
+          { "name": "Standard Cost Variance", "formula_pattern": "Standard Cost - Actual Cost", "inputs": ["Standard Cost", "Actual Cost"], "perspective": "financial" }
+        ]
+      },
+      {
+        "name": "Production Efficiency",
+        "measures": [
+          { "name": "OEE", "formula_pattern": "Availability × Performance × Quality", "inputs": ["Planned Time", "Actual Run Time", "Theoretical Output", "Actual Output", "Good Parts", "Total Parts"], "perspective": "management" },
+          { "name": "Availability Rate", "formula_pattern": "Run Time / Planned Production Time", "inputs": ["Run Time", "Planned Time", "Downtime"], "perspective": "management" },
+          { "name": "Performance Rate", "formula_pattern": "Actual Output / Theoretical Max Output", "inputs": ["Actual Output", "Cycle Time", "Run Time"], "perspective": "management" },
+          { "name": "Plan Adherence", "formula_pattern": "Actual Production / Planned Production × 100", "inputs": ["Actual Quantity", "Planned Quantity"], "perspective": "management" }
+        ]
+      },
+      {
+        "name": "Quality",
+        "measures": [
+          { "name": "First Pass Yield", "formula_pattern": "Good Parts / Total Parts × 100", "inputs": ["Good Quantity", "Total Quantity"], "perspective": "management" },
+          { "name": "Scrap Rate", "formula_pattern": "Scrap Quantity / Total Quantity × 100", "inputs": ["Scrap Quantity", "Total Quantity"], "perspective": "management" },
+          { "name": "Rework Rate", "formula_pattern": "Rework Quantity / Total Quantity × 100", "inputs": ["Rework Quantity", "Total Quantity"], "perspective": "management" },
+          { "name": "Customer Return Rate", "formula_pattern": "Returns / Shipments × 100", "inputs": ["Return Quantity", "Shipped Quantity"], "perspective": "management" }
+        ]
+      },
+      {
+        "name": "Inventory",
+        "measures": [
+          { "name": "Inventory Turns", "formula_pattern": "COGS / Average Inventory Value", "inputs": ["COGS", "Inventory Value"], "perspective": "financial" },
+          { "name": "Days of Supply", "formula_pattern": "Inventory Value / Daily Consumption", "inputs": ["Inventory Quantity", "Daily Usage"], "perspective": "management" },
+          { "name": "Inventory Accuracy", "formula_pattern": "Correct Counts / Total Counts × 100", "inputs": ["Cycle Count Results"], "perspective": "management" },
+          { "name": "Dead Stock %", "formula_pattern": "No-movement Items / Total Items × 100", "inputs": ["Last Movement Date", "Item Count"], "perspective": "financial" }
+        ]
+      }
+    ]
+  },
+
+  "domain_vocabulary": {
+    "description": "Common manufacturing terminology",
+    "terms": {
+      "BOM": "Bill of Materials — list of raw materials and components needed to produce a product",
+      "Routing": "Sequence of operations (steps) required to produce a product, with time and resource requirements",
+      "OEE": "Overall Equipment Effectiveness — Availability × Performance × Quality",
+      "COGS": "Cost of Goods Sold — total production cost of goods sold in a period",
+      "WIP": "Work in Progress — partially completed production orders, valued at accumulated costs",
+      "Backflushing": "Automatic material consumption posting based on BOM when production is confirmed",
+      "Goods Issue": "Material movement from warehouse to production — reduces inventory, increases WIP",
+      "Goods Receipt": "Material movement from production to warehouse — reduces WIP, increases finished goods inventory",
+      "Standard Cost": "Predetermined cost per unit used for planning and variance analysis",
+      "Variance": "Difference between standard (planned) and actual cost — analysed by type (price, usage, efficiency, volume)",
+      "Cycle Time": "Time to produce one unit — theoretical vs actual",
+      "Changeover": "Time to switch a machine from one product to another — a key OEE loss",
+      "Scrap": "Material that cannot be used or sold — waste from production process",
+      "Rework": "Product that doesn't meet quality standards but can be corrected — adds cost",
+      "NCR": "Non-Conformance Report — formal documentation of a quality failure",
+      "SPC": "Statistical Process Control — using statistical methods to monitor and control production quality",
+      "MES": "Manufacturing Execution System — shop floor system for real-time production tracking",
+      "WMS": "Warehouse Management System — system for inventory storage and movement tracking",
+      "Lot/Batch": "A quantity of material produced together, tracked for traceability",
+      "Crystallisation": "The moment when operational data becomes a frozen fact — e.g., production cutoff crystallises quantities for financial reporting"
+    }
+  }
+}

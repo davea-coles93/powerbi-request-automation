@@ -291,6 +291,27 @@ export const useMeasureUsage = (measureId: string) =>
     enabled: !!measureId,
   });
 
+// Crystallisation pathway queries
+export const useCrystallisationPathways = (attributeId: string) =>
+  useQuery({
+    queryKey: ['crystallisationPathways', attributeId],
+    queryFn: () => api.getCrystallisationPathways(attributeId),
+    enabled: !!attributeId,
+  });
+
+export const useBusinessQuestionCost = (metricId: string) =>
+  useQuery({
+    queryKey: ['businessQuestionCost', metricId],
+    queryFn: () => api.getBusinessQuestionCost(metricId),
+    enabled: !!metricId,
+  });
+
+export const useLineageWithCosts = () =>
+  useQuery({
+    queryKey: ['lineageWithCosts'],
+    queryFn: api.getLineageWithCosts,
+  });
+
 // AI mutation hooks
 export const useExplainMetric = () =>
   useMutation({
