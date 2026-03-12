@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Literal
+
+OntologyState = Literal["as-is", "to-be", "both"]
 
 
 class Measure(BaseModel):
@@ -24,6 +26,9 @@ class Measure(BaseModel):
     )
     perspective_ids: list[str] = Field(
         default_factory=list, description="Perspectives this measure is relevant to"
+    )
+    state: Optional[OntologyState] = Field(
+        default="as-is", description="Whether this measure exists today (as-is), is planned (to-be), or both"
     )
 
     class Config:

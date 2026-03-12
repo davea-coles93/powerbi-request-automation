@@ -1,6 +1,8 @@
 from pydantic import BaseModel, Field
 from typing import Optional, Literal
 
+OntologyState = Literal["as-is", "to-be", "both"]
+
 
 DataType = Literal["string", "number", "date", "datetime", "boolean"]
 
@@ -49,6 +51,9 @@ class Entity(BaseModel):
     )
     lenses: list[EntityLens] = Field(
         default_factory=list, description="Perspective-specific interpretations"
+    )
+    state: Optional[OntologyState] = Field(
+        default="as-is", description="Whether this entity exists today (as-is), is planned (to-be), or both"
     )
 
     class Config:

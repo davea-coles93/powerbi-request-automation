@@ -1,3 +1,6 @@
+// Ontology state — as-is (current), to-be (future), or both
+export type OntologyState = 'as-is' | 'to-be' | 'both';
+
 // Perspective types
 export interface Perspective {
   id: string;
@@ -22,6 +25,7 @@ export interface System {
   reliability_default?: ReliabilityLevel;
   integration_status?: IntegrationStatus;
   notes?: string;
+  state?: OntologyState;
 }
 
 // Entity types
@@ -50,6 +54,7 @@ export interface Entity {
   description?: string;
   core_attributes: CoreAttribute[];
   lenses: EntityLens[];
+  state?: OntologyState;
 }
 
 // Attribute types
@@ -77,6 +82,7 @@ export interface Attribute {
     description: string;
   }>;
   perspective_ids?: string[];
+  state?: OntologyState;
 }
 
 // Measure types
@@ -89,6 +95,7 @@ export interface Measure {
   input_attribute_ids: string[];
   input_measure_ids: string[];
   perspective_ids: string[];
+  state?: OntologyState;
 }
 
 // Metric types
@@ -99,6 +106,7 @@ export interface Metric {
   business_question: string;
   calculated_by_measure_ids: string[];
   perspective_ids: string[];
+  state?: OntologyState;
 }
 
 // Fact types (workshop capture on process steps)
@@ -139,6 +147,8 @@ export interface ProcessStep {
   waste_category?: string;  // Type of waste identified
   manual_effort_percentage?: number;  // 0-100: percentage that is manual vs automated
 
+  state?: OntologyState;
+
   // Workshop facts
   facts?: Fact[];
 }
@@ -148,6 +158,7 @@ export interface Process {
   name: string;
   description?: string;
   steps: ProcessStep[];
+  state?: OntologyState;
 }
 
 // Graph response types

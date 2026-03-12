@@ -654,3 +654,105 @@ export const discoveryAIChatStream = async (
   }
   onDone();
 };
+
+// ── Unified Ingestion (Parse → Stage → Enrich → Load) ───────────────────
+
+export const parseSpreadsheet = (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post('/ingest/spreadsheet/parse', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then((res) => res.data);
+};
+
+export const parsePowerBI = (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post('/ingest/powerbi/parse', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then((res) => res.data);
+};
+
+export const parsePowerApp = (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post('/ingest/powerapp/parse', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }).then((res) => res.data);
+};
+
+export const parseDocument = (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post('/ingest/document/parse', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000, // 2 min — Haiku extraction can take time for large docs
+  }).then((res) => res.data);
+};
+
+export const loadIngestedElements = (elements: any, sourceType: string = 'spreadsheet') => {
+  const endpoint = sourceType === 'powerbi' ? '/ingest/powerbi/load'
+    : sourceType === 'powerapp' ? '/ingest/powerapp/load'
+    : sourceType === 'document' ? '/ingest/document/load'
+    : '/ingest/spreadsheet/load';
+  return api.post(endpoint, elements).then((res) => res.data);
+};
+
+export const enrichIngestionStream = async (
+  stagedSources: any[],
+  userGuidance: string,
+  onText: (text: string) => void,
+  onDone: () => void,
+  onError: (error: string) => void,
+  signal?: AbortSignal,
+) => {
+  const response = await fetch('/api/ingest/enrich', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ staged_sources: stagedSources, user_guidance: userGuidance }),
+    signal,
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ detail: response.statusText }));
+    onError(err.detail || 'Enrichment request failed');
+    return;
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    onError('No response stream');
+    return;
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      try {
+        const payload = JSON.parse(line.slice(6));
+        if (payload.type === 'text') {
+          onText(payload.content);
+        } else if (payload.type === 'done') {
+          onDone();
+          return;
+        } else if (payload.type === 'error') {
+          onError(payload.content);
+          return;
+        }
+      } catch {
+        // skip malformed lines
+      }
+    }
+  }
+  onDone();
+};

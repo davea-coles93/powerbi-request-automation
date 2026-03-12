@@ -38,6 +38,7 @@ class SystemDB(Base):
     reliability_default = Column(String)
     integration_status = Column(String)
     notes = Column(Text)
+    state = Column(String, default="as-is")
 
 
 class EntityDB(Base):
@@ -48,6 +49,7 @@ class EntityDB(Base):
     description = Column(Text)
     core_attributes = Column(JSON, default=list)
     lenses = Column(JSON, default=list)
+    state = Column(String, default="as-is")
 
 
 class AttributeDB(Base):
@@ -67,6 +69,7 @@ class AttributeDB(Base):
     source_connection = Column(String)
     constraints = Column(JSON)
     perspective_ids = Column(JSON)
+    state = Column(String, default="as-is")
 
 
 class MeasureDB(Base):
@@ -80,6 +83,7 @@ class MeasureDB(Base):
     input_attribute_ids = Column(JSON, default=list)
     input_measure_ids = Column(JSON, default=list)
     perspective_ids = Column(JSON, default=list)
+    state = Column(String, default="as-is")
 
 
 class MetricDB(Base):
@@ -91,6 +95,7 @@ class MetricDB(Base):
     business_question = Column(Text, nullable=False)
     calculated_by_measure_ids = Column(JSON, default=list)
     perspective_ids = Column(JSON, default=list)
+    state = Column(String, default="as-is")
 
 
 class ProcessDB(Base):
@@ -100,6 +105,7 @@ class ProcessDB(Base):
     name = Column(String, nullable=False)
     description = Column(Text)
     steps = Column(JSON, default=list)
+    state = Column(String, default="as-is")
 
 
 class SemanticMappingDB(Base):

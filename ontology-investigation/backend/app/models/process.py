@@ -3,6 +3,7 @@ from typing import Optional, Literal
 
 
 PerspectiveLevel = Literal["financial", "management", "operational"]
+OntologyState = Literal["as-is", "to-be", "both"]
 
 
 class Fact(BaseModel):
@@ -82,6 +83,10 @@ class ProcessStep(BaseModel):
         description="Percentage of task that is manual (0-100), vs automated"
     )
 
+    state: Optional[OntologyState] = Field(
+        default="as-is", description="Whether this step exists today (as-is), is planned (to-be), or both"
+    )
+
     # Workshop facts and notes
     facts: list[Fact] = Field(
         default_factory=list,
@@ -99,6 +104,9 @@ class Process(BaseModel):
     )
     steps: list[ProcessStep] = Field(
         default_factory=list, description="Ordered steps in the process"
+    )
+    state: Optional[OntologyState] = Field(
+        default="as-is", description="Whether this process exists today (as-is), is planned (to-be), or both"
     )
 
     class Config:

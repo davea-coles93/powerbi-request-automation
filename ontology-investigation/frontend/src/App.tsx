@@ -28,10 +28,11 @@ import {
 } from './hooks/useOntology';
 import { useAppModals } from './hooks/useAppModals';
 import { useNavigationStore } from './hooks/useNavigationStore';
-import { Table, Database, GitBranch, Upload, AlertTriangle, FileSpreadsheet, Plus, Sparkles, ArrowLeft, ChevronDown, BarChart3, Calculator, Columns3, Box, Monitor, Compass } from 'lucide-react';
+import { Table, Database, GitBranch, Upload, AlertTriangle, Plus, Sparkles, ArrowLeft, ChevronDown, BarChart3, Calculator, Columns3, Box, Monitor, Compass } from 'lucide-react';
 import { ExcelImportPanel } from './components/ExcelImportPanel';
 import { WorkshopAIPanel } from './components/workshop-ai/WorkshopAIPanel';
 import { GuidedDiscoveryPanel } from './components/guided-discovery/GuidedDiscoveryPanel';
+import { IngestionPanel } from './components/ingestion/IngestionPanel';
 
 function CreateMenu({ modals }: { modals: ReturnType<typeof useAppModals> }) {
   const [open, setOpen] = useState(false);
@@ -86,6 +87,7 @@ function App() {
   const { activeTab, setActiveTab, processDetailContext, closeProcessDetail } = useNavigationStore();
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [showDiscoveryPanel, setShowDiscoveryPanel] = useState(false);
+  const [showIngestionPanel, setShowIngestionPanel] = useState(false);
 
   const { data: perspectives } = usePerspectives();
   const { data: processes } = useProcesses();
@@ -182,18 +184,15 @@ function App() {
               processSteps={processes?.flatMap(p => p.steps.map(s => ({ id: s.id, name: s.name }))) || []}
             />
             <button
-              onClick={modals.openExcelImport}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5" />
-              Spreadsheet
-            </button>
-            <button
-              onClick={modals.openTmdlImport}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+              onClick={() => { setShowIngestionPanel(!showIngestionPanel); if (!showIngestionPanel) { setShowAIPanel(false); setShowDiscoveryPanel(false); } }}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                showIngestionPanel
+                  ? 'text-cyan-700 bg-cyan-100 border border-cyan-300'
+                  : 'text-cyan-700 bg-cyan-50 border border-cyan-200 hover:bg-cyan-100'
+              }`}
             >
               <Upload className="w-3.5 h-3.5" />
-              Power BI
+              Import Data
             </button>
           </div>
 
@@ -202,7 +201,7 @@ function App() {
           {/* AI Tools */}
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => { setShowDiscoveryPanel(!showDiscoveryPanel); if (!showDiscoveryPanel) setShowAIPanel(false); }}
+              onClick={() => { setShowDiscoveryPanel(!showDiscoveryPanel); if (!showDiscoveryPanel) { setShowAIPanel(false); setShowIngestionPanel(false); } }}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                 showDiscoveryPanel
                   ? 'text-teal-700 bg-teal-100 border border-teal-300'
@@ -213,7 +212,7 @@ function App() {
               Discovery
             </button>
             <button
-              onClick={() => { setShowAIPanel(!showAIPanel); if (!showAIPanel) setShowDiscoveryPanel(false); }}
+              onClick={() => { setShowAIPanel(!showAIPanel); if (!showAIPanel) { setShowDiscoveryPanel(false); setShowIngestionPanel(false); } }}
               className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                 showAIPanel
                   ? 'text-purple-700 bg-purple-100 border border-purple-300'
@@ -361,6 +360,11 @@ function App() {
       {/* Guided Discovery Panel */}
       {showDiscoveryPanel && (
         <GuidedDiscoveryPanel onClose={() => setShowDiscoveryPanel(false)} />
+      )}
+
+      {/* Unified Ingestion Panel */}
+      {showIngestionPanel && (
+        <IngestionPanel onClose={() => setShowIngestionPanel(false)} />
       )}
 
       {/* Toast Notifications */}

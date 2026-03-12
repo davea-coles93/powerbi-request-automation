@@ -4,6 +4,7 @@ from typing import Optional, Literal
 
 ReliabilityLevel = Literal["High", "Medium", "Low"]
 Volatility = Literal["Point-in-time", "Accumulating", "Continuous"]
+OntologyState = Literal["as-is", "to-be", "both"]
 
 
 class Attribute(BaseModel):
@@ -56,6 +57,9 @@ class Attribute(BaseModel):
     perspective_ids: Optional[list[str]] = Field(
         default=None,
         description="Perspectives this attribute is relevant to",
+    )
+    state: Optional[OntologyState] = Field(
+        default="as-is", description="Whether this attribute exists today (as-is), is planned (to-be), or both"
     )
 
     class Config:

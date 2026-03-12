@@ -5,6 +5,7 @@ from typing import Optional, Literal
 SystemType = Literal["ERP", "MES", "WMS", "CMMS", "QMS", "Spreadsheet", "Manual", "BI", "Other"]
 ReliabilityLevel = Literal["High", "Medium", "Low"]
 IntegrationStatus = Literal["Connected", "Planned", "Manual Extract", "None"]
+OntologyState = Literal["as-is", "to-be", "both"]
 
 
 class System(BaseModel):
@@ -21,6 +22,9 @@ class System(BaseModel):
         default=None, description="Current integration status"
     )
     notes: Optional[str] = Field(default=None, description="Additional notes")
+    state: Optional[OntologyState] = Field(
+        default="as-is", description="Whether this system exists today (as-is), is planned (to-be), or both"
+    )
 
     class Config:
         json_schema_extra = {
