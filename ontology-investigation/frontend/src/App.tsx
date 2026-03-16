@@ -85,7 +85,7 @@ function CreateMenu({ modals }: { modals: ReturnType<typeof useAppModals> }) {
 }
 
 function App() {
-  const { activeTab, setActiveTab, processDetailContext, closeProcessDetail } = useNavigationStore();
+  const { activeTab, setActiveTab, stateFilter, setStateFilter, processDetailContext, closeProcessDetail } = useNavigationStore();
   const [showIngestionPanel, setShowIngestionPanel] = useState(false);
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [showDiscoveryPanel, setShowDiscoveryPanel] = useState(false);
@@ -169,6 +169,33 @@ function App() {
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="h-5 w-px bg-gray-200 mx-1 flex-shrink-0" />
+
+          {/* State Filter */}
+          <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+            {([
+              { key: 'as-is', label: 'As-Is' },
+              { key: 'both', label: 'Both' },
+              { key: 'to-be', label: 'To-Be' },
+            ] as const).map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setStateFilter(key)}
+                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                  stateFilter === key
+                    ? key === 'to-be'
+                      ? 'bg-amber-500 text-white shadow-sm'
+                      : key === 'as-is'
+                        ? 'bg-blue-500 text-white shadow-sm'
+                        : 'bg-white text-gray-700 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
                 {label}
               </button>
             ))}

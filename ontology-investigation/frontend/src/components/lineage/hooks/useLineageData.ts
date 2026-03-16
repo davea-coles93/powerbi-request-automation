@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useLineageWithCosts, useProcesses, useProcess } from '../../../hooks/useOntology';
+import { useNavigationStore } from '../../../hooks/useNavigationStore';
 
 export type EntityTypeName = 'metric' | 'measure' | 'attribute' | 'entity' | 'system';
 export type ViewMode = 'lineage';
@@ -21,6 +22,7 @@ export function useLineageData() {
   const [processFilter, setProcessFilter] = useState<string | null>(null);
   const [expandedEntities, setExpandedEntities] = useState<Set<string>>(new Set());
 
+  const stateFilter = useNavigationStore((s) => s.stateFilter);
   const { data: allProcesses } = useProcesses();
   const { data: selectedProcess } = useProcess(processFilter || '');
 
@@ -57,6 +59,21 @@ export function useLineageData() {
         attributes: filterByPerspective(attributes),
         entities: filterByPerspective(entities),
         systems: filterByPerspective(systems),
+      };
+    }
+
+    // State filter (as-is / to-be / both)
+    if (stateFilter !== 'both') {
+      const matchesState = (item: any) => {
+        const itemState = item.state || 'as-is';
+        return itemState === stateFilter || itemState === 'both';
+      };
+      result = {
+        metrics: result.metrics.filter(matchesState),
+        measures: result.measures.filter(matchesState),
+        attributes: result.attributes.filter(matchesState),
+        entities: result.entities.filter(matchesState),
+        systems: result.systems.filter(matchesState),
       };
     }
 
@@ -159,7 +176,7 @@ export function useLineageData() {
     }
 
     return result;
-  }, [perspectiveFilter, hiddenTypes, crystallisationOnly, crystallisationCosts, processFilter, selectedProcess, metrics, measures, attributes, entities, systems]);
+  }, [perspectiveFilter, stateFilter, hiddenTypes, crystallisationOnly, crystallisationCosts, processFilter, selectedProcess, metrics, measures, attributes, entities, systems]);
 
   // Compute total crystallisation hours
   const totalCrystallisationMinutes = useMemo(

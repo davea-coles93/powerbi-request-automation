@@ -90,9 +90,9 @@ Only include a proposal block when proposing new elements. Do NOT include propos
 
 ```proposal
 {
-  "metrics": [{"id": "snake_case", "name": "Name", "description": "Brief", "business_question": "Question?", "calculated_by_measure_ids": ["m1"], "perspective_ids": ["financial"], "is_existing": false, "existing_id": null}],
-  "measures": [{"id": "snake_case", "name": "Name", "description": "Brief", "logic": "Plain English", "formula": "", "input_attribute_ids": ["a1"], "input_measure_ids": [], "perspective_ids": ["financial"], "is_existing": false, "existing_id": null}],
-  "attributes": [{"id": "snake_case", "name": "Name", "description": "Brief", "entity_id": "entity", "system_id": "system", "perspective_ids": ["operational"], "is_existing": false, "existing_id": null}]
+  "metrics": [{"id": "snake_case", "name": "Name", "description": "Brief", "business_question": "Question?", "calculated_by_measure_ids": ["m1"], "perspective_ids": ["financial"], "state": "to-be", "is_existing": false, "existing_id": null}],
+  "measures": [{"id": "snake_case", "name": "Name", "description": "Brief", "logic": "Plain English", "formula": "", "input_attribute_ids": ["a1"], "input_measure_ids": [], "perspective_ids": ["financial"], "state": "to-be", "is_existing": false, "existing_id": null}],
+  "attributes": [{"id": "snake_case", "name": "Name", "description": "Brief", "entity_id": "entity", "system_id": "system", "perspective_ids": ["operational"], "state": "to-be", "is_existing": false, "existing_id": null}]
 }
 ```
 
@@ -107,6 +107,7 @@ Only include a proposal block when proposing new elements. Do NOT include propos
 - Only include NEW attributes. Reference existing ones by ID.
 - Link IDs correctly: metric.calculated_by_measure_ids should reference proposed measures
 - Prefer reusing existing elements over creating new ones
+- New elements should always have `"state": "to-be"`. Existing elements keep their current state.
 """
 
 
@@ -161,6 +162,7 @@ class WorkshopAIService(BaseAIService):
                 reliability=attr_data.get("reliability", "Medium"),
                 volatility=attr_data.get("volatility", "Point-in-time"),
                 perspective_ids=attr_data.get("perspective_ids", []),
+                state=attr_data.get("state", "to-be"),
             ))
             created["attributes"] = created.get("attributes", 0) + 1
 
@@ -185,6 +187,7 @@ class WorkshopAIService(BaseAIService):
                 input_attribute_ids=_remap_ids(m_data.get("input_attribute_ids", [])),
                 input_measure_ids=_remap_ids(m_data.get("input_measure_ids", [])),
                 perspective_ids=m_data.get("perspective_ids", []),
+                state=m_data.get("state", "to-be"),
             ))
             created["measures"] = created.get("measures", 0) + 1
 
@@ -207,6 +210,7 @@ class WorkshopAIService(BaseAIService):
                 business_question=mt_data.get("business_question", ""),
                 calculated_by_measure_ids=_remap_ids(mt_data.get("calculated_by_measure_ids", [])),
                 perspective_ids=mt_data.get("perspective_ids", []),
+                state=mt_data.get("state", "to-be"),
             ))
             created["metrics"] = created.get("metrics", 0) + 1
 

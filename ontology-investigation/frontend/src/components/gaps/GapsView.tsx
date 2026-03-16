@@ -4,6 +4,8 @@ import {
   Plus,
   Loader2,
   Sparkles,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import {
   useProcesses,
@@ -26,10 +28,10 @@ import { AutomationOpportunities } from './AutomationOpportunities';
 import { AnnualROISummary } from './AnnualROISummary';
 import { GapCard, GAP_TYPE_CONFIG } from './GapCard';
 import { AddGapForm } from './AddGapForm';
-import { GapsSummaryBar } from './GapsSummaryBar';
 import { AIGapAnalysis } from './AIGapAnalysis';
+import { GapsDashboard } from './GapsDashboard';
 import { GAP_TYPES, colorClasses } from './types';
-import type { GapAnalysisData, GapItem, EfficiencyMetrics, ProcessStep } from './types';
+import type { GapAnalysisData, GapItem, GapType, EfficiencyMetrics, ProcessStep } from './types';
 import type { WorkshopSession } from '../../types/ontology';
 
 export function GapsView() {
@@ -62,6 +64,9 @@ export function GapsView() {
   const [automationFactor, setAutomationFactor] = useState(80);
   const [selectedPerspectiveId, setSelectedPerspectiveId] = useState<string | null>(null);
   const [gapSortMode, setGapSortMode] = useState<'type' | 'impact'>('impact');
+  const [gapFilterType, setGapFilterType] = useState<GapType | null>(null);
+  const [collapsedTypes, setCollapsedTypes] = useState<Set<string>>(new Set());
+  const [showGapCards, setShowGapCards] = useState(true);
   const [lineageStepId, setLineageStepId] = useState<string | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [data, setData] = useState<GapAnalysisData>({
@@ -326,7 +331,7 @@ export function GapsView() {
 
         {/* Gap Analysis Section */}
         <div className="border-t pt-6">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-red-500" />
               Gap Analysis
@@ -336,7 +341,7 @@ export function GapsView() {
                 onClick={handleScanOntology}
                 disabled={detectStandalone.isPending}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50"
-                title="Automatically find structural gaps: unused attributes, broken lineage chains, missing data journey points, and coverage issues"
+                title="Automatically find structural gaps"
               >
                 {detectStandalone.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                 Scan Ontology
@@ -346,7 +351,6 @@ export function GapsView() {
                   onClick={createDefaultSession}
                   disabled={createSession.isPending}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50"
-                  title="Create a gap analysis session to track and persist detected gaps"
                 >
                   {createSession.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                   Initialize Session
@@ -355,154 +359,187 @@ export function GapsView() {
             </div>
           </div>
 
-          {/* Detection method guide */}
-          <div className="mb-4 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600 leading-relaxed">
-            <span className="font-medium text-gray-700">Three ways to find gaps: </span>
-            <span className="text-green-700 font-medium">Scan Ontology</span> finds structural issues automatically.{' '}
-            <span className="text-purple-700 font-medium">Detect Gaps</span> cross-references your selected workshop sessions (demand vs supply).{' '}
-            <span className="text-indigo-700 font-medium">AI Gap Analysis</span> (above) uses Claude to suggest improvements across the whole ontology.
-          </div>
+          {/* Dashboard — visual summary at the top */}
+          <GapsDashboard
+            gaps={data.gaps}
+            onFilterType={setGapFilterType}
+            activeFilterType={gapFilterType}
+          />
 
-          {/* Source Selection */}
+          {/* Detection tools — collapsible */}
           {(topDownSessions.length > 0 || bottomUpSessions.length > 0) && (
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              {[
-                { label: 'Top-Down Sessions (Demand)', sessions: topDownSessions, listKey: 'top_down_session_ids' as const },
-                { label: 'Bottom-Up Sessions (Supply)', sessions: bottomUpSessions, listKey: 'bottom_up_session_ids' as const },
-              ].map(({ label, sessions, listKey }) => (
-                <div key={listKey} className="border rounded-lg p-4 bg-white">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">{label}</h4>
-                  {sessions.length === 0 ? (
-                    <p className="text-xs text-gray-400 italic">No sessions yet</p>
-                  ) : (
-                    <div className="space-y-1 max-h-32 overflow-y-auto">
-                      {sessions.map((s: WorkshopSession) => (
-                        <label key={s.id} className="flex items-center gap-2 text-sm cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={data[listKey].includes(s.id)}
-                            onChange={() => toggleSessionId(listKey, s.id)}
-                            className="accent-purple-600"
-                          />
-                          <span className="text-gray-700 truncate">{s.name}</span>
-                          <span className="text-xs text-gray-500 ml-auto flex-shrink-0">{s.date}</span>
-                        </label>
-                      ))}
+            <details className="mt-4 border border-gray-200 rounded-lg bg-white">
+              <summary className="px-4 py-3 text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50 select-none">
+                Workshop Session Detection (demand vs supply)
+              </summary>
+              <div className="px-4 pb-4 pt-2 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { label: 'Top-Down Sessions (Demand)', sessions: topDownSessions, listKey: 'top_down_session_ids' as const },
+                    { label: 'Bottom-Up Sessions (Supply)', sessions: bottomUpSessions, listKey: 'bottom_up_session_ids' as const },
+                  ].map(({ label, sessions, listKey }) => (
+                    <div key={listKey} className="border rounded-lg p-3 bg-gray-50">
+                      <h4 className="text-xs font-semibold text-gray-600 mb-2">{label}</h4>
+                      {sessions.length === 0 ? (
+                        <p className="text-xs text-gray-400 italic">No sessions yet</p>
+                      ) : (
+                        <div className="space-y-1 max-h-28 overflow-y-auto">
+                          {sessions.map((s: WorkshopSession) => (
+                            <label key={s.id} className="flex items-center gap-2 text-xs cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={data[listKey].includes(s.id)}
+                                onChange={() => toggleSessionId(listKey, s.id)}
+                                className="accent-purple-600"
+                              />
+                              <span className="text-gray-700 truncate">{s.name}</span>
+                              <span className="text-[10px] text-gray-400 ml-auto flex-shrink-0">{s.date}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-
-          {/* Detect Gaps Button */}
-          <button
-            onClick={handleDetectGaps}
-            disabled={autoDetectGaps.isPending || (!activeSession && createSession.isPending)}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-6"
-            title="Cross-reference selected top-down (demand) and bottom-up (supply) sessions to find demand-supply mismatches"
-          >
-            {autoDetectGaps.isPending ? (
-              <><Loader2 className="w-5 h-5 animate-spin" /> Detecting Gaps...</>
-            ) : (
-              <><Sparkles className="w-5 h-5" /> Detect Gaps</>
-            )}
-          </button>
-
-          {/* Sort mode toggle */}
-          {data.gaps.length > 0 && (
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-xs text-gray-500">Sort:</span>
-              <div className="flex items-center bg-gray-100 rounded-md p-0.5">
                 <button
-                  onClick={() => setGapSortMode('impact')}
-                  className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
-                    gapSortMode === 'impact' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                  onClick={handleDetectGaps}
+                  disabled={autoDetectGaps.isPending || (!activeSession && createSession.isPending)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors disabled:opacity-50"
                 >
-                  By Impact
-                </button>
-                <button
-                  onClick={() => setGapSortMode('type')}
-                  className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
-                    gapSortMode === 'type' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  By Type
+                  {autoDetectGaps.isPending ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Detecting...</>
+                  ) : (
+                    <><Sparkles className="w-4 h-4" /> Detect Gaps</>
+                  )}
                 </button>
               </div>
-            </div>
+            </details>
           )}
 
-          {/* Gap Cards */}
-          {gapSortMode === 'type' ? (
-            // Grouped by type
-            GAP_TYPES.map((gapType) => {
-              const config = GAP_TYPE_CONFIG[gapType];
-              const gaps = data.gaps.filter((g) => g.gap_type === gapType);
-              if (gaps.length === 0) return null;
-              const Icon = config.icon;
-              const cls = colorClasses(config.color);
-              return (
-                <div key={gapType} className="mb-4">
-                  <h4 className={`text-sm font-semibold mb-2 flex items-center gap-1.5 ${cls.text}`}>
-                    <Icon className="w-4 h-4" />
-                    {config.label} ({gaps.length})
-                  </h4>
-                  <div className="space-y-3">
-                    {gaps.map((gap) => (
-                      <GapCard
-                        key={gap.id}
-                        gap={gap}
-                        onUpdate={updateGap}
-                        onDelete={deleteGap}
-                        onMaterialize={handleMaterialize}
-                        elementNames={elementNames}
-                        isMaterializing={materializeElement.isPending}
-                      />
-                    ))}
+          {/* Gap List — contained scrollable panel */}
+          {data.gaps.length > 0 && (
+            <div className="mt-5 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+              {/* Sticky header with sort controls */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white sticky top-0 z-10">
+                <button
+                  onClick={() => setShowGapCards(!showGapCards)}
+                  className="text-sm font-semibold text-gray-700 flex items-center gap-1.5 hover:text-gray-900 cursor-pointer"
+                >
+                  {showGapCards ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                  Gap Details
+                  <span className="text-xs font-normal text-gray-400 ml-1">
+                    {gapFilterType
+                      ? `${data.gaps.filter(g => g.gap_type === gapFilterType).length} of ${data.gaps.length}`
+                      : data.gaps.length}
+                  </span>
+                </button>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400">Sort:</span>
+                  <div className="flex items-center bg-gray-100 rounded-md p-0.5">
+                    <button
+                      onClick={() => setGapSortMode('impact')}
+                      className={`px-2 py-1 text-xs font-medium rounded transition-colors cursor-pointer ${
+                        gapSortMode === 'impact' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Impact
+                    </button>
+                    <button
+                      onClick={() => setGapSortMode('type')}
+                      className={`px-2 py-1 text-xs font-medium rounded transition-colors cursor-pointer ${
+                        gapSortMode === 'type' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Type
+                    </button>
                   </div>
                 </div>
-              );
-            })
-          ) : (
-            // Flat list sorted by impact score
-            <div className="space-y-3">
-              {[...data.gaps]
-                .sort((a, b) => {
-                  const severityWeight = { high: 3, medium: 2, low: 1 };
-                  const aWeight = severityWeight[a.priority] || 1;
-                  const bWeight = severityWeight[b.priority] || 1;
-                  // Factor in number of related elements as a proxy for blast radius
-                  const aElements = a.related_attribute_ids.length + a.related_process_ids.length + a.related_measure_ids.length + a.related_entity_ids.length;
-                  const bElements = b.related_attribute_ids.length + b.related_process_ids.length + b.related_measure_ids.length + b.related_entity_ids.length;
-                  return (bWeight * (1 + bElements)) - (aWeight * (1 + aElements));
-                })
-                .map((gap) => (
-                  <GapCard
-                    key={gap.id}
-                    gap={gap}
-                    onUpdate={updateGap}
-                    onDelete={deleteGap}
-                    onMaterialize={handleMaterialize}
-                    elementNames={elementNames}
-                    isMaterializing={materializeElement.isPending}
-                  />
-                ))}
+              </div>
+
+              {showGapCards && (
+                <div className="max-h-[480px] overflow-y-auto">
+                  <div className="p-3 space-y-2">
+                    {gapSortMode === 'type' ? (
+                      GAP_TYPES.map((gapType) => {
+                        const config = GAP_TYPE_CONFIG[gapType];
+                        const typeGaps = data.gaps.filter((g) => g.gap_type === gapType);
+                        if (typeGaps.length === 0) return null;
+                        if (gapFilterType && gapFilterType !== gapType) return null;
+                        const Icon = config.icon;
+                        const cls = colorClasses(config.color);
+                        const isCollapsed = collapsedTypes.has(gapType);
+                        return (
+                          <div key={gapType}>
+                            <button
+                              onClick={() => setCollapsedTypes((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(gapType)) next.delete(gapType); else next.add(gapType);
+                                return next;
+                              })}
+                              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg ${cls.bg} ${cls.border} border text-left hover:opacity-90 transition-opacity cursor-pointer`}
+                            >
+                              <Icon className={`w-4 h-4 ${cls.text}`} />
+                              <span className={`text-sm font-semibold ${cls.text}`}>{config.label}</span>
+                              <span className={`text-xs ${cls.text} opacity-70`}>({typeGaps.length})</span>
+                              <span className="ml-auto text-gray-400 text-xs">{isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}</span>
+                            </button>
+                            {!isCollapsed && (
+                              <div className="mt-2 space-y-2 pl-2 mb-3">
+                                {typeGaps.map((gap) => (
+                                  <GapCard
+                                    key={gap.id}
+                                    gap={gap}
+                                    onUpdate={updateGap}
+                                    onDelete={deleteGap}
+                                    onMaterialize={handleMaterialize}
+                                    elementNames={elementNames}
+                                    isMaterializing={materializeElement.isPending}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      [...data.gaps]
+                        .filter((g) => !gapFilterType || g.gap_type === gapFilterType)
+                        .sort((a, b) => {
+                          const severityWeight: Record<string, number> = { high: 3, medium: 2, low: 1 };
+                          const aWeight = severityWeight[a.priority] || 1;
+                          const bWeight = severityWeight[b.priority] || 1;
+                          const aElements = a.related_attribute_ids.length + a.related_process_ids.length + a.related_measure_ids.length + a.related_entity_ids.length;
+                          const bElements = b.related_attribute_ids.length + b.related_process_ids.length + b.related_measure_ids.length + b.related_entity_ids.length;
+                          return (bWeight * (1 + bElements)) - (aWeight * (1 + aElements));
+                        })
+                        .map((gap) => (
+                          <GapCard
+                            key={gap.id}
+                            gap={gap}
+                            onUpdate={updateGap}
+                            onDelete={deleteGap}
+                            onMaterialize={handleMaterialize}
+                            elementNames={elementNames}
+                            isMaterializing={materializeElement.isPending}
+                          />
+                        ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {/* Empty state */}
           {data.gaps.length === 0 && (
-            <div className="text-center py-8 text-gray-400">
+            <div className="text-center py-8 text-gray-400 mt-4">
               <AlertTriangle className="w-8 h-8 mx-auto mb-2 opacity-30" />
               <p className="text-sm">No gaps identified yet</p>
-              <p className="text-xs mt-1">Use "Detect Gaps" or add gaps manually below</p>
+              <p className="text-xs mt-1">Use "Scan Ontology" or "AI Gap Analysis" above to detect gaps</p>
             </div>
           )}
 
           <AddGapForm onAdd={addGap} />
-          <GapsSummaryBar gaps={data.gaps} />
         </div>
 
         <AnnualROISummary

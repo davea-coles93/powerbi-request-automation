@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Modal, ModalCancelButton, ModalSubmitButton } from './shared/Modal';
+import { StateSelector } from './shared/StateSelector';
 import { System, SystemType, ReliabilityLevel, IntegrationStatus } from '../types/ontology';
 
 interface SystemEditorModalProps {
@@ -63,7 +64,13 @@ export function SystemEditorModal({ isOpen, onClose, system, onSave }: SystemEdi
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Basic Information */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
+              <StateSelector
+                value={formData.state || 'as-is'}
+                onChange={(state) => setFormData({ ...formData, state })}
+              />
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

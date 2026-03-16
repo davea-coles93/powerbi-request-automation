@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
+import type { OntologyState } from '../types/ontology';
+import { StateSelector } from './shared/StateSelector';
 
 interface CoreAttribute {
   id: string;
@@ -29,6 +31,7 @@ interface EntityData {
   description?: string;
   core_attributes: CoreAttribute[];
   lenses: EntityLens[];
+  state?: OntologyState;
 }
 
 interface EntityEditorModalProps {
@@ -221,7 +224,13 @@ export function EntityEditorModal({
           <div className="p-6 space-y-6">
             {/* Basic Information */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
+                <StateSelector
+                  value={formData.state || 'as-is'}
+                  onChange={(state) => setFormData({ ...formData, state })}
+                />
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

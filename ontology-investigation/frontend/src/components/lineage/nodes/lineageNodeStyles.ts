@@ -125,6 +125,25 @@ export const lineageNodeStyles: StylesheetJsonBlock[] = [
     } as any,
   },
 
+  // ── To-Be state: dashed border + amber tint ────────────────
+  {
+    selector: '.to-be-node',
+    style: {
+      'border-width': 2.5,
+      'border-style': 'dashed',
+      'border-color': '#f59e0b',
+      'background-opacity': 0.85,
+    } as any,
+  },
+  {
+    selector: '.to-be-edge',
+    style: {
+      'line-style': 'dashed',
+      'line-dash-pattern': [6, 3],
+      'opacity': 0.75,
+    } as any,
+  },
+
   // ── Trace: dimmed elements outside the data journey chain ───
   {
     selector: '.trace-dimmed',

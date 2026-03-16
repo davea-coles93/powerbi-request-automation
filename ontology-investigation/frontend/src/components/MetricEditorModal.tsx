@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Modal, ModalCancelButton, ModalSubmitButton } from './shared/Modal';
+import { StateSelector } from './shared/StateSelector';
+import type { OntologyState } from '../types/ontology';
 
 interface MetricData {
   id?: string;
@@ -8,6 +10,7 @@ interface MetricData {
   business_question: string;
   calculated_by_measure_ids: string[];
   perspective_ids: string[];
+  state?: OntologyState;
 }
 
 interface MetricEditorModalProps {
@@ -43,6 +46,7 @@ export function MetricEditorModal({
         business_question: '',
         calculated_by_measure_ids: [],
         perspective_ids: [],
+        state: 'as-is',
       });
     }
   }, [metric, isOpen]);
@@ -85,7 +89,13 @@ export function MetricEditorModal({
         <div className="p-6 space-y-6">
             {/* Basic Information */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
+                <StateSelector
+                  value={formData.state || 'as-is'}
+                  onChange={(state) => setFormData({ ...formData, state })}
+                />
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

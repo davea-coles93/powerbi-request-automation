@@ -59,7 +59,7 @@ export function buildNodes(items: any[], entityType: string, startIndex: number,
         x: col * GRID_SPACING,
         y: row * GRID_SPACING,
       },
-      classes: `${entityType}-node`,
+      classes: `${entityType}-node${item.state === 'to-be' ? ' to-be-node' : ''}`,
     };
   });
 }
@@ -166,7 +166,7 @@ export function buildLineageElements(
         ...entity,
       },
       position: { x: col * GRID_SPACING, y: row * GRID_SPACING },
-      classes: `entity-node ${isExpanded ? 'entity-node-expanded' : 'entity-node-collapsed'}`,
+      classes: `entity-node ${isExpanded ? 'entity-node-expanded' : 'entity-node-collapsed'}${entity.state === 'to-be' ? ' to-be-node' : ''}`,
     });
     offset++;
 
@@ -189,7 +189,7 @@ export function buildLineageElements(
             ...attr,
           },
           position: { x: aCol * GRID_SPACING, y: aRow * GRID_SPACING },
-          classes: 'attribute-node',
+          classes: `attribute-node${attr.state === 'to-be' ? ' to-be-node' : ''}`,
         });
         offset++;
       }

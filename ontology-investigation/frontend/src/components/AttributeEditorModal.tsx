@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
+import type { OntologyState } from '../types/ontology';
+import { StateSelector } from './shared/StateSelector';
 
 interface ConstraintData {
   type: 'range' | 'required' | 'format';
@@ -25,6 +27,7 @@ interface AttributeData {
   source_connection?: string;
   constraints?: ConstraintData[];
   perspective_ids?: string[];
+  state?: OntologyState;
 }
 
 interface AttributeEditorModalProps {
@@ -53,6 +56,7 @@ const defaultFormData: AttributeData = {
   source_connection: '',
   constraints: [],
   perspective_ids: [],
+  state: 'as-is',
 };
 
 export function AttributeEditorModal({
@@ -181,7 +185,13 @@ export function AttributeEditorModal({
           <div className="p-6 space-y-6">
             {/* Basic Information */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
+                <StateSelector
+                  value={formData.state || 'as-is'}
+                  onChange={(state) => setFormData({ ...formData, state })}
+                />
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

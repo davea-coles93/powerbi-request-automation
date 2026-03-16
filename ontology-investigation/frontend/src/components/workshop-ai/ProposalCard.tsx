@@ -424,9 +424,15 @@ export function ProposalCard({ proposals: initialProposals, onMaterialize, disab
             </div>
           )}
 
-          <p className="text-[10px] text-gray-400 px-1 pt-1">
-            Hover to edit or remove. Click pencil to adjust details.
-          </p>
+          {totalNew > 0 ? (
+            <p className="text-[10px] text-gray-400 px-1 pt-1">
+              Hover to edit or remove. Click pencil to adjust details.
+            </p>
+          ) : (
+            <p className="text-[10px] text-gray-400 px-1 pt-1">
+              All elements already exist in the ontology. No new elements to create.
+            </p>
+          )}
         </div>
       )}
 

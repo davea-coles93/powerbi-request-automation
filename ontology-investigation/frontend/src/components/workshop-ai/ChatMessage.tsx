@@ -101,6 +101,14 @@ function InlineFormat({ text }: { text: string }) {
   );
 }
 
+function hasNewElements(proposals: WorkshopProposals): boolean {
+  return (
+    proposals.metrics.some(m => !m.is_existing) ||
+    proposals.measures.some(m => !m.is_existing) ||
+    proposals.attributes.some(a => !a.is_existing)
+  );
+}
+
 export function ChatMessage({ message, onMaterialize, isStreaming, systems, entities, perspectives }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const displayContent = renderContent(message.content);
@@ -141,8 +149,8 @@ export function ChatMessage({ message, onMaterialize, isStreaming, systems, enti
           )}
         </div>
 
-        {/* Proposal card (only for assistant messages with proposals, after streaming done) */}
-        {!isUser && message.proposals && !isStreaming && (
+        {/* Proposal card (only for assistant messages with NEW proposals, after streaming done) */}
+        {!isUser && message.proposals && !isStreaming && hasNewElements(message.proposals) && (
           <ProposalCard
             proposals={message.proposals}
             onMaterialize={onMaterialize}

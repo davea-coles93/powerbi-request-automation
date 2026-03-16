@@ -30,6 +30,15 @@ body {
   background: #a1a1a1;
 }
 
+/* Hide scrollbar for carousels */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* ReactFlow custom node fixes - force visibility */
 .react-flow__node {
   overflow: visible !important;
