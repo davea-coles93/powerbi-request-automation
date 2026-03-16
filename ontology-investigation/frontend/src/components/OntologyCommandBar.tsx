@@ -402,7 +402,7 @@ export function OntologyCommandBar({ metrics, attributes, measures, processSteps
         className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg text-sm text-gray-500 transition-colors"
       >
         <Search className="w-4 h-4" />
-        <span>Ask about your ontology...</span>
+        <span>Search ontology...</span>
         <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-white border border-gray-300 rounded text-xs text-gray-400">
           <span className="text-xs">⌘</span>K
         </kbd>

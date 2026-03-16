@@ -16,12 +16,13 @@ export function GapsSummaryBar({ gaps }: GapsSummaryBarProps) {
     },
     {} as Record<string, number>,
   );
-  const resolvedCount = gaps.filter((g) => g.resolved).length;
-  const unresolvedCount = gaps.length - resolvedCount;
+  const openCount = gaps.filter((g) => !g.status || g.status === 'open').filter((g) => !g.resolved).length;
+  const inProgressCount = gaps.filter((g) => g.status === 'in_progress').length;
+  const resolvedCount = gaps.filter((g) => g.status === 'resolved' || g.resolved).length;
 
   return (
     <div className="bg-gray-50 border rounded-lg p-4 flex items-center justify-between mt-4">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-wrap">
         {GAP_TYPES.map((t) => {
           if (counts[t] === 0) return null;
           const cfg = GAP_TYPE_CONFIG[t];
@@ -37,10 +38,18 @@ export function GapsSummaryBar({ gaps }: GapsSummaryBarProps) {
           );
         })}
       </div>
-      <div className="flex items-center gap-3 text-xs">
-        <span className="text-green-600 font-medium">{resolvedCount} resolved</span>
-        <span className="text-gray-500">|</span>
-        <span className="text-red-600 font-medium">{unresolvedCount} unresolved</span>
+      <div className="flex items-center gap-3 text-xs flex-shrink-0">
+        <span className="inline-flex items-center gap-1 text-red-600 font-medium">
+          <span className="w-2 h-2 rounded-full bg-red-500" /> {openCount} open
+        </span>
+        <span className="text-gray-300">|</span>
+        <span className="inline-flex items-center gap-1 text-amber-600 font-medium">
+          <span className="w-2 h-2 rounded-full bg-amber-500" /> {inProgressCount} in progress
+        </span>
+        <span className="text-gray-300">|</span>
+        <span className="inline-flex items-center gap-1 text-green-600 font-medium">
+          <span className="w-2 h-2 rounded-full bg-green-500" /> {resolvedCount} resolved
+        </span>
       </div>
     </div>
   );

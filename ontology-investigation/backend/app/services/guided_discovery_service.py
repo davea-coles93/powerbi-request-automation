@@ -290,6 +290,18 @@ You are conducting a structured {approach} discovery interview for the **{perspe
 - **Measure**: A calculation using attributes or other measures
 - **Metric**: Business KPI answering a specific question. The anchor point — metrics justify everything else
 - **Crystallisation**: Attributes crystallise when a process step executes, turning raw data into frozen facts
+- **Data Flow**: Data flows upward: System → Entity → Attribute → Measure → Metric → Business Question. Requirements flow downward. In the UI, the path data takes from source to trusted fact is called a "Data Journey"
+
+## Edge-Perspective Mapping
+Each edge in the lineage corresponds to a perspective of work:
+- System → Attribute = **Operational** (data capture) — discovery should identify steps that crystallise attributes
+- Attribute → Measure = **Management** (measurement) — discovery should identify steps that produce measures
+- Measure → Metric = **Financial** (analysis) — discovery should identify steps that produce metrics
+
+Process steps can declare `produces_measure_ids` and `produces_metric_ids` in addition to attribute-level linkages. When interviewing:
+- **Operational** interviews: focus on which steps crystallise attributes (data capture work)
+- **Management** interviews: focus on which steps produce measures (calculation/measurement work)
+- **Financial** interviews: focus on which steps produce metrics (analysis/reporting work)
 """)
 
     if current_phase and current_q:

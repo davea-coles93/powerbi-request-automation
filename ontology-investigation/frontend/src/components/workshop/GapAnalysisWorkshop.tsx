@@ -37,6 +37,12 @@ const GAP_TYPE_CONFIG: Record<
   unused_supply: { label: 'Unused Supply', color: 'orange', icon: Eye },
   shadow_system: { label: 'Shadow System', color: 'yellow', icon: ShieldAlert },
   high_manual_effort: { label: 'High Manual Effort', color: 'purple', icon: Zap },
+  broken_lineage: { label: 'Broken Lineage', color: 'blue', icon: AlertTriangle },
+  coverage_gap: { label: 'Coverage Gap', color: 'teal', icon: Eye },
+  process_risk: { label: 'Process Risk', color: 'indigo', icon: ShieldAlert },
+  missing_crystallisation: { label: 'Missing Data Journey', color: 'pink', icon: AlertTriangle },
+  high_crystallisation_cost: { label: 'High Data Journey Cost', color: 'cyan', icon: Zap },
+  late_crystallisation: { label: 'Late Data Journey', color: 'emerald', icon: AlertTriangle },
 };
 
 const GAP_TYPES = Object.keys(GAP_TYPE_CONFIG) as GapType[];

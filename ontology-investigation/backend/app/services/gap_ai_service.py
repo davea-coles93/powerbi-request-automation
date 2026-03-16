@@ -19,8 +19,13 @@ from .ontology_context import OntologyContextBuilder
 SYSTEM_PROMPT = """\
 You are a business ontology analyst. You analyze the current state of a business ontology and identify gaps, risks, and improvement opportunities.
 
-## Crystallisation Framing
-Think of the ontology as a network of crystallisation pathways. Attributes are raw data born at the point of activity. They become trusted, frozen facts through crystallisation — process steps that validate, approve, cut off, or reconcile. Your job is to identify missing crystallisation pathways (attributes that never get crystallised into reliable facts), high-cost crystallisation pathways (attributes that require excessive manual effort, system switching, or waiting time to crystallise), and opportunities to reduce crystallisation burden (automation, system consolidation, earlier cutoffs).
+## Data Flow Model
+Data flows UPWARD through the ontology:
+  System → Entity → Attribute → Measure → Metric → Business Question
+Requirements flow DOWNWARD (we need this metric → which needs these measures → which need these attributes → from these systems).
+
+## Data Journey Framing
+Think of the ontology as a network of data journeys. Attributes are raw data born at the point of activity. They become trusted, frozen facts through crystallisation — process steps that validate, approve, cut off, or reconcile. Your job is to identify missing data journeys (attributes that never get crystallised into reliable facts), high-cost data journeys (attributes that require excessive manual effort, system switching, or waiting time to crystallise), and opportunities to reduce data journey burden (automation, system consolidation, earlier cutoffs).
 
 ## Your Task
 Analyze the ontology data provided and produce a structured gap analysis. Focus on actionable findings, not generic advice.
@@ -33,9 +38,17 @@ Analyze the ontology data provided and produce a structured gap analysis. Focus 
 5. **Broken Lineage** — Metrics referencing measures that don't exist, or measures referencing missing attributes
 6. **Coverage Gap** — A perspective or entity has no associated metrics/measures
 7. **Process Risk** — Critical steps with no system backup, single-actor dependencies
-8. **Missing Crystallisation** — Attributes consumed by measures/metrics but no process step crystallises them — they are used as if reliable but nothing formally freezes them
-9. **High Crystallisation Cost** — Attributes that require disproportionate manual effort, system switching, or elapsed time to move from raw data to crystallised fact
-10. **Late Crystallisation** — Attributes that crystallise too late in the period (e.g., only at month-end) when earlier crystallisation would enable faster reporting
+8. **Missing Crystallisation** (shown as "Missing Data Journey" in UI) — Attributes consumed by measures/metrics but no process step crystallises them — they are used as if reliable but nothing formally freezes them
+9. **High Crystallisation Cost** (shown as "High Data Journey Cost" in UI) — Attributes that require disproportionate manual effort, system switching, or elapsed time to move from raw data to crystallised fact
+10. **Late Crystallisation** (shown as "Late Data Journey" in UI) — Attributes that crystallise too late in the period (e.g., only at month-end) when earlier crystallisation would enable faster reporting
+11. **Unproduced Measure** — A measure exists in the model but no process step's `produces_measure_ids` includes it. The calculation is defined but nobody's work actually computes it. This is a management-level gap.
+12. **Unproduced Metric** — A metric exists but no process step's `produces_metric_ids` includes it. The business question is defined but no process directly answers it. This is a financial-level gap.
+
+## Edge-Perspective Framing
+Gaps exist at three levels of the data journey:
+- **Operational** (System → Attribute): attributes not crystallised — raw data never formally frozen
+- **Management** (Attribute → Measure): measures not produced by any step — calculations defined but nobody computes them
+- **Financial** (Measure → Metric): metrics not produced by any step — business questions asked but no process answers them
 
 ## Response Format
 Provide analysis in two parts:

@@ -81,6 +81,24 @@ class OntologyContextBuilder:
                     self._attr_to_measures.setdefault(attr_id, []).append(m.id)
         return self._attr_to_measures
 
+    def _get_measure_to_steps(self) -> dict[str, list[str]]:
+        """Reverse lookup: measure_id → list of step descriptions that produce it."""
+        result: dict[str, list[str]] = {}
+        for p in self.processes:
+            for s in p.steps:
+                for mid in (s.produces_measure_ids or []):
+                    result.setdefault(mid, []).append(f"{p.name} → {s.name}")
+        return result
+
+    def _get_metric_to_steps(self) -> dict[str, list[str]]:
+        """Reverse lookup: metric_id → list of step descriptions that produce it."""
+        result: dict[str, list[str]] = {}
+        for p in self.processes:
+            for s in p.steps:
+                for mid in (s.produces_metric_ids or []):
+                    result.setdefault(mid, []).append(f"{p.name} → {s.name}")
+        return result
+
     def _perspectives_section(self, detail: str = "summary") -> str | None:
         if not self.perspectives:
             return None
@@ -150,6 +168,9 @@ class OntologyContextBuilder:
     def _measures_section(self, detail: str = "summary") -> str | None:
         if not self.measures:
             return None
+        if detail == "process":
+            lines = [f"  - {m.id}: {m.name}" for m in self.measures]
+            return "EXISTING MEASURES (use these IDs in produces_measure_ids):\n" + "\n".join(lines)
         lines = []
         for m in self.measures:
             inputs = []
@@ -170,6 +191,9 @@ class OntologyContextBuilder:
     def _metrics_section(self, detail: str = "summary") -> str | None:
         if not self.metrics:
             return None
+        if detail == "process":
+            lines = [f"  - {mt.id}: {mt.name} — Q: \"{mt.business_question}\"" for mt in self.metrics]
+            return "EXISTING METRICS (use these IDs in produces_metric_ids):\n" + "\n".join(lines)
         lines = []
         for mt in self.metrics:
             measure_refs = mt.calculated_by_measure_ids or []
@@ -205,8 +229,19 @@ class OntologyContextBuilder:
                     if s.automation_potential in ("High", "Medium") and (s.manual_effort_percentage or 0) >= 50:
                         flags.append("AUTOMATION-OPPORTUNITY")
                     flag_str = f" [{', '.join(flags)}]" if flags else ""
+                    # Show data linkages
+                    linkages = []
+                    if s.produces_attribute_ids:
+                        linkages.append(f"produces attrs: {','.join(s.produces_attribute_ids)}")
+                    if s.crystallizes_attribute_ids:
+                        linkages.append(f"crystallises: {','.join(s.crystallizes_attribute_ids)}")
+                    if s.produces_measure_ids:
+                        linkages.append(f"produces measures: {','.join(s.produces_measure_ids)}")
+                    if s.produces_metric_ids:
+                        linkages.append(f"produces metrics: {','.join(s.produces_metric_ids)}")
+                    linkage_str = f" | {'; '.join(linkages)}" if linkages else ""
                     step_lines.append(
-                        f"    {s.sequence}. {s.name} ({s.perspective_id}, actor: {s.actor or '?'}){flag_str}"
+                        f"    {s.sequence}. {s.name} ({s.perspective_id}, actor: {s.actor or '?'}){flag_str}{linkage_str}"
                     )
                 sections.append(f"PROCESS: {p.id} — {p.name}\n" + "\n".join(step_lines))
             return "\n\n".join(sections)
@@ -214,8 +249,69 @@ class OntologyContextBuilder:
             lines = [f"  - {p.id}: {p.name} ({len(p.steps)} steps)" for p in self.processes]
             return "EXISTING PROCESSES:\n" + "\n".join(lines)
 
+    def _crystallisation_section(self) -> str | None:
+        """Summarise crystallisation coverage: which attributes are crystallised by which process steps."""
+        if not self.processes:
+            return None
+        crystallised: dict[str, list[str]] = {}  # attr_id -> [step descriptions]
+        uncrystallised_used: list[str] = []  # attr names used by measures but never crystallised
+
+        crystallised_ids: set[str] = set()
+        for p in self.processes:
+            for s in p.steps:
+                for attr_id in (s.crystallizes_attribute_ids or []):
+                    crystallised_ids.add(attr_id)
+                    crystallised.setdefault(attr_id, []).append(
+                        f"{p.name} → {s.name} ({s.perspective_id})"
+                    )
+
+        # Find attributes used by measures but never crystallised
+        attr_measure_map = self._get_attr_to_measures()
+        attr_names = {a.id: a.name for a in self.attributes}
+        for attr_id in attr_measure_map:
+            if attr_id not in crystallised_ids:
+                uncrystallised_used.append(attr_names.get(attr_id, attr_id))
+
+        # Find measures without producing steps
+        measure_step_map = self._get_measure_to_steps()
+        unproduced_measures = [m.name for m in self.measures if m.id not in measure_step_map]
+
+        # Find metrics without producing steps
+        metric_step_map = self._get_metric_to_steps()
+        unproduced_metrics = [mt.name for mt in self.metrics if mt.id not in metric_step_map]
+
+        if not crystallised and not uncrystallised_used and not unproduced_measures and not unproduced_metrics:
+            return None
+
+        lines = []
+        if crystallised:
+            lines.append(f"  Crystallised attributes ({len(crystallised)}):")
+            for attr_id, steps in list(crystallised.items())[:15]:
+                name = attr_names.get(attr_id, attr_id)
+                lines.append(f"    - {name}: {'; '.join(steps)}")
+        if uncrystallised_used:
+            lines.append(f"  Attributes used by measures but NEVER crystallised ({len(uncrystallised_used)}):")
+            for name in uncrystallised_used[:10]:
+                lines.append(f"    - {name}")
+            if len(uncrystallised_used) > 10:
+                lines.append(f"    ... and {len(uncrystallised_used) - 10} more")
+        if unproduced_measures:
+            lines.append(f"  Measures without a producing step ({len(unproduced_measures)}):")
+            for name in unproduced_measures[:10]:
+                lines.append(f"    - {name}")
+            if len(unproduced_measures) > 10:
+                lines.append(f"    ... and {len(unproduced_measures) - 10} more")
+        if unproduced_metrics:
+            lines.append(f"  Metrics without a producing step ({len(unproduced_metrics)}):")
+            for name in unproduced_metrics[:10]:
+                lines.append(f"    - {name}")
+            if len(unproduced_metrics) > 10:
+                lines.append(f"    ... and {len(unproduced_metrics) - 10} more")
+
+        return "DATA JOURNEY COVERAGE:\n" + "\n".join(lines)
+
     def summary(self) -> str:
-        """Build context for the workshop AI assistant (moderate detail, includes lenses)."""
+        """Build context for the workshop AI assistant (moderate detail, includes lenses and processes)."""
         sections = [
             s for s in [
                 self._perspectives_section("summary"),
@@ -224,6 +320,8 @@ class OntologyContextBuilder:
                 self._attributes_section("summary"),
                 self._measures_section("summary"),
                 self._metrics_section("summary"),
+                self._processes_section("summary"),
+                self._crystallisation_section(),
             ] if s
         ]
         if not sections:
@@ -231,13 +329,15 @@ class OntologyContextBuilder:
         return "## Current Ontology State\n\n" + "\n\n".join(sections)
 
     def with_processes(self) -> str:
-        """Build context for the process AI builder (includes processes and attribute limit)."""
+        """Build context for the process AI builder (includes processes, measures, metrics, and attribute limit)."""
         sections = [
             s for s in [
                 self._perspectives_section("process"),
                 self._systems_section("process"),
                 self._entities_section("process"),
                 self._attributes_section("process", limit=30),
+                self._measures_section("process"),
+                self._metrics_section("process"),
                 self._processes_section("summary"),
             ] if s
         ]
@@ -261,6 +361,7 @@ class OntologyContextBuilder:
                 self._measures_section("full"),
                 self._metrics_section("full"),
                 self._processes_section("full"),
+                self._crystallisation_section(),
             ] if s
         ]
         if len(sections) == 1:  # only counts

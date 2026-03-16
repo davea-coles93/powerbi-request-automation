@@ -8,12 +8,19 @@ interface InspectorPanelProps {
 
 export function InspectorPanel({ children, title }: InspectorPanelProps) {
   const inspectorOpen = useCanvasStore((s) => s.inspectorOpen);
+  const selectedStep = useCanvasStore((s) => s.selectedStep);
+  const selectedHandoff = useCanvasStore((s) => s.selectedHandoff);
+  const selectedStepIds = useCanvasStore((s) => s.selectedStepIds);
   const closeInspector = useCanvasStore((s) => s.closeInspector);
+
+  // Don't render at all when nothing is selected (prevents empty "Inspector" panel)
+  const hasContent = selectedStep || selectedHandoff || selectedStepIds.size > 0;
+  const isVisible = inspectorOpen && hasContent;
 
   return (
     <div
       className={`absolute top-0 right-0 h-full w-[400px] bg-white border-l border-gray-200 shadow-xl z-20 flex flex-col transition-transform duration-200 ease-out ${
-        inspectorOpen ? 'translate-x-0' : 'translate-x-full'
+        isVisible ? 'translate-x-0' : 'translate-x-full'
       }`}
     >
       {/* Header */}

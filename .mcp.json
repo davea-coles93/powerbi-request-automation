@@ -24,6 +24,13 @@
         "C:/Users/Dave/Documents/powerBI experiments/mcp-servers/powerbi-semantic/build/index.js"
       ],
       "env": {}
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@playwright/mcp"
+      ]
     }
   }
 }

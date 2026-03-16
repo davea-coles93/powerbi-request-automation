@@ -16,6 +16,8 @@ interface AttributeLibraryState {
   setSortBy: (s: 'name' | 'cost' | 'impact' | 'reliability') => void;
   toggleSortDirection: () => void;
   toggleGroup: (groupId: string, allGroupIds?: string[]) => void;
+  collapseAll: () => void;
+  expandAll: () => void;
 }
 
 export const useAttributeLibraryStore = create<AttributeLibraryState>((set) => ({
@@ -50,4 +52,6 @@ export const useAttributeLibraryStore = create<AttributeLibraryState>((set) => (
       }
       return { expandedGroups: next };
     }),
+  collapseAll: () => set({ expandedGroups: new Set(['__none__']) }),
+  expandAll: () => set({ expandedGroups: new Set<string>() }),
 }));

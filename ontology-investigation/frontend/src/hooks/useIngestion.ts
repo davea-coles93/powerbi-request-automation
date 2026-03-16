@@ -131,6 +131,25 @@ export function useIngestion() {
     setStage(prev => prev === 'uploading' ? 'idle' : prev);
   }, []);
 
+  const addStagedSource = useCallback((name: string, sourceType: string, data: any) => {
+    const staged: StagedSource = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      fileName: name,
+      sourceType,
+      parsedAt: new Date(),
+      data,
+      counts: {
+        entities: data.entities?.length || 0,
+        attributes: data.attributes?.length || 0,
+        measures: data.measures?.length || 0,
+        systems: data.systems?.length || 0,
+        processes: data.processes?.length || 0,
+        relationships: data.relationships?.length || 0,
+      },
+    };
+    setStagedSources(prev => [...prev, staged]);
+  }, []);
+
   const removeSource = useCallback((sourceId: string) => {
     setStagedSources(prev => prev.filter(s => s.id !== sourceId));
     // Reset enrichment if sources change
@@ -302,6 +321,7 @@ export function useIngestion() {
     error,
     uploadProgress,
     addFiles,
+    addStagedSource,
     removeSource,
     clearAll,
     startEnrichment,

@@ -12,6 +12,9 @@ export interface StepMetadata {
   manual_effort_percentage?: number;
   produces_attribute_ids?: string[];
   consumes_attribute_ids?: string[];
+  crystallizes_attribute_ids?: string[];
+  produces_measure_ids?: string[];
+  produces_metric_ids?: string[];
   uses_metric_ids?: string[];
   systems_used_ids?: string[];
   has_sub_steps?: boolean;

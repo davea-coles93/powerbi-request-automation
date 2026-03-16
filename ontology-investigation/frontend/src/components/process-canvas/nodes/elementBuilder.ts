@@ -11,9 +11,11 @@ export interface FlowNode {
   manual_effort_percentage?: number;
   produces_attribute_ids?: string[];
   consumes_attribute_ids?: string[];
+  crystallizes_attribute_ids?: string[];
+  produces_measure_ids?: string[];
+  produces_metric_ids?: string[];
   uses_metric_ids?: string[];
   systems_used_ids?: string[];
-  crystallizes_attribute_ids?: string[];
 }
 
 export interface FlowEdge {
@@ -105,6 +107,9 @@ export function buildElements(flow: ProcessFlow) {
           has_sub_steps: !!node.has_sub_steps,
           produces_attribute_ids: node.produces_attribute_ids || [],
           consumes_attribute_ids: node.consumes_attribute_ids || [],
+          crystallizes_attribute_ids: node.crystallizes_attribute_ids || [],
+          produces_measure_ids: node.produces_measure_ids || [],
+          produces_metric_ids: node.produces_metric_ids || [],
           uses_metric_ids: node.uses_metric_ids || [],
           systems_used_ids: node.systems_used_ids || [],
         },

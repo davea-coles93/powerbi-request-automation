@@ -1,7 +1,33 @@
 import { useState, useRef, useCallback } from 'react';
-import { Sparkles, Loader2, AlertTriangle, ChevronDown, ChevronRight, Shield, Info } from 'lucide-react';
+import { Sparkles, Loader2, AlertTriangle, ChevronDown, ChevronRight, Shield, Info, Check } from 'lucide-react';
 import { gapAIAnalyzeStream } from '../../services/api';
-import type { GapAnalysisResult, AIGapItem } from '../../types/ontology';
+import type { GapAnalysisResult, AIGapItem, GapItem, GapType } from '../../types/ontology';
+
+const VALID_GAP_TYPES: GapType[] = [
+  'missing_supply', 'unused_supply', 'shadow_system', 'high_manual_effort',
+  'broken_lineage', 'coverage_gap', 'process_risk',
+  'missing_crystallisation', 'high_crystallisation_cost', 'late_crystallisation',
+];
+
+function mapAIGapToGapItem(aiGap: AIGapItem): GapItem {
+  const gapType: GapType = VALID_GAP_TYPES.includes(aiGap.type as GapType)
+    ? (aiGap.type as GapType)
+    : 'coverage_gap';
+
+  return {
+    id: `ai-${aiGap.id}-${Date.now()}`,
+    gap_type: gapType,
+    description: `${aiGap.title}: ${aiGap.description}`,
+    priority: aiGap.severity,
+    related_entity_ids: [],
+    related_attribute_ids: [],
+    related_measure_ids: [],
+    related_process_ids: [],
+    suggested_action: aiGap.recommendation,
+    resolved: false,
+    status: 'open',
+  };
+}
 
 const SEVERITY_STYLES: Record<string, { bg: string; border: string; text: string; dot: string }> = {
   high: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', dot: 'bg-red-500' },
@@ -41,7 +67,7 @@ function HealthScore({ score }: { score: number }) {
   );
 }
 
-function GapItemCard({ gap }: { gap: AIGapItem }) {
+function GapItemCard({ gap, onAccept, isAccepted }: { gap: AIGapItem; onAccept?: (gap: AIGapItem) => void; isAccepted?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const styles = SEVERITY_STYLES[gap.severity] || SEVERITY_STYLES.medium;
 
@@ -54,6 +80,20 @@ function GapItemCard({ gap }: { gap: AIGapItem }) {
         <span className={`w-2 h-2 rounded-full ${styles.dot} flex-shrink-0`} />
         {expanded ? <ChevronDown className="w-3.5 h-3.5 text-gray-400" /> : <ChevronRight className="w-3.5 h-3.5 text-gray-400" />}
         <span className={`text-xs font-semibold ${styles.text} flex-1`}>{gap.title}</span>
+        {onAccept && (
+          isAccepted ? (
+            <span className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-green-700 bg-green-100 border border-green-200 rounded">
+              <Check className="w-3 h-3" /> Accepted
+            </span>
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); onAccept(gap); }}
+              className="px-2 py-0.5 text-[10px] font-medium text-purple-700 bg-purple-100 border border-purple-200 rounded hover:bg-purple-200 transition-colors"
+            >
+              Accept
+            </button>
+          )
+        )}
         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${styles.text} ${styles.bg} border ${styles.border}`}>
           {gap.severity}
         </span>
@@ -79,12 +119,24 @@ function GapItemCard({ gap }: { gap: AIGapItem }) {
   );
 }
 
-export function AIGapAnalysis() {
+interface AIGapAnalysisProps {
+  onAcceptGap?: (gap: GapItem) => void;
+}
+
+export function AIGapAnalysis({ onAcceptGap }: AIGapAnalysisProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [streamContent, setStreamContent] = useState('');
   const [analysis, setAnalysis] = useState<GapAnalysisResult | null>(null);
   const [focus, setFocus] = useState('');
+  const [acceptedIds, setAcceptedIds] = useState<Set<string>>(new Set());
   const abortRef = useRef<AbortController | null>(null);
+
+  const handleAcceptGap = useCallback((aiGap: AIGapItem) => {
+    if (!onAcceptGap) return;
+    const gapItem = mapAIGapToGapItem(aiGap);
+    onAcceptGap(gapItem);
+    setAcceptedIds((prev) => new Set(prev).add(aiGap.id));
+  }, [onAcceptGap]);
 
   const runAnalysis = useCallback(async () => {
     setIsAnalyzing(true);
@@ -192,7 +244,12 @@ export function AIGapAnalysis() {
                   Identified Gaps ({analysis.gaps.length})
                 </h4>
                 {analysis.gaps.map((gap) => (
-                  <GapItemCard key={gap.id} gap={gap} />
+                  <GapItemCard
+                    key={gap.id}
+                    gap={gap}
+                    onAccept={onAcceptGap ? handleAcceptGap : undefined}
+                    isAccepted={acceptedIds.has(gap.id)}
+                  />
                 ))}
               </div>
             </div>

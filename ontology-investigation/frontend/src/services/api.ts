@@ -266,6 +266,12 @@ export const getBusinessQuestionCost = (metricId: string) =>
 export const getLineageWithCosts = () =>
   api.get<LineageWithCosts>('/graph/lineage-with-costs').then((res) => res.data);
 
+export const getProcessInterconnections = () =>
+  api.get<{ processes: any[]; connections: any[] }>('/graph/process-interconnections').then((res) => res.data);
+
+export const detectGapsStandalone = () =>
+  api.get<{ gaps: any[] }>('/graph/gaps/detect').then((res) => res.data);
+
 // TMDL Ingestion endpoints
 export const listAvailableModels = () =>
   api.get<AvailableModel[]>('/ingest/available-models').then((res) => res.data);
@@ -689,6 +695,40 @@ export const parseDocument = (file: File) => {
     timeout: 120000, // 2 min — Haiku extraction can take time for large docs
   }).then((res) => res.data);
 };
+
+// ── Power BI Live Connection ──────────────────────────────────────────────
+
+export const powerbiLiveStatus = () =>
+  api.get('/ingest/powerbi/live/status').then((res) => res.data);
+
+export const powerbiLiveConnect = (tenantId: string, clientId: string, clientSecret: string) =>
+  api.post('/ingest/powerbi/live/connect', {
+    tenant_id: tenantId,
+    client_id: clientId,
+    client_secret: clientSecret,
+  }).then((res) => res.data);
+
+export const powerbiLiveDisconnect = (sessionToken: string) =>
+  api.post('/ingest/powerbi/live/disconnect', null, {
+    params: { session_token: sessionToken },
+  }).then((res) => res.data);
+
+export const powerbiLiveWorkspaces = (sessionToken: string) =>
+  api.get('/ingest/powerbi/live/workspaces', {
+    params: { session_token: sessionToken },
+  }).then((res) => res.data);
+
+export const powerbiLiveDatasets = (workspaceId: string, sessionToken: string) =>
+  api.get(`/ingest/powerbi/live/workspaces/${workspaceId}/datasets`, {
+    params: { session_token: sessionToken },
+  }).then((res) => res.data);
+
+export const powerbiLiveExtract = (workspaceId: string, datasetId: string, sessionToken: string) =>
+  api.post('/ingest/powerbi/live/extract', {
+    workspace_id: workspaceId,
+    dataset_id: datasetId,
+    session_token: sessionToken,
+  }).then((res) => res.data);
 
 export const loadIngestedElements = (elements: any, sourceType: string = 'spreadsheet') => {
   const endpoint = sourceType === 'powerbi' ? '/ingest/powerbi/load'

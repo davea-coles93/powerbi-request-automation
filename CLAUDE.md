@@ -146,6 +146,13 @@ Business Question → Metric → Measure → Attribute → System
 
 Each scenario includes its own perspectives, systems, entities, attributes, measures, metrics, and processes. Scenarios are loaded by clearing the DB and seeding from JSON files (`backend/data/seed_data*.json`).
 
+**IMPORTANT — Dual seed data locations:** When running via Docker Compose, the backend-dev service mounts `./data:/app/data` which overrides `./backend:/app`'s data directory. This means seed data files exist in TWO locations and both must be kept in sync:
+- `ontology-investigation/backend/data/seed_data*.json` — used when running locally (`uvicorn` directly)
+- `ontology-investigation/data/seed_data*.json` — used when running via Docker Compose (mounted at `/app/data/`)
+If you edit seed data, copy the file to both locations or changes won't take effect in Docker.
+
+**Pydantic validation on seed data:** The `Attribute` model's `volatility` field only accepts `"Point-in-time"`, `"Accumulating"`, or `"Continuous"`. Invalid values cause silent seeding failures (the transaction commits but invalid items are skipped). Always validate against the Pydantic models before seeding.
+
 **Graph Queries (the intelligence layer):** `graph_service.py` implements:
 - **Metric tracing** - Metric → Measures → Attributes → Systems (full lineage)
 - **Impact analysis** - "If this attribute has a data quality problem, what metrics are at risk?"

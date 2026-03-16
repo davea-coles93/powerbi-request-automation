@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Tooltip } from 'react-tooltip';
-import { useAttributes, useSystems, useEntities } from '../hooks/useOntology';
+import { useAttributes, useSystems, useEntities, useMeasures, useMetrics } from '../hooks/useOntology';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import * as api from '../services/api';
 
@@ -30,6 +30,9 @@ export interface StepFormData {
   manual_effort_percentage?: number;
   produces_attribute_ids?: string[];
   consumes_attribute_ids?: string[];
+  crystallizes_attribute_ids?: string[];
+  produces_measure_ids?: string[];
+  produces_metric_ids?: string[];
   uses_metric_ids?: string[];
   systems_used_ids?: string[];
   description?: string;
@@ -49,6 +52,8 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
   const { data: attributes = [] } = useAttributes();
   const { data: systems = [] } = useSystems();
   const { data: entities = [] } = useEntities();
+  const { data: allMeasures = [] } = useMeasures();
+  const { data: allMetrics = [] } = useMetrics();
 
   // Attribute creation mutation
   const createAttributeMutation = useMutation({
@@ -394,6 +399,158 @@ export function ProcessStepEditModal({ step: initialStep, onSave, onCancel }: Pr
                             className="w-4 h-4"
                           />
                           <span className="text-sm">{attr.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Crystallizes Attributes */}
+              <div>
+                <label className="flex items-center gap-1 text-sm font-semibold mb-2">
+                  🔒 Crystallizes Attributes
+                  <span
+                    data-tooltip-id="crystallizes-attr-tooltip"
+                    className="cursor-help text-gray-400 hover:text-gray-600"
+                  >
+                    ℹ️
+                  </span>
+                </label>
+                <Tooltip id="crystallizes-attr-tooltip" place="top" style={{ maxWidth: '300px', zIndex: 9999 }}>
+                  <div className="text-xs">
+                    Attributes that become <strong>frozen facts</strong> after this step completes.
+                    Once crystallised, these data points are trusted for downstream calculations.
+                  </div>
+                </Tooltip>
+                <div className="border rounded p-3 max-h-40 overflow-y-auto">
+                  {attributes.length === 0 ? (
+                    <p className="text-sm text-gray-500">No attributes available</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {attributes.map((attr) => (
+                        <label key={attr.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                          <input
+                            type="checkbox"
+                            checked={step.crystallizes_attribute_ids?.includes(attr.id) || false}
+                            onChange={() => toggleArrayItem('crystallizes_attribute_ids', attr.id)}
+                            className="w-4 h-4"
+                          />
+                          <span className="text-sm">{attr.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Produces Measures */}
+              <div>
+                <label className="flex items-center gap-1 text-sm font-semibold mb-2">
+                  📐 Produces Measures
+                  <span
+                    data-tooltip-id="produces-measure-tooltip"
+                    className="cursor-help text-gray-400 hover:text-gray-600"
+                  >
+                    ℹ️
+                  </span>
+                </label>
+                <Tooltip id="produces-measure-tooltip" place="top" style={{ maxWidth: '300px', zIndex: 9999 }}>
+                  <div className="text-xs">
+                    <strong>Measures</strong> whose calculation this step performs.
+                    Example: an approval step might produce a utilization measure.
+                  </div>
+                </Tooltip>
+                <div className="border rounded p-3 max-h-40 overflow-y-auto">
+                  {allMeasures.length === 0 ? (
+                    <p className="text-sm text-gray-500">No measures available</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {allMeasures.map((measure) => (
+                        <label key={measure.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                          <input
+                            type="checkbox"
+                            checked={step.produces_measure_ids?.includes(measure.id) || false}
+                            onChange={() => toggleArrayItem('produces_measure_ids', measure.id)}
+                            className="w-4 h-4"
+                          />
+                          <span className="text-sm">{measure.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Produces Metrics */}
+              <div>
+                <label className="flex items-center gap-1 text-sm font-semibold mb-2">
+                  📊 Produces Metrics
+                  <span
+                    data-tooltip-id="produces-metric-tooltip"
+                    className="cursor-help text-gray-400 hover:text-gray-600"
+                  >
+                    ℹ️
+                  </span>
+                </label>
+                <Tooltip id="produces-metric-tooltip" place="top" style={{ maxWidth: '300px', zIndex: 9999 }}>
+                  <div className="text-xs">
+                    <strong>Metrics</strong> this step directly produces or satisfies.
+                    Example: a variance analysis step might produce a budget adherence metric.
+                  </div>
+                </Tooltip>
+                <div className="border rounded p-3 max-h-40 overflow-y-auto">
+                  {allMetrics.length === 0 ? (
+                    <p className="text-sm text-gray-500">No metrics available</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {allMetrics.map((metric) => (
+                        <label key={metric.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                          <input
+                            type="checkbox"
+                            checked={step.produces_metric_ids?.includes(metric.id) || false}
+                            onChange={() => toggleArrayItem('produces_metric_ids', metric.id)}
+                            className="w-4 h-4"
+                          />
+                          <span className="text-sm">{metric.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Uses Metrics */}
+              <div>
+                <label className="flex items-center gap-1 text-sm font-semibold mb-2">
+                  👁️ Uses Metrics
+                  <span
+                    data-tooltip-id="uses-metric-tooltip"
+                    className="cursor-help text-gray-400 hover:text-gray-600"
+                  >
+                    ℹ️
+                  </span>
+                </label>
+                <Tooltip id="uses-metric-tooltip" place="top" style={{ maxWidth: '300px', zIndex: 9999 }}>
+                  <div className="text-xs">
+                    Metrics that are <strong>reviewed or referenced</strong> during this step.
+                    The step doesn't produce these — it uses them as input for decisions.
+                  </div>
+                </Tooltip>
+                <div className="border rounded p-3 max-h-40 overflow-y-auto">
+                  {allMetrics.length === 0 ? (
+                    <p className="text-sm text-gray-500">No metrics available</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {allMetrics.map((metric) => (
+                        <label key={metric.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                          <input
+                            type="checkbox"
+                            checked={step.uses_metric_ids?.includes(metric.id) || false}
+                            onChange={() => toggleArrayItem('uses_metric_ids', metric.id)}
+                            className="w-4 h-4"
+                          />
+                          <span className="text-sm">{metric.name}</span>
                         </label>
                       ))}
                     </div>

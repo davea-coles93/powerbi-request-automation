@@ -40,7 +40,10 @@ function ManualEffortBar({ pct }: { pct: number }) {
   );
 }
 
-function PathwayCard({ pathway }: { pathway: CrystallisationPathway }) {
+function PathwayCard({ pathway, attributeId }: {
+  pathway: CrystallisationPathway;
+  attributeId: string;
+}) {
   const nav = useNavigationStore.getState();
 
   return (
@@ -48,17 +51,10 @@ function PathwayCard({ pathway }: { pathway: CrystallisationPathway }) {
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-gray-900">{pathway.process_name}</span>
         <button
-          onClick={() =>
-            nav.openProcessDetail({
-              attributeId: '',
-              attributeName: '',
-              processId: pathway.process_id,
-              processName: pathway.process_name,
-            })
-          }
+          onClick={() => nav.focusNodeInLineage(attributeId)}
           className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
         >
-          View Detail <ExternalLink className="w-3 h-3" />
+          View in Lineage <ExternalLink className="w-3 h-3" />
         </button>
       </div>
 
@@ -249,7 +245,7 @@ export function AttributeDetailPanel({ attributeId, onClose }: AttributeDetailPa
             >
               {crystallisingSteps.length > 0 && (
                 <div>
-                  <p className="text-xs font-medium text-red-600 mb-1">Crystallises at:</p>
+                  <p className="text-xs font-medium text-red-600 mb-1">Freezes at:</p>
                   {crystallisingSteps.map((s, i) => (
                     <p key={i} className="text-xs text-gray-600 ml-2">
                       <span className="font-medium">{s.stepName}</span>
@@ -284,20 +280,24 @@ export function AttributeDetailPanel({ attributeId, onClose }: AttributeDetailPa
           );
         })()}
 
-        {/* Crystallisation Pathways */}
+        {/* Data Journeys */}
         <CollapsibleSection
-          title="Crystallisation Pathways"
+          title="Data Journeys"
           icon={<GitBranch className="w-3 h-3 text-purple-500" />}
           badge={pathways.length > 0 ? <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-gray-200 text-gray-600">{pathways.length}</span> : undefined}
           defaultCollapsed={pathways.length === 0}
           className="px-4 py-2 border-b border-gray-100"
         >
           {pathways.length === 0 ? (
-            <p className="text-xs text-gray-400 italic">No crystallisation pathways found</p>
+            <p className="text-xs text-gray-400 italic">No data journeys found</p>
           ) : (
             <div className="space-y-2">
               {pathways.map((pw, i) => (
-                <PathwayCard key={`${pw.process_id}-${i}`} pathway={pw} />
+                <PathwayCard
+                  key={`${pw.process_id}-${i}`}
+                  pathway={pw}
+                  attributeId={attributeId}
+                />
               ))}
             </div>
           )}

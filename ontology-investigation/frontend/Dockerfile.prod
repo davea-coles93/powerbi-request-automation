@@ -1,0 +1,28 @@
+FROM node:20-slim AS builder
+
+WORKDIR /app
+
+# Install dependencies
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+# Copy source
+COPY . .
+
+# Build (API calls use relative /api path, proxied by nginx)
+RUN npm run build
+
+# Production stage
+FROM nginx:alpine
+
+# Copy built files
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy production nginx config (uses envsubst for BACKEND_FQDN)
+COPY nginx.prod.conf /etc/nginx/templates/default.conf.template
+
+EXPOSE 80
+
+# nginx:alpine image auto-runs envsubst on /etc/nginx/templates/*.template
+# and outputs to /etc/nginx/conf.d/ using environment variables
+CMD ["nginx", "-g", "daemon off;"]

@@ -212,6 +212,32 @@ def get_business_question_cost(metric_id: str, db: Session = Depends(get_db)):
     return result
 
 
+@router.get("/gaps/detect")
+def detect_gaps_standalone(db: Session = Depends(get_db)):
+    """
+    Detect gaps by cross-referencing demand (metrics/measures) vs supply (processes).
+
+    Runs without requiring workshop sessions -- scans all processes and
+    metrics in the ontology to find missing supply, unused supply, shadow
+    systems, and high manual effort.
+    """
+    service = GraphService(db)
+    gaps = service.detect_gaps([], [], db)
+    return {"gaps": [g.model_dump() for g in gaps]}
+
+
+@router.get("/process-interconnections")
+def get_process_interconnections(db: Session = Depends(get_db)):
+    """
+    Get process-to-process connections via shared attributes.
+
+    Shows which processes connect through produced/consumed attributes,
+    used for the Process Map view.
+    """
+    service = GraphService(db)
+    return service.get_process_interconnections()
+
+
 @router.get("/lineage-with-costs")
 def get_lineage_with_costs(db: Session = Depends(get_db)):
     """

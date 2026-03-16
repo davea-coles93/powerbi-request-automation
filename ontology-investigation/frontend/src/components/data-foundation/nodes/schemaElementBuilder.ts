@@ -72,11 +72,21 @@ function buildLabel(entityType: string, item: any): string {
   return lines.join('\n');
 }
 
+/** Per-type shapes for the Schema view to differentiate from Lineage's uniform roundrectangles. */
+const SCHEMA_SHAPES: Record<string, string> = {
+  metric: 'diamond',
+  measure: 'hexagon',
+  attribute: 'roundrectangle',
+  entity: 'barrel',
+  system: 'octagon',
+};
+
 function buildLayerNodes(
   items: any[],
   entityType: string,
 ): any[] {
   const y = LAYER_Y[entityType];
+  const shape = SCHEMA_SHAPES[entityType] || 'roundrectangle';
   return items.map((item, idx) => ({
     data: {
       id: item.id,
@@ -85,13 +95,14 @@ function buildLayerNodes(
       entityType,
       width: NODE_WIDTH,
       height: NODE_HEIGHT,
+      schemaShape: shape,
       ...item,
     },
     position: {
       x: idx * H_SPACING,
       y,
     },
-    classes: `${entityType}-node`,
+    classes: `${entityType}-node schema-node schema-${entityType}`,
   }));
 }
 
@@ -102,10 +113,11 @@ function buildLayerLabel(entityType: string, count: number): any {
   return {
     data: {
       id: `__layer-${entityType}`,
-      label: `${config?.label ?? entityType} (${count})`,
+      label: `${config?.icon ?? ''} ${config?.label ?? entityType} (${count})`,
       entityType: '__label',
+      layerColor: config?.border ?? '#d1d5db',
     },
-    position: { x: -200, y },
+    position: { x: -250, y },
     classes: 'layer-label',
     selectable: false,
     grabbable: false,
@@ -147,7 +159,7 @@ export function buildSchemaElements(data: SchemaData): any[] {
             edgeType: 'metric-measure',
             label: 'calculated by',
           },
-          classes: 'edge-metric-measure',
+          classes: 'edge-metric-measure schema-edge',
         });
       }
     }
@@ -166,7 +178,7 @@ export function buildSchemaElements(data: SchemaData): any[] {
             edgeType: 'measure-attribute',
             label: 'inputs',
           },
-          classes: 'edge-measure-attribute',
+          classes: 'edge-measure-attribute schema-edge',
         });
       }
     }
@@ -184,7 +196,7 @@ export function buildSchemaElements(data: SchemaData): any[] {
           edgeType: 'attribute-entity',
           label: 'belongs to',
         },
-        classes: 'edge-attribute-entity',
+        classes: 'edge-attribute-entity schema-edge',
       });
     }
   }
@@ -201,7 +213,7 @@ export function buildSchemaElements(data: SchemaData): any[] {
           edgeType: 'attribute-system',
           label: 'sourced from',
         },
-        classes: 'edge-attribute-system',
+        classes: 'edge-attribute-system schema-edge',
       });
     }
   }

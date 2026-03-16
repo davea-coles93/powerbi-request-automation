@@ -77,19 +77,74 @@ export const dataFoundationNodeStyles: StylesheetJsonBlock[] = [
   {
     selector: '.layer-label',
     style: {
-      'width': '140px',
-      'height': '32px',
-      'background-color': '#f3f4f6',
-      'background-opacity': 0.8,
-      'border-width': 1,
-      'border-color': '#e5e7eb',
-      'font-size': '10px',
+      'width': '180px',
+      'height': '44px',
+      'background-color': '#1f2937',
+      'background-opacity': 0.9,
+      'border-width': 3,
+      'border-color': 'data(layerColor)',
+      'font-size': '12px',
       'font-weight': 'bold' as any,
-      'color': '#6b7280',
-      'text-transform': 'uppercase' as any,
+      'color': '#ffffff',
       'text-halign': 'center',
       'text-valign': 'center',
       'label': 'data(label)',
+      'shape': 'roundrectangle',
+    } as any,
+  },
+
+  // ── Schema-specific node shapes (different per type) ────────
+  {
+    selector: '.schema-metric',
+    style: {
+      'shape': 'diamond',
+      'border-width': 3,
+    },
+  },
+  {
+    selector: '.schema-measure',
+    style: {
+      'shape': 'hexagon',
+      'border-width': 3,
+    },
+  },
+  {
+    selector: '.schema-attribute',
+    style: {
+      'shape': 'roundrectangle',
+      'border-width': 3,
+    },
+  },
+  {
+    selector: '.schema-entity',
+    style: {
+      'shape': 'barrel',
+      'border-width': 3,
+    },
+  },
+  {
+    selector: '.schema-system',
+    style: {
+      'shape': 'octagon',
+      'border-width': 3,
+    },
+  },
+
+  // ── Schema edges show relationship labels ───────────────────
+  {
+    selector: '.schema-edge',
+    style: {
+      'label': 'data(label)',
+      'font-size': '9px',
+      'text-rotation': 'autorotate' as any,
+      'text-margin-y': -10,
+      'color': '#6b7280',
+      'text-background-color': '#ffffff',
+      'text-background-opacity': 0.9,
+      'text-background-padding': '2px' as any,
+      'text-background-shape': 'roundrectangle',
+      'width': 2,
+      'opacity': 0.85,
     } as any,
   },
 
@@ -188,8 +243,31 @@ export const dataFoundationNodeStyles: StylesheetJsonBlock[] = [
   {
     selector: '.hover-dimmed',
     style: {
-      'opacity': 0.2,
+      'opacity': 0.35,
     },
+  },
+
+  // Hover highlight for connected edges (thicker + colored during hover)
+  {
+    selector: 'edge.hover-highlight-edge',
+    style: {
+      'width': 3,
+      'opacity': 1,
+      'line-color': '#8b5cf6',
+      'target-arrow-color': '#8b5cf6',
+      'z-index': 10,
+    } as any,
+  },
+
+  // Hover highlight for neighbor nodes (glow during hover)
+  {
+    selector: 'node.hover-highlight-node',
+    style: {
+      'border-width': 3,
+      'border-color': '#8b5cf6',
+      'opacity': 1,
+      'z-index': 10,
+    } as any,
   },
 
   // Neighbor highlight (nodes connected to selected node glow)

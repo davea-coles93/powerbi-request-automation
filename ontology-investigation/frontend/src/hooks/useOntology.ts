@@ -312,6 +312,17 @@ export const useLineageWithCosts = () =>
     queryFn: api.getLineageWithCosts,
   });
 
+export const useProcessInterconnections = () =>
+  useQuery({
+    queryKey: ['processInterconnections'],
+    queryFn: api.getProcessInterconnections,
+  });
+
+export const useDetectGapsStandalone = () =>
+  useMutation({
+    mutationFn: () => api.detectGapsStandalone(),
+  });
+
 // AI mutation hooks
 export const useExplainMetric = () =>
   useMutation({

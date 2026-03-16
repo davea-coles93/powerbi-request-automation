@@ -133,6 +133,8 @@ export interface ProcessStep {
   produces_attribute_ids: string[];
   uses_metric_ids: string[];
   crystallizes_attribute_ids: string[];
+  produces_measure_ids: string[];
+  produces_metric_ids: string[];
   depends_on_step_ids: string[];
 
   // Hierarchical drill-down support
@@ -390,7 +392,17 @@ export interface TopDownData {
 }
 
 // Gap analysis structured data
-export type GapType = 'missing_supply' | 'unused_supply' | 'shadow_system' | 'high_manual_effort';
+export type GapType =
+  | 'missing_supply'
+  | 'unused_supply'
+  | 'shadow_system'
+  | 'high_manual_effort'
+  | 'broken_lineage'
+  | 'coverage_gap'
+  | 'process_risk'
+  | 'missing_crystallisation'
+  | 'high_crystallisation_cost'
+  | 'late_crystallisation';
 
 export interface GapItem {
   id: string;
@@ -404,6 +416,7 @@ export interface GapItem {
   suggested_action?: string;
   resolved: boolean;
   resolution_notes?: string;
+  status?: 'open' | 'in_progress' | 'resolved';
 }
 
 export interface GapAnalysisData {
@@ -678,6 +691,7 @@ export interface CrystallisationCostSummary {
   system_switch_count: number;
   waste_categories: string[];
   process_names: string[];
+  process_ids: string[];
 }
 
 export interface LineageWithCosts {
@@ -687,6 +701,8 @@ export interface LineageWithCosts {
   entities: Entity[];
   systems: System[];
   crystallisation_costs: Record<string, CrystallisationCostSummary>;
+  measure_costs: Record<string, CrystallisationCostSummary>;
+  metric_costs: Record<string, CrystallisationCostSummary>;
 }
 
 // ── Guided Discovery Types ──────────────────────────────────

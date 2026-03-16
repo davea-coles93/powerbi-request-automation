@@ -8,6 +8,7 @@ import {
   Database,
   Server,
   Filter,
+  ChevronsUpDown,
 } from 'lucide-react';
 import { formatDuration } from '../../utils/formatters';
 import { useAttributeLibraryStore } from './hooks/useAttributeLibraryStore';
@@ -218,6 +219,8 @@ export function AttributeLibrary() {
     toggleSortDirection,
     expandedGroups,
     toggleGroup,
+    collapseAll,
+    expandAll,
   } = useAttributeLibraryStore();
 
   const { data: lineageData, isLoading } = useLineageWithCosts();
@@ -309,6 +312,23 @@ export function AttributeLibrary() {
                   By System
                 </button>
               </div>
+
+              {/* Collapse/Expand all */}
+              <button
+                onClick={() => {
+                  const allExpanded = effectiveExpanded.size >= groups.length && groups.length > 0;
+                  if (allExpanded) {
+                    collapseAll();
+                  } else {
+                    expandAll();
+                  }
+                }}
+                className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                title={effectiveExpanded.size >= groups.length ? 'Collapse all groups' : 'Expand all groups'}
+              >
+                <ChevronsUpDown className="w-3.5 h-3.5" />
+                {effectiveExpanded.size >= groups.length && groups.length > 0 ? 'Collapse All' : 'Expand All'}
+              </button>
             </div>
 
             {/* Right: Perspective filter, search, sort */}
@@ -410,7 +430,7 @@ export function AttributeLibrary() {
                               <th className="text-left py-2 px-3 font-medium">System</th>
                               <SortableHeader column="reliability" label="Reliability" currentSort={sortBy} direction={sortDirection} onSort={setSortBy} onToggle={toggleSortDirection} />
                               <th className="text-left py-2 px-3 font-medium">Perspectives</th>
-                              <th className="text-left py-2 px-3 font-medium">Crystallisation</th>
+                              <th className="text-left py-2 px-3 font-medium">Data Journey</th>
                               <SortableHeader column="cost" label="Cost" currentSort={sortBy} direction={sortDirection} onSort={setSortBy} onToggle={toggleSortDirection} />
                               <th className="text-right py-2 px-3 font-medium">Consumers</th>
                               <SortableHeader column="impact" label="Impact" currentSort={sortBy} direction={sortDirection} onSort={setSortBy} onToggle={toggleSortDirection} align="right" />

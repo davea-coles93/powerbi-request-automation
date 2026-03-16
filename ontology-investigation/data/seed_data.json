@@ -191,7 +191,7 @@
             {
               "name": "Yield %",
               "data_type": "number",
-              "derivation": "Actual / (Actual + Scrap) × 100"
+              "derivation": "Actual / (Actual + Scrap) \u00c3\u2014 100"
             },
             {
               "name": "On-Time Status",
@@ -271,12 +271,12 @@
             {
               "name": "Handling Requirements",
               "data_type": "string",
-              "derivation": "Metal → Heavy Equipment, Non-Metal → Standard"
+              "derivation": "Metal \u00e2\u2020\u2019 Heavy Equipment, Non-Metal \u00e2\u2020\u2019 Standard"
             },
             {
               "name": "Storage Requirements",
               "data_type": "string",
-              "derivation": "Metal → Climate Control, Non-Metal → Standard"
+              "derivation": "Metal \u00e2\u2020\u2019 Climate Control, Non-Metal \u00e2\u2020\u2019 Standard"
             }
           ]
         },
@@ -315,7 +315,7 @@
             {
               "name": "Inventory Value",
               "data_type": "number",
-              "derivation": "Quantity × Standard Cost"
+              "derivation": "Quantity \u00c3\u2014 Standard Cost"
             },
             {
               "name": "Valuation Method",
@@ -372,7 +372,7 @@
             {
               "name": "Value",
               "data_type": "number",
-              "derivation": "Quantity × Price"
+              "derivation": "Quantity \u00c3\u2014 Price"
             }
           ]
         }
@@ -422,7 +422,7 @@
             {
               "name": "Labor Cost",
               "data_type": "number",
-              "derivation": "Hours × Labor Rate"
+              "derivation": "Hours \u00c3\u2014 Labor Rate"
             }
           ]
         }
@@ -638,7 +638,7 @@
             {
               "name": "Utilization %",
               "data_type": "number",
-              "derivation": "Actual Hours / Capacity Hours × 100"
+              "derivation": "Actual Hours / Capacity Hours \u00c3\u2014 100"
             },
             {
               "name": "Throughput Rate",
@@ -915,6 +915,9 @@
           "type": "required",
           "description": "Required for month-end close cutoff"
         }
+      ],
+      "perspective_ids": [
+        "operational"
       ]
     },
     {
@@ -928,7 +931,10 @@
       "volatility": "Accumulating",
       "source_table": "MSEG",
       "source_column": "MENGE",
-      "source_connection": "SAP ECC PRD"
+      "source_connection": "SAP ECC PRD",
+      "perspective_ids": [
+        "operational"
+      ]
     },
     {
       "id": "labor_time_recordings",
@@ -938,7 +944,10 @@
       "system_id": "time_system",
       "source_actor": "Operator (manual)",
       "reliability": "Medium",
-      "volatility": "Accumulating"
+      "volatility": "Accumulating",
+      "perspective_ids": [
+        "operational"
+      ]
     },
     {
       "id": "scrap_postings",
@@ -948,7 +957,10 @@
       "system_id": "mes",
       "source_actor": "Floor Operator",
       "reliability": "Medium",
-      "volatility": "Accumulating"
+      "volatility": "Accumulating",
+      "perspective_ids": [
+        "operational"
+      ]
     },
     {
       "id": "inventory_counts",
@@ -968,6 +980,9 @@
           "min": 0,
           "description": "Count quantities must be non-negative"
         }
+      ],
+      "perspective_ids": [
+        "operational"
       ]
     },
     {
@@ -978,7 +993,11 @@
       "system_id": "erp",
       "source_actor": "System",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "perspective_ids": [
+        "operational",
+        "financial"
+      ]
     },
     {
       "id": "goods_receipts",
@@ -988,7 +1007,10 @@
       "system_id": "erp",
       "source_actor": "Receiving Clerk",
       "reliability": "High",
-      "volatility": "Accumulating"
+      "volatility": "Accumulating",
+      "perspective_ids": [
+        "operational"
+      ]
     },
     {
       "id": "invoice_receipts",
@@ -998,7 +1020,11 @@
       "system_id": "erp",
       "source_actor": "AP Clerk",
       "reliability": "High",
-      "volatility": "Accumulating"
+      "volatility": "Accumulating",
+      "perspective_ids": [
+        "operational",
+        "financial"
+      ]
     },
     {
       "id": "standard_costs",
@@ -1021,6 +1047,9 @@
           "unit": "USD",
           "description": "Standard cost must be a non-negative value"
         }
+      ],
+      "perspective_ids": [
+        "financial"
       ]
     },
     {
@@ -1031,7 +1060,10 @@
       "system_id": "erp",
       "source_actor": "Cost Accountant",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "perspective_ids": [
+        "financial"
+      ]
     },
     {
       "id": "overhead_rates",
@@ -1041,7 +1073,10 @@
       "system_id": "erp",
       "source_actor": "Cost Accountant",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "perspective_ids": [
+        "financial"
+      ]
     },
     {
       "id": "production_goods_movements",
@@ -1051,7 +1086,10 @@
       "system_id": "erp",
       "source_actor": "System",
       "reliability": "High",
-      "volatility": "Accumulating"
+      "volatility": "Accumulating",
+      "perspective_ids": [
+        "operational"
+      ]
     },
     {
       "id": "metal_spot_prices",
@@ -1062,7 +1100,10 @@
       "source_actor": "LME/COMEX API",
       "reliability": "High",
       "volatility": "Point-in-time",
-      "notes": "Daily market prices for copper, aluminum, steel; only applies to metal materials"
+      "notes": "Daily market prices for copper, aluminum, steel; only applies to metal materials",
+      "perspective_ids": [
+        "financial"
+      ]
     },
     {
       "id": "metal_scrap_recovery",
@@ -1073,7 +1114,11 @@
       "source_actor": "Warehouse Operative",
       "reliability": "High",
       "volatility": "Accumulating",
-      "notes": "Sales of metal scrap generate positive cash flow"
+      "notes": "Sales of metal scrap generate positive cash flow",
+      "perspective_ids": [
+        "operational",
+        "financial"
+      ]
     },
     {
       "id": "plastic_resin_cost_index",
@@ -1084,7 +1129,10 @@
       "source_actor": "Purchasing Manager",
       "reliability": "Medium",
       "volatility": "Point-in-time",
-      "notes": "Industry cost indices for non-metal materials"
+      "notes": "Industry cost indices for non-metal materials",
+      "perspective_ids": [
+        "financial"
+      ]
     },
     {
       "id": "disposal_cost_postings",
@@ -1095,7 +1143,11 @@
       "source_actor": "AP Clerk",
       "reliability": "High",
       "volatility": "Accumulating",
-      "notes": "Non-metal waste disposal incurs costs"
+      "notes": "Non-metal waste disposal incurs costs",
+      "perspective_ids": [
+        "operational",
+        "financial"
+      ]
     },
     {
       "id": "equipment_downtime",
@@ -1105,7 +1157,11 @@
       "system_id": "cmms",
       "source_actor": "Maintenance Technician",
       "reliability": "High",
-      "volatility": "Accumulating"
+      "volatility": "Accumulating",
+      "perspective_ids": [
+        "operational",
+        "management"
+      ]
     },
     {
       "id": "equipment_runtime",
@@ -1115,7 +1171,11 @@
       "system_id": "mes",
       "source_actor": "Automated sensors",
       "reliability": "High",
-      "volatility": "Accumulating"
+      "volatility": "Accumulating",
+      "perspective_ids": [
+        "operational",
+        "management"
+      ]
     },
     {
       "id": "quality_inspections",
@@ -1125,7 +1185,11 @@
       "system_id": "qms",
       "source_actor": "Quality Inspector",
       "reliability": "High",
-      "volatility": "Accumulating"
+      "volatility": "Accumulating",
+      "perspective_ids": [
+        "operational",
+        "management"
+      ]
     },
     {
       "id": "supplier_deliveries",
@@ -1135,7 +1199,11 @@
       "system_id": "erp",
       "source_actor": "Receiving Clerk",
       "reliability": "High",
-      "volatility": "Accumulating"
+      "volatility": "Accumulating",
+      "perspective_ids": [
+        "operational",
+        "management"
+      ]
     },
     {
       "id": "work_center_capacity",
@@ -1145,7 +1213,11 @@
       "system_id": "erp",
       "source_actor": "Production Planner",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "perspective_ids": [
+        "operational",
+        "management"
+      ]
     }
   ],
   "measures": [
@@ -1154,7 +1226,7 @@
       "name": "Material Cost Consumed",
       "description": "Total material cost issued to production",
       "logic": "Sum of material quantities issued multiplied by standard cost",
-      "formula": "SUM(issue_qty × std_cost)",
+      "formula": "SUM(issue_qty \u00c3\u2014 std_cost)",
       "input_attribute_ids": [
         "goods_issues",
         "standard_costs"
@@ -1169,7 +1241,7 @@
       "name": "Labor Cost Applied",
       "description": "Total labor cost applied to production",
       "logic": "Sum of labor hours multiplied by labor rates",
-      "formula": "SUM(hours × labor_rate)",
+      "formula": "SUM(hours \u00c3\u2014 labor_rate)",
       "input_attribute_ids": [
         "labor_time_recordings",
         "labor_rates"
@@ -1184,7 +1256,7 @@
       "name": "Overhead Absorbed",
       "description": "Overhead costs absorbed into production",
       "logic": "Machine hours or labor hours multiplied by overhead rate",
-      "formula": "SUM(activity_hours × overhead_rate)",
+      "formula": "SUM(activity_hours \u00c3\u2014 overhead_rate)",
       "input_attribute_ids": [
         "labor_time_recordings",
         "overhead_rates"
@@ -1258,7 +1330,7 @@
       "name": "Total Inventory Value",
       "description": "Total value of inventory on hand",
       "logic": "Sum of quantity multiplied by standard cost",
-      "formula": "SUM(qty × std_cost)",
+      "formula": "SUM(qty \u00c3\u2014 std_cost)",
       "input_attribute_ids": [
         "system_stock",
         "standard_costs"
@@ -1271,9 +1343,9 @@
     {
       "id": "metal_inventory_value",
       "name": "Metal Inventory Value",
-      "description": "Quantity × Current Spot Price (only for metals)",
+      "description": "Quantity \u00c3\u2014 Current Spot Price (only for metals)",
       "logic": "Sum of metal material quantities multiplied by current spot price",
-      "formula": "SUM(qty × spot_price) WHERE Material_Type = 'Metal'",
+      "formula": "SUM(qty \u00c3\u2014 spot_price) WHERE Material_Type = 'Metal'",
       "input_attribute_ids": [
         "system_stock",
         "metal_spot_prices"
@@ -1286,9 +1358,9 @@
     {
       "id": "non_metal_inventory_value",
       "name": "Non-Metal Inventory Value",
-      "description": "Quantity × Standard Cost (only for non-metals)",
+      "description": "Quantity \u00c3\u2014 Standard Cost (only for non-metals)",
       "logic": "Sum of non-metal material quantities multiplied by standard cost",
-      "formula": "SUM(qty × std_cost) WHERE Material_Type <> 'Metal'",
+      "formula": "SUM(qty \u00c3\u2014 std_cost) WHERE Material_Type <> 'Metal'",
       "input_attribute_ids": [
         "system_stock",
         "standard_costs"
@@ -1301,9 +1373,9 @@
     {
       "id": "metal_scrap_recovery_value",
       "name": "Metal Scrap Recovery Value",
-      "description": "Metal scrap quantity × Scrap metal price (positive)",
+      "description": "Metal scrap quantity \u00c3\u2014 Scrap metal price (positive)",
       "logic": "Revenue from selling metal scrap to recyclers",
-      "formula": "SUM(scrap_qty × scrap_metal_price) WHERE Material_Type = 'Metal'",
+      "formula": "SUM(scrap_qty \u00c3\u2014 scrap_metal_price) WHERE Material_Type = 'Metal'",
       "input_attribute_ids": [
         "metal_scrap_recovery",
         "metal_spot_prices"
@@ -1316,9 +1388,9 @@
     {
       "id": "non_metal_disposal_cost",
       "name": "Non-Metal Disposal Cost",
-      "description": "Non-metal scrap quantity × Disposal rate (negative)",
+      "description": "Non-metal scrap quantity \u00c3\u2014 Disposal rate (negative)",
       "logic": "Cost of disposing of non-metal waste",
-      "formula": "SUM(scrap_qty × disposal_rate) WHERE Material_Type <> 'Metal'",
+      "formula": "SUM(scrap_qty \u00c3\u2014 disposal_rate) WHERE Material_Type <> 'Metal'",
       "input_attribute_ids": [
         "disposal_cost_postings"
       ],
@@ -1330,9 +1402,9 @@
     {
       "id": "metal_price_variance",
       "name": "Metal Price Variance",
-      "description": "(Current Spot - Standard Cost) × Quantity",
+      "description": "(Current Spot - Standard Cost) \u00c3\u2014 Quantity",
       "logic": "Difference between current market value and standard cost for metals",
-      "formula": "SUM((spot_price - std_cost) × qty) WHERE Material_Type = 'Metal'",
+      "formula": "SUM((spot_price - std_cost) \u00c3\u2014 qty) WHERE Material_Type = 'Metal'",
       "input_attribute_ids": [
         "system_stock",
         "metal_spot_prices",
@@ -1361,9 +1433,9 @@
     {
       "id": "oee",
       "name": "Overall Equipment Effectiveness",
-      "description": "Availability × Performance × Quality - comprehensive equipment productivity metric",
+      "description": "Availability \u00c3\u2014 Performance \u00c3\u2014 Quality - comprehensive equipment productivity metric",
       "logic": "Product of availability rate, performance rate, and quality rate",
-      "formula": "(runtime / scheduled_time) × (actual_output / expected_output) × (good_output / total_output)",
+      "formula": "(runtime / scheduled_time) \u00c3\u2014 (actual_output / expected_output) \u00c3\u2014 (good_output / total_output)",
       "input_attribute_ids": [
         "equipment_runtime",
         "equipment_downtime",
@@ -1411,8 +1483,8 @@
       "id": "supplier_quality_score",
       "name": "Supplier Quality Score",
       "description": "Weighted quality score based on defect rates and inspection results",
-      "logic": "100 - (defect_rate × 100), weighted by delivery volume",
-      "formula": "100 - (SUM(defects) / SUM(receipts) × 100)",
+      "logic": "100 - (defect_rate \u00c3\u2014 100), weighted by delivery volume",
+      "formula": "100 - (SUM(defects) / SUM(receipts) \u00c3\u2014 100)",
       "input_attribute_ids": [
         "quality_inspections",
         "goods_receipts"
@@ -1427,7 +1499,7 @@
       "name": "Inspection Pass Rate",
       "description": "Percentage of inspections that pass without defects",
       "logic": "Count of passing inspections divided by total inspections",
-      "formula": "COUNT(inspection WHERE result = 'Pass') / COUNT(inspection) × 100",
+      "formula": "COUNT(inspection WHERE result = 'Pass') / COUNT(inspection) \u00c3\u2014 100",
       "input_attribute_ids": [
         "quality_inspections"
       ],
@@ -1641,7 +1713,9 @@
           "produces_attribute_ids": [],
           "crystallizes_attribute_ids": [
             "production_confirmations",
-            "production_goods_movements"
+            "production_goods_movements",
+            "scrap_postings",
+            "work_center_capacity"
           ],
           "systems_used_ids": [
             "mes",
@@ -1729,7 +1803,8 @@
           ],
           "produces_attribute_ids": [],
           "crystallizes_attribute_ids": [
-            "metal_spot_prices"
+            "metal_spot_prices",
+            "plastic_resin_cost_index"
           ],
           "systems_used_ids": [
             "commodity_exchange",
@@ -1759,7 +1834,8 @@
           ],
           "produces_attribute_ids": [],
           "crystallizes_attribute_ids": [
-            "inventory_counts"
+            "inventory_counts",
+            "system_stock"
           ],
           "systems_used_ids": [
             "wms",
@@ -1790,7 +1866,8 @@
           "produces_attribute_ids": [],
           "crystallizes_attribute_ids": [
             "goods_receipts",
-            "invoice_receipts"
+            "invoice_receipts",
+            "supplier_deliveries"
           ],
           "systems_used_ids": [
             "erp",
@@ -1848,7 +1925,10 @@
             "labor_time_recordings"
           ],
           "produces_attribute_ids": [],
-          "crystallizes_attribute_ids": [],
+          "crystallizes_attribute_ids": [
+            "labor_time_recordings",
+            "labor_rates"
+          ],
           "systems_used_ids": [
             "erp"
           ],
@@ -1877,7 +1957,9 @@
             "standard_costs"
           ],
           "produces_attribute_ids": [],
-          "crystallizes_attribute_ids": [],
+          "crystallizes_attribute_ids": [
+            "standard_costs"
+          ],
           "systems_used_ids": [
             "erp"
           ],
@@ -1901,7 +1983,9 @@
             "production_confirmations"
           ],
           "produces_attribute_ids": [],
-          "crystallizes_attribute_ids": [],
+          "crystallizes_attribute_ids": [
+            "overhead_rates"
+          ],
           "systems_used_ids": [
             "erp"
           ],
@@ -3225,7 +3309,7 @@
           "id": "inventory_value",
           "name": "InventoryValue",
           "data_type": "Decimal",
-          "description": "Calculated: Quantity × Unit Cost"
+          "description": "Calculated: Quantity \u00c3\u2014 Unit Cost"
         }
       ],
       "measures": [
@@ -3487,7 +3571,7 @@
           "name": "Overall Equipment Effectiveness",
           "expression": "VAR Availability = DIVIDE([Total Runtime Hours], [Total Scheduled Hours], 0)\nVAR Performance = DIVIDE([Total Actual Output], [Total Expected Output], 0)\nVAR Quality = [First-Pass Yield] / 100\nRETURN Availability * Performance * Quality * 100",
           "format_string": "0.00%",
-          "description": "Availability × Performance × Quality",
+          "description": "Availability \u00c3\u2014 Performance \u00c3\u2014 Quality",
           "mapped_measure_id": "oee"
         },
         {

@@ -72,4 +72,74 @@ export const lineageNodeStyles: StylesheetJsonBlock[] = [
       'overlay-opacity': 0.06,
     } as any,
   },
+
+  // ── Entity-centric: expanded entity compound node ─────────────
+  {
+    selector: '.entity-node-expanded',
+    style: {
+      'background-color': '#eff6ff',
+      'background-opacity': 0.3,
+      'border-color': '#60a5fa',
+      'border-width': 2,
+      'border-style': 'dashed',
+      'padding': '20px' as any,
+      'text-valign': 'top',
+      'text-halign': 'center',
+      'font-size': '9px',
+      'color': '#2563eb',
+    } as any,
+  },
+  {
+    selector: '.entity-node-collapsed',
+    style: {
+      'font-weight': 'bold' as any,
+    } as any,
+  },
+
+  // ── Data journey trace: full chain highlight ─────────────────
+  {
+    selector: '.journey-node',
+    style: {
+      'border-width': 3,
+      'border-color': '#7c3aed',
+      'overlay-color': '#7c3aed',
+      'overlay-opacity': 0.06,
+    } as any,
+  },
+  {
+    selector: '.journey-edge',
+    style: {
+      'width': 3,
+      'line-color': '#7c3aed',
+      'target-arrow-color': '#7c3aed',
+      'opacity': 1,
+      'z-index': 10,
+    } as any,
+  },
+  // Journey edge + crystallisation cost: keep cost color but thicken
+  {
+    selector: '.journey-edge.crystallisation-edge',
+    style: {
+      'width': 4,
+      'z-index': 11,
+    } as any,
+  },
+
+  // ── Trace: dimmed elements outside the data journey chain ───
+  {
+    selector: '.trace-dimmed',
+    style: {
+      'opacity': 0.15,
+    },
+  },
+  {
+    selector: '.trace-highlight',
+    style: {
+      'opacity': 1,
+      'border-width': 2,
+      'border-color': '#8b5cf6',
+      'overlay-color': '#8b5cf6',
+      'overlay-opacity': 0.04,
+    } as any,
+  },
 ];

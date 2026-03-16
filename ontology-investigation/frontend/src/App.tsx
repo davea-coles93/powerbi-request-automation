@@ -16,6 +16,7 @@ import { PerspectiveEditorModal } from './components/PerspectiveEditorModal';
 import { OntologyCommandBar } from './components/OntologyCommandBar';
 import { TmdlImportModal } from './components/TmdlImportModal';
 import { GapsView } from './components/gaps';
+import { ProcessMapView } from './components/process-map/ProcessMapView';
 import {
   usePerspectives,
   useProcesses,
@@ -28,7 +29,7 @@ import {
 } from './hooks/useOntology';
 import { useAppModals } from './hooks/useAppModals';
 import { useNavigationStore } from './hooks/useNavigationStore';
-import { Table, Database, GitBranch, Upload, AlertTriangle, Plus, Sparkles, ArrowLeft, ChevronDown, BarChart3, Calculator, Columns3, Box, Monitor, Compass } from 'lucide-react';
+import { Table, Database, GitBranch, Upload, AlertTriangle, Plus, Sparkles, ArrowLeft, ChevronDown, BarChart3, Calculator, Columns3, Box, Monitor, Compass, Workflow } from 'lucide-react';
 import { ExcelImportPanel } from './components/ExcelImportPanel';
 import { WorkshopAIPanel } from './components/workshop-ai/WorkshopAIPanel';
 import { GuidedDiscoveryPanel } from './components/guided-discovery/GuidedDiscoveryPanel';
@@ -85,9 +86,9 @@ function CreateMenu({ modals }: { modals: ReturnType<typeof useAppModals> }) {
 
 function App() {
   const { activeTab, setActiveTab, processDetailContext, closeProcessDetail } = useNavigationStore();
+  const [showIngestionPanel, setShowIngestionPanel] = useState(false);
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [showDiscoveryPanel, setShowDiscoveryPanel] = useState(false);
-  const [showIngestionPanel, setShowIngestionPanel] = useState(false);
 
   const { data: perspectives } = usePerspectives();
   const { data: processes } = useProcesses();
@@ -153,6 +154,7 @@ function App() {
           <div className="flex items-center gap-0.5">
             {([
               { key: 'lineage', label: 'Lineage', icon: GitBranch },
+              { key: 'processMap', label: 'Process Map', icon: Workflow },
               { key: 'attributeLibrary', label: 'Attributes', icon: Database },
               { key: 'gapsROI', label: 'Gaps & ROI', icon: AlertTriangle },
               { key: 'semanticModel', label: 'Semantic Model', icon: Table },
@@ -190,6 +192,7 @@ function App() {
                   ? 'text-cyan-700 bg-cyan-100 border border-cyan-300'
                   : 'text-cyan-700 bg-cyan-50 border border-cyan-200 hover:bg-cyan-100'
               }`}
+              title="Extract ontology elements from existing documents (Excel, CSV, PDF, Word, Power BI)"
             >
               <Upload className="w-3.5 h-3.5" />
               Import Data
@@ -207,6 +210,7 @@ function App() {
                   ? 'text-teal-700 bg-teal-100 border border-teal-300'
                   : 'text-teal-700 bg-teal-50 border border-teal-200 hover:bg-teal-100'
               }`}
+              title="Structured workshop interview — systematically build the ontology from Financial, Management, or Operational perspectives"
             >
               <Compass className="w-3.5 h-3.5" />
               Discovery
@@ -218,6 +222,7 @@ function App() {
                   ? 'text-purple-700 bg-purple-100 border border-purple-300'
                   : 'text-purple-700 bg-purple-50 border border-purple-200 hover:bg-purple-100'
               }`}
+              title="Ask questions about the ontology, explore lineage, or build new metrics and measures"
             >
               <Sparkles className="w-3.5 h-3.5" />
               AI Assistant
@@ -242,7 +247,7 @@ function App() {
               </button>
               <div className="h-4 w-px bg-indigo-200" />
               <span className="text-sm text-indigo-600">
-                Crystallisation pathway for <strong>{processDetailContext.attributeName}</strong> in {processDetailContext.processName}
+                Process steps that produce <strong>{processDetailContext.attributeName}</strong> in {processDetailContext.processName}
               </span>
             </div>
             {/* Scoped ProcessCanvas */}
@@ -261,6 +266,10 @@ function App() {
 
             {activeTab === 'attributeLibrary' && (
               <div className="h-full bg-white"><AttributeLibrary /></div>
+            )}
+
+            {activeTab === 'processMap' && (
+              <div className="h-full bg-white"><ProcessMapView /></div>
             )}
 
             {activeTab === 'gapsROI' && (

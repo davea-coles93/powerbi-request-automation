@@ -20,3 +20,22 @@ export function formatDurationCompact(minutes: number): string {
   if (minutes >= 60) return `${(minutes / 60).toFixed(1)}h`;
   return `${Math.round(minutes)}m`;
 }
+
+/**
+ * Effort severity: background color class (Tailwind).
+ * >70% = red, 30-70% = amber, <30% = green.
+ */
+export function getEffortColor(pct: number): string {
+  if (pct > 70) return 'bg-red-500';
+  if (pct >= 30) return 'bg-amber-500';
+  return 'bg-emerald-500';
+}
+
+/**
+ * Effort severity: text color class (Tailwind).
+ */
+export function getEffortTextColor(pct: number): string {
+  if (pct > 70) return 'text-red-600';
+  if (pct >= 30) return 'text-amber-600';
+  return 'text-emerald-600';
+}

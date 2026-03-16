@@ -6,7 +6,7 @@ import os
 AI_PROVIDER = os.getenv("AI_PROVIDER", "anthropic")
 
 # Anthropic settings
-AI_MODEL = os.getenv("AI_MODEL", "claude-sonnet-4-20250514")
+AI_MODEL = os.getenv("AI_MODEL", "") or "claude-sonnet-4-20250514"
 AI_EXTRACTION_MODEL = os.getenv("AI_EXTRACTION_MODEL", "claude-haiku-4-5-20251001")
 
 # Azure AI Foundry settings

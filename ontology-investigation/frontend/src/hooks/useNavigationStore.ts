@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type AppTab = 'lineage' | 'attributeLibrary' | 'gapsROI' | 'semanticModel';
+export type AppTab = 'lineage' | 'attributeLibrary' | 'gapsROI' | 'semanticModel' | 'processMap';
 
 export interface ProcessDetailContext {
   attributeId: string;

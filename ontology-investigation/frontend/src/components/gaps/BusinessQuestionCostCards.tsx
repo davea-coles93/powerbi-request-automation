@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Clock, Layers, ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clock, Layers, ArrowRight, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import { formatDuration } from '../../utils/formatters';
 import { useMetrics, useLineageWithCosts } from '../../hooks/useOntology';
 
@@ -11,7 +11,12 @@ function severityColor(manualPct: number): { bg: string; text: string; border: s
   return { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', bar: 'bg-emerald-500' };
 }
 
-export function BusinessQuestionCostCards() {
+interface BusinessQuestionCostCardsProps {
+  perspectiveId?: string | null;
+  onScrollToAutomation?: () => void;
+}
+
+export function BusinessQuestionCostCards({ perspectiveId, onScrollToAutomation }: BusinessQuestionCostCardsProps = {}) {
   const { data: metrics } = useMetrics();
   const { data: lineageData } = useLineageWithCosts();
   const [showAll, setShowAll] = useState(false);
@@ -21,7 +26,11 @@ export function BusinessQuestionCostCards() {
 
     const { measures, crystallisation_costs } = lineageData;
 
-    return metrics.map((metric) => {
+    const filteredMetrics = perspectiveId
+      ? metrics.filter((m) => m.perspective_ids?.includes(perspectiveId))
+      : metrics;
+
+    return filteredMetrics.map((metric) => {
       const metricMeasureIds = new Set(metric.calculated_by_measure_ids || []);
       const relatedMeasures = measures.filter((m) => metricMeasureIds.has(m.id));
       const attributeIds = new Set<string>();
@@ -66,7 +75,7 @@ export function BusinessQuestionCostCards() {
         wasteCategories: Array.from(allWaste),
       };
     }).sort((a, b) => b.totalDuration - a.totalDuration);
-  }, [metrics, lineageData]);
+  }, [metrics, lineageData, perspectiveId]);
 
   const cardsWithCosts = costCards.filter((c) => c.totalDuration > 0);
   if (!cardsWithCosts.length) return null;
@@ -85,9 +94,9 @@ export function BusinessQuestionCostCards() {
     <div>
       <div className="flex items-center gap-2 mb-3">
         <Clock className="w-4 h-4 text-indigo-600" />
-        <h3 className="text-lg font-semibold text-gray-900">Business Question Costs</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Cost to Answer Each Question</h3>
         <span className="text-xs text-gray-500">
-          Total crystallisation cost to answer each business question
+          Operational effort required to freeze the data behind each business question
         </span>
       </div>
 
@@ -152,13 +161,20 @@ export function BusinessQuestionCostCards() {
               </div>
 
               {wasteCategories.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {wasteCategories.slice(0, 3).map((w) => (
-                    <span key={w} className="text-[10px] px-1.5 py-0.5 bg-white/60 rounded text-gray-600">
-                      {w}
-                    </span>
-                  ))}
-                </div>
+                <p className="text-[11px] text-gray-600 mt-2">
+                  <span className="text-gray-400">Cost drivers: </span>
+                  {wasteCategories.slice(0, 3).join(', ')}
+                </p>
+              )}
+
+              {manualPct >= 70 && onScrollToAutomation && (
+                <button
+                  onClick={onScrollToAutomation}
+                  className="mt-2 flex items-center gap-1 text-[11px] font-medium text-purple-700 hover:text-purple-900 transition-colors"
+                >
+                  <Zap className="w-3 h-3" />
+                  See wasteful steps
+                </button>
               )}
             </div>
           );

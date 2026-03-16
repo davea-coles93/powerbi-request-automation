@@ -1,0 +1,682 @@
+# =============================================================================
+# Azure DevOps Pipeline - Ontology Investigation
+#
+# Full CI/CD pipeline with quality gates:
+#   1. Lint & Static Analysis  (parallel: backend + frontend)
+#   2. Unit Tests              (parallel: backend + frontend)
+#   3. Build Docker Images     (parallel: backend + frontend, push to ACR)
+#   4. Integration Tests       (backend API tests against real DB)
+#   5. Security Scanning       (dependency audit + container scan)
+#   6. Deploy                  (Container Apps, master only)
+#   7. E2E Tests               (Playwright against deployed environment)
+#   8. Smoke Test              (health check verification)
+#
+# Prerequisites:
+#   1. Azure service connection named 'azure-ontology'
+#   2. Variable group 'ontology-dev' (or 'ontology-prod') — see deploy/README.md
+#   3. Azure resources created via deploy/setup-azure.sh
+# =============================================================================
+
+trigger:
+  branches:
+    include:
+      - master
+      - main
+  paths:
+    include:
+      - ontology-investigation/**
+
+pr:
+  branches:
+    include:
+      - master
+      - main
+  paths:
+    include:
+      - ontology-investigation/**
+
+parameters:
+  - name: environment
+    displayName: 'Target Environment'
+    type: string
+    default: 'dev'
+    values:
+      - dev
+      - prod
+  - name: skipE2E
+    displayName: 'Skip E2E tests'
+    type: boolean
+    default: false
+
+variables:
+  - group: 'ontology-${{ parameters.environment }}'
+  - name: azureServiceConnection
+    value: 'azure-ontology'
+  - name: imageTagBackend
+    value: 'backend-$(Build.BuildId)'
+  - name: imageTagFrontend
+    value: 'frontend-$(Build.BuildId)'
+  - name: workingDir
+    value: 'ontology-investigation'
+  - name: pythonVersion
+    value: '3.11'
+  - name: nodeVersion
+    value: '20'
+
+stages:
+  # ===========================================================================
+  # Stage 1: Lint & Static Analysis
+  # ===========================================================================
+  - stage: Lint
+    displayName: 'Lint & Static Analysis'
+    jobs:
+      # --- Backend: Python linting & type checking ---
+      - job: LintBackend
+        displayName: 'Backend - Lint & Type Check'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(pythonVersion)
+
+          - script: |
+              cd $(workingDir)/backend
+              pip install -r requirements.txt
+              pip install ruff mypy
+            displayName: 'Install dependencies + linting tools'
+
+          - script: |
+              cd $(workingDir)/backend
+              echo ">>> Ruff lint (style + error checks)..."
+              ruff check . --output-format=junit > $(Build.ArtifactStagingDirectory)/ruff-results.xml || true
+              ruff check .
+
+              echo ">>> Ruff format check..."
+              ruff format --check .
+            displayName: 'Ruff lint & format check'
+
+          - script: |
+              cd $(workingDir)/backend
+              echo ">>> MyPy type checking..."
+              mypy app/ --ignore-missing-imports --no-error-summary || true
+            displayName: 'MyPy type check'
+            continueOnError: true  # Advisory for now — tighten once types are solid
+
+          - task: PublishTestResults@2
+            condition: always()
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '$(Build.ArtifactStagingDirectory)/ruff-results.xml'
+              testRunTitle: 'Backend Lint Results'
+              failTaskOnMissingResultsFile: false
+
+      # --- Frontend: ESLint & TypeScript ---
+      - job: LintFrontend
+        displayName: 'Frontend - Lint & Type Check'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - script: |
+              cd $(workingDir)/frontend
+              npm ci
+            displayName: 'Install dependencies'
+
+          - script: |
+              cd $(workingDir)/frontend
+              echo ">>> ESLint..."
+              npx eslint . --format junit --output-file $(Build.ArtifactStagingDirectory)/eslint-results.xml || true
+              npx eslint .
+            displayName: 'ESLint'
+
+          - script: |
+              cd $(workingDir)/frontend
+              echo ">>> TypeScript type check..."
+              npx tsc --noEmit
+            displayName: 'TypeScript compile check'
+
+          - task: PublishTestResults@2
+            condition: always()
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '$(Build.ArtifactStagingDirectory)/eslint-results.xml'
+              testRunTitle: 'Frontend Lint Results'
+              failTaskOnMissingResultsFile: false
+
+  # ===========================================================================
+  # Stage 2: Unit Tests
+  # ===========================================================================
+  - stage: UnitTests
+    displayName: 'Unit Tests'
+    dependsOn: Lint
+    jobs:
+      # --- Backend: pytest ---
+      - job: TestBackend
+        displayName: 'Backend - pytest'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(pythonVersion)
+
+          - script: |
+              cd $(workingDir)/backend
+              pip install -r requirements.txt
+              pip install pytest pytest-cov pytest-asyncio
+            displayName: 'Install dependencies'
+
+          - script: |
+              cd $(workingDir)/backend
+              python -m pytest tests/ \
+                -v \
+                --tb=short \
+                --junitxml=$(Build.ArtifactStagingDirectory)/backend-test-results.xml \
+                --cov=app \
+                --cov-report=xml:$(Build.ArtifactStagingDirectory)/backend-coverage.xml \
+                --cov-report=term-missing \
+                --cov-fail-under=50
+            displayName: 'Run pytest with coverage'
+
+          - task: PublishTestResults@2
+            condition: always()
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '$(Build.ArtifactStagingDirectory)/backend-test-results.xml'
+              testRunTitle: 'Backend Unit Tests'
+
+          - task: PublishCodeCoverageResults@2
+            condition: always()
+            inputs:
+              summaryFileLocation: '$(Build.ArtifactStagingDirectory)/backend-coverage.xml'
+
+      # --- Frontend: Vitest / Jest ---
+      - job: TestFrontend
+        displayName: 'Frontend - Vitest'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - script: |
+              cd $(workingDir)/frontend
+              npm ci
+            displayName: 'Install dependencies'
+
+          - script: |
+              cd $(workingDir)/frontend
+              # Run tests if a test runner is configured, skip gracefully if not
+              if npx vitest --version 2>/dev/null; then
+                npx vitest run \
+                  --reporter=junit \
+                  --outputFile=$(Build.ArtifactStagingDirectory)/frontend-test-results.xml \
+                  --coverage --coverage.reporter=cobertura \
+                  --coverage.reportsDirectory=$(Build.ArtifactStagingDirectory)/coverage
+              else
+                echo "##vso[task.logissue type=warning]No test runner configured — skipping frontend unit tests"
+                echo "Add vitest to package.json to enable frontend unit tests"
+              fi
+            displayName: 'Run Vitest with coverage'
+
+          - task: PublishTestResults@2
+            condition: and(always(), eq(variables['Agent.JobStatus'], 'Succeeded'))
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '$(Build.ArtifactStagingDirectory)/frontend-test-results.xml'
+              testRunTitle: 'Frontend Unit Tests'
+              failTaskOnMissingResultsFile: false
+
+  # ===========================================================================
+  # Stage 3: Build & Push Docker Images
+  # ===========================================================================
+  - stage: Build
+    displayName: 'Build & Push Images'
+    dependsOn: UnitTests
+    jobs:
+      - job: BuildBackend
+        displayName: 'Build Backend Image'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: AzureCLI@2
+            displayName: 'Build & push backend image'
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                ACR_LOGIN_SERVER=$(az acr show --name $(ACR_NAME) --query loginServer -o tsv)
+
+                echo ">>> Building backend image..."
+                az acr build \
+                  --registry $(ACR_NAME) \
+                  --image $(imageTagBackend) \
+                  --file Dockerfile \
+                  $(workingDir)/backend
+
+                echo ">>> Also tagging as 'backend-latest'..."
+                az acr import \
+                  --name $(ACR_NAME) \
+                  --source "${ACR_LOGIN_SERVER}/$(imageTagBackend)" \
+                  --image backend-latest \
+                  --force
+
+      - job: BuildFrontend
+        displayName: 'Build Frontend Image'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: AzureCLI@2
+            displayName: 'Build & push frontend image'
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                ACR_LOGIN_SERVER=$(az acr show --name $(ACR_NAME) --query loginServer -o tsv)
+
+                echo ">>> Building frontend image..."
+                az acr build \
+                  --registry $(ACR_NAME) \
+                  --image $(imageTagFrontend) \
+                  --file Dockerfile.prod \
+                  $(workingDir)/frontend
+
+                echo ">>> Also tagging as 'frontend-latest'..."
+                az acr import \
+                  --name $(ACR_NAME) \
+                  --source "${ACR_LOGIN_SERVER}/$(imageTagFrontend)" \
+                  --image frontend-latest \
+                  --force
+
+  # ===========================================================================
+  # Stage 4: Integration Tests
+  # ===========================================================================
+  - stage: IntegrationTests
+    displayName: 'Integration Tests'
+    dependsOn: Build
+    jobs:
+      - job: APIIntegration
+        displayName: 'Backend - API Integration Tests'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(pythonVersion)
+
+          - script: |
+              cd $(workingDir)/backend
+              pip install -r requirements.txt
+              pip install pytest pytest-asyncio httpx
+            displayName: 'Install dependencies'
+
+          - script: |
+              cd $(workingDir)/backend
+
+              # Start the backend in the background with a test DB
+              export DATABASE_URL="sqlite+aiosqlite:///./test_integration.db"
+              uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+              SERVER_PID=$!
+
+              # Wait for server to be ready
+              echo ">>> Waiting for backend to start..."
+              for i in $(seq 1 30); do
+                if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+                  echo "    Backend is ready"
+                  break
+                fi
+                sleep 1
+              done
+
+              # Run integration tests against the live server
+              echo ">>> Running integration tests..."
+              python -m pytest tests/ \
+                -v \
+                -m "integration" \
+                --tb=short \
+                --junitxml=$(Build.ArtifactStagingDirectory)/integration-test-results.xml \
+                || TEST_EXIT=$?
+
+              # Cleanup
+              kill $SERVER_PID 2>/dev/null || true
+              rm -f test_integration.db
+
+              exit ${TEST_EXIT:-0}
+            displayName: 'Run API integration tests'
+
+          - task: PublishTestResults@2
+            condition: always()
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '$(Build.ArtifactStagingDirectory)/integration-test-results.xml'
+              testRunTitle: 'Integration Tests'
+              failTaskOnMissingResultsFile: false
+
+  # ===========================================================================
+  # Stage 5: Security Scanning
+  # ===========================================================================
+  - stage: Security
+    displayName: 'Security Scanning'
+    dependsOn: Build
+    jobs:
+      # --- Dependency vulnerability audit ---
+      - job: DependencyAudit
+        displayName: 'Dependency Audit'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(pythonVersion)
+
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - script: |
+              echo ">>> Python dependency audit (pip-audit)..."
+              pip install pip-audit
+              cd $(workingDir)/backend
+              pip-audit -r requirements.txt --format=json --output=$(Build.ArtifactStagingDirectory)/pip-audit.json || true
+              pip-audit -r requirements.txt || true
+            displayName: 'Python pip-audit'
+            continueOnError: true  # Advisory — don't block on upstream CVEs
+
+          - script: |
+              echo ">>> Node.js dependency audit..."
+              cd $(workingDir)/frontend
+              npm ci
+              npm audit --audit-level=high --json > $(Build.ArtifactStagingDirectory)/npm-audit.json || true
+              npm audit --audit-level=high || true
+            displayName: 'npm audit'
+            continueOnError: true
+
+          - task: PublishBuildArtifacts@1
+            condition: always()
+            inputs:
+              pathToPublish: '$(Build.ArtifactStagingDirectory)'
+              artifactName: 'security-reports'
+
+      # --- Container image scanning ---
+      - job: ContainerScan
+        displayName: 'Container Image Scan'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: AzureCLI@2
+            displayName: 'Scan images with Trivy'
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                # Install Trivy
+                sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+                wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+                echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+                sudo apt-get update && sudo apt-get install -y trivy
+
+                ACR_LOGIN_SERVER=$(az acr show --name $(ACR_NAME) --query loginServer -o tsv)
+                ACR_USERNAME=$(az acr credential show --name $(ACR_NAME) --query username -o tsv)
+                ACR_PASSWORD=$(az acr credential show --name $(ACR_NAME) --query "passwords[0].value" -o tsv)
+
+                # Login to ACR for Trivy
+                export TRIVY_USERNAME="$ACR_USERNAME"
+                export TRIVY_PASSWORD="$ACR_PASSWORD"
+
+                echo ">>> Scanning backend image..."
+                trivy image \
+                  --severity HIGH,CRITICAL \
+                  --format table \
+                  --exit-code 0 \
+                  "${ACR_LOGIN_SERVER}/$(imageTagBackend)" || true
+
+                echo ""
+                echo ">>> Scanning frontend image..."
+                trivy image \
+                  --severity HIGH,CRITICAL \
+                  --format table \
+                  --exit-code 0 \
+                  "${ACR_LOGIN_SERVER}/$(imageTagFrontend)" || true
+
+                # Generate JSON reports
+                trivy image --format json \
+                  -o $(Build.ArtifactStagingDirectory)/trivy-backend.json \
+                  "${ACR_LOGIN_SERVER}/$(imageTagBackend)" || true
+
+                trivy image --format json \
+                  -o $(Build.ArtifactStagingDirectory)/trivy-frontend.json \
+                  "${ACR_LOGIN_SERVER}/$(imageTagFrontend)" || true
+            continueOnError: true  # Advisory — review reports, don't block deploys on base image CVEs
+
+          - task: PublishBuildArtifacts@1
+            condition: always()
+            inputs:
+              pathToPublish: '$(Build.ArtifactStagingDirectory)'
+              artifactName: 'container-scan-reports'
+
+  # ===========================================================================
+  # Stage 6: Deploy to Container Apps
+  # ===========================================================================
+  - stage: Deploy
+    displayName: 'Deploy to Azure Container Apps'
+    dependsOn:
+      - IntegrationTests
+      - Security
+    condition: |
+      and(
+        succeeded('IntegrationTests'),
+        not(failed('Security')),
+        eq(variables['Build.SourceBranch'], 'refs/heads/master')
+      )
+    jobs:
+      - deployment: DeployBackend
+        displayName: 'Deploy Backend'
+        pool:
+          vmImage: 'ubuntu-latest'
+        environment: 'ontology-${{ parameters.environment }}'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureCLI@2
+                  displayName: 'Update backend container app'
+                  inputs:
+                    azureSubscription: $(azureServiceConnection)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      ACR_LOGIN_SERVER=$(az acr show --name $(ACR_NAME) --query loginServer -o tsv)
+
+                      echo ">>> Deploying backend: ${ACR_LOGIN_SERVER}/$(imageTagBackend)"
+                      az containerapp update \
+                        --name $(BACKEND_APP_NAME) \
+                        --resource-group $(RESOURCE_GROUP) \
+                        --image "${ACR_LOGIN_SERVER}/$(imageTagBackend)" \
+                        --set-env-vars \
+                          "ANTHROPIC_API_KEY=secretref:anthropic-api-key" \
+                          "AI_PROVIDER=$(AI_PROVIDER)" \
+                          "AI_MODEL=$(AI_MODEL)"
+
+                      echo ">>> Waiting for backend to be ready..."
+                      az containerapp show \
+                        --name $(BACKEND_APP_NAME) \
+                        --resource-group $(RESOURCE_GROUP) \
+                        --query "properties.latestRevisionFqdn" -o tsv
+
+      - deployment: DeployFrontend
+        displayName: 'Deploy Frontend'
+        dependsOn: DeployBackend
+        pool:
+          vmImage: 'ubuntu-latest'
+        environment: 'ontology-${{ parameters.environment }}'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureCLI@2
+                  displayName: 'Update frontend container app'
+                  inputs:
+                    azureSubscription: $(azureServiceConnection)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      ACR_LOGIN_SERVER=$(az acr show --name $(ACR_NAME) --query loginServer -o tsv)
+
+                      # Get the backend internal FQDN for nginx proxy
+                      BACKEND_FQDN=$(az containerapp show \
+                        --name $(BACKEND_APP_NAME) \
+                        --resource-group $(RESOURCE_GROUP) \
+                        --query "properties.configuration.ingress.fqdn" -o tsv)
+
+                      echo ">>> Deploying frontend: ${ACR_LOGIN_SERVER}/$(imageTagFrontend)"
+                      echo ">>> Backend FQDN: ${BACKEND_FQDN}"
+                      az containerapp update \
+                        --name $(FRONTEND_APP_NAME) \
+                        --resource-group $(RESOURCE_GROUP) \
+                        --image "${ACR_LOGIN_SERVER}/$(imageTagFrontend)" \
+                        --set-env-vars \
+                          "BACKEND_FQDN=${BACKEND_FQDN}"
+
+                      FRONTEND_URL=$(az containerapp show \
+                        --name $(FRONTEND_APP_NAME) \
+                        --resource-group $(RESOURCE_GROUP) \
+                        --query "properties.configuration.ingress.fqdn" -o tsv)
+
+                      echo "========================================="
+                      echo "  Deployment Complete!"
+                      echo "  URL: https://${FRONTEND_URL}"
+                      echo "========================================="
+
+  # ===========================================================================
+  # Stage 7: E2E Tests (Playwright)
+  # ===========================================================================
+  - stage: E2ETests
+    displayName: 'E2E Tests (Playwright)'
+    dependsOn: Deploy
+    condition: and(succeeded(), ${{ ne(parameters.skipE2E, true) }})
+    jobs:
+      - job: PlaywrightE2E
+        displayName: 'Playwright E2E Suite'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - task: AzureCLI@2
+            displayName: 'Get deployment URL'
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                FRONTEND_URL=$(az containerapp show \
+                  --name $(FRONTEND_APP_NAME) \
+                  --resource-group $(RESOURCE_GROUP) \
+                  --query "properties.configuration.ingress.fqdn" -o tsv)
+                echo "##vso[task.setvariable variable=E2E_BASE_URL]https://${FRONTEND_URL}"
+                echo "E2E target: https://${FRONTEND_URL}"
+
+          - script: |
+              cd $(workingDir)/e2e-tests
+              npm ci
+              npx playwright install --with-deps chromium
+            displayName: 'Install Playwright + browsers'
+
+          - script: |
+              cd $(workingDir)/e2e-tests
+              echo ">>> Running E2E tests against $(E2E_BASE_URL)..."
+              PLAYWRIGHT_JUNIT_OUTPUT_NAME=$(Build.ArtifactStagingDirectory)/e2e-results.xml \
+              BASE_URL=$(E2E_BASE_URL) \
+              npx playwright test \
+                --reporter=junit,html \
+                --output=$(Build.ArtifactStagingDirectory)/playwright-traces
+            displayName: 'Run Playwright tests'
+
+          - task: PublishTestResults@2
+            condition: always()
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '$(Build.ArtifactStagingDirectory)/e2e-results.xml'
+              testRunTitle: 'E2E Tests'
+              failTaskOnMissingResultsFile: false
+
+          - script: |
+              # Publish HTML report if it exists (generated by --reporter=html)
+              if [ -d "$(workingDir)/e2e-tests/playwright-report" ]; then
+                cp -r $(workingDir)/e2e-tests/playwright-report $(Build.ArtifactStagingDirectory)/playwright-report
+              fi
+            displayName: 'Collect Playwright HTML report'
+            condition: always()
+
+          - task: PublishBuildArtifacts@1
+            condition: always()
+            inputs:
+              pathToPublish: '$(Build.ArtifactStagingDirectory)/playwright-report'
+              artifactName: 'playwright-report'
+              publishLocation: 'Container'
+
+  # ===========================================================================
+  # Stage 8: Smoke Test
+  # ===========================================================================
+  - stage: SmokeTest
+    displayName: 'Smoke Test'
+    dependsOn:
+      - Deploy
+      - E2ETests
+    condition: |
+      and(
+        not(failed('Deploy')),
+        not(failed('E2ETests'))
+      )
+    jobs:
+      - job: HealthCheck
+        displayName: 'Verify Deployment'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: AzureCLI@2
+            displayName: 'Check health endpoints'
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                FRONTEND_URL=$(az containerapp show \
+                  --name $(FRONTEND_APP_NAME) \
+                  --resource-group $(RESOURCE_GROUP) \
+                  --query "properties.configuration.ingress.fqdn" -o tsv)
+
+                echo ">>> Checking frontend health..."
+                HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://${FRONTEND_URL}/health" || true)
+                if [ "$HTTP_STATUS" = "200" ]; then
+                  echo "    Frontend: OK (200)"
+                else
+                  echo "    Frontend: FAILED (${HTTP_STATUS})"
+                  exit 1
+                fi
+
+                echo ">>> Checking backend health via frontend proxy..."
+                HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://${FRONTEND_URL}/api/health" || true)
+                if [ "$HTTP_STATUS" = "200" ]; then
+                  echo "    Backend: OK (200)"
+                else
+                  echo "    Backend: FAILED (${HTTP_STATUS})"
+                  echo "    (Backend may still be starting up - check logs)"
+                  exit 1
+                fi
+
+                echo ""
+                echo "========================================="
+                echo "  All checks passed!"
+                echo "  App URL: https://${FRONTEND_URL}"
+                echo "========================================="

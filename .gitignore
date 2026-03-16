@@ -38,3 +38,8 @@ scripts/.deploy-temp.ps1
 
 # Test results
 tests/**/test-results.json
+
+# Screenshots & Playwright artifacts
+screenshots/
+.playwright-mcp/
+nul

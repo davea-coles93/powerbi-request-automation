@@ -30,16 +30,29 @@ class AIService(BaseAIService):
 
         context = self._prepare_metric_context(trace)
 
-        system = "You are a business analyst explaining metrics to stakeholders."
+        system = """\
+You are a business analyst explaining metrics to stakeholders using an ontology framework.
+
+Key concepts:
+- **Metric**: A business KPI answering a specific question. The anchor point — metrics justify everything else.
+- **Measure**: A calculation (formula) using attributes or other measures as inputs.
+- **Attribute**: Raw data from a source system, born at the point of activity.
+- **Crystallisation**: Attributes become frozen, trusted facts when a process step executes (e.g., month-end cutoff). High data journey cost = high manual effort or system switching to turn raw data into reliable facts.
+
+Data flows UPWARD: System → Entity → Attribute → Measure → Metric → Business Question.
+Requirements flow DOWNWARD: Business Question → Metric → Measures → Attributes → Systems.
+Frame your explanation around this value chain."""
+
         user_msg = f"""Based on the following ontology information, provide a clear, non-technical explanation of this metric.
 
 {context}
 
 Provide:
 1. A brief explanation of what this metric tells the business (2-3 sentences)
-2. A summary of where the data comes from (the lineage)
+2. A summary of where the data comes from — trace the lineage from metric through measures to source systems
+3. If crystallisation data is available, note any data reliability or timeliness concerns
 
-Be concise and business-focused, not technical."""
+Be concise and business-focused. Under 150 words."""
 
         # Collect streamed response
         explanation = ""
@@ -136,15 +149,32 @@ Be concise and business-focused, not technical."""
 Current attributes in the ontology:
 {chr(10).join([f"- {a.name}: {a.description or 'No description'}" for a in current_attributes[:20]])}"""
 
-        system = "You are a business ontology expert helping design measures and attributes."
+        system = """\
+You are a business ontology expert helping design measures and attributes for a data lineage framework.
+
+Key concepts:
+- **Attribute**: Raw data from a source system, born at the point of activity. Always specify which entity and system it belongs to.
+- **Measure**: A calculation using attributes or other measures. Specify the logic in plain English and which attributes it needs.
+- **Metric**: Business KPI answering a specific question. Metrics justify which attributes we need.
+- **Crystallisation**: Attributes crystallise when a process step executes, turning raw data into frozen facts.
+- **Data Flow**: Data flows upward: System → Entity → Attribute → Measure → Metric. Requirements flow downward from business questions.
+- **Edge-Perspective Mapping**: System→Attribute = Operational (capture), Attribute→Measure = Management (measurement), Measure→Metric = Financial (analysis). Process steps attach to each level via produces_attribute_ids, produces_measure_ids, produces_metric_ids.
+
+Principles:
+- Prefer reusing existing elements over creating new ones
+- New attributes should reference existing entities and systems where possible
+- Measures should have clear, implementable logic
+- Think about where the data is born (operational) vs where it's consumed (financial/management)
+- When suggesting new measures, also suggest which existing or new process step would produce them (which step's work actually computes this measure?)"""
+
         user_msg = f"""The user has this requirement: "{requirement}"
 
 {context}
 
 Suggest:
-1. New measures that would be needed (name, description, logic)
-2. New attributes that would be needed (name, description, what entity it relates to)
-3. Brief rationale for your suggestions
+1. New measures that would be needed (name, description, logic, which attributes they use, and which process step would produce them — name the step or suggest a new one)
+2. New attributes that would be needed (name, description, which entity and system they belong to, which perspective)
+3. Brief rationale explaining how these connect to the requirement
 
 Consider what already exists and don't duplicate. Respond with ONLY valid JSON (no markdown fencing) with keys: suggested_measures, suggested_attributes, rationale"""
 
@@ -261,6 +291,26 @@ Consider what already exists and don't duplicate. Respond with ONLY valid JSON (
         attributes = trace["attributes"]
         systems = trace["systems"]
 
+        # Include crystallisation pathway info if available
+        cryst_info = ""
+        if self.graph_service:
+            processes = self.graph_service.processes.get_all()
+            cryst_map: dict[str, list[str]] = {}
+            for p in processes:
+                for s in p.steps:
+                    for attr_id in (s.crystallizes_attribute_ids or []):
+                        cryst_map.setdefault(attr_id, []).append(f"{p.name} → {s.name}")
+
+            cryst_lines = []
+            for a in attributes:
+                pathways = cryst_map.get(a["id"], [])
+                if pathways:
+                    cryst_lines.append(f"- {a['name']}: crystallised by {'; '.join(pathways)}")
+                else:
+                    cryst_lines.append(f"- {a['name']}: NO crystallisation point defined (data may not be formally frozen)")
+            if cryst_lines:
+                cryst_info = f"\n\nCRYSTALLISATION PATHWAYS:\n{chr(10).join(cryst_lines)}"
+
         return f"""METRIC: {metric['name']}
 Business Question: {metric['business_question']}
 Perspectives: {', '.join(metric.get('perspective_ids', []))}
@@ -272,7 +322,7 @@ SOURCED FROM ATTRIBUTES:
 {chr(10).join([f"- {a['name']} (from {a['system_id']}, reliability: {a.get('reliability', 'Unknown')})" for a in attributes])}
 
 DATA ORIGINATES IN SYSTEMS:
-{chr(10).join([f"- {s['name']} ({s['type']})" for s in systems])}
+{chr(10).join([f"- {s['name']} ({s['type']})" for s in systems])}{cryst_info}
 """
 
     def _generate_fallback_explanation(self, trace: dict) -> dict:

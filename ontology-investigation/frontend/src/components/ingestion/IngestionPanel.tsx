@@ -11,6 +11,7 @@ import {
   Loader2,
   Sparkles,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   ArrowRight,
   RotateCcw,
@@ -23,6 +24,13 @@ import {
   Download,
 } from 'lucide-react';
 import { useIngestion, type StagedSource, type EnrichmentResult } from '../../hooks/useIngestion';
+import {
+  powerbiLiveConnect,
+  powerbiLiveDisconnect,
+  powerbiLiveWorkspaces,
+  powerbiLiveDatasets,
+  powerbiLiveExtract,
+} from '../../services/api';
 
 interface IngestionPanelProps {
   onClose: () => void;
@@ -95,7 +103,7 @@ function DropZone({ onFiles, disabled }: { onFiles: (files: File[]) => void; dis
         </div>
         <div>
           <p className="text-sm font-medium text-gray-700">Drop files here or click to browse</p>
-          <p className="text-xs text-gray-400 mt-0.5">Excel, CSV, PDF, Word, PowerPoint, Images, Power BI (.zip)</p>
+          <p className="text-xs text-gray-400 mt-0.5">Excel, CSV, PDF, Word, PowerPoint, Images, Power BI (.zip), PowerApps (.zip/.msapp)</p>
         </div>
       </div>
     </div>
@@ -487,6 +495,223 @@ function ElementSection({ title, items, renderItem }: { title: string; items: an
   );
 }
 
+// ── Power BI Live Connector ─────────────────────────────────────────────
+
+type PBIStep = 'idle' | 'credentials' | 'connecting' | 'workspaces' | 'datasets' | 'extracting';
+
+interface Workspace { id: string; name: string; }
+interface Dataset { id: string; name: string; }
+
+function PowerBIConnector({ onExtracted, disabled }: { onExtracted: (data: any) => void; disabled: boolean }) {
+  const [step, setStep] = useState<PBIStep>('idle');
+  const [tenantId, setTenantId] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
+  const [sessionToken, setSessionToken] = useState('');
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [selectedWorkspace, setSelectedWorkspace] = useState('');
+  const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [, setSelectedDataset] = useState('');
+  const [error, setError] = useState('');
+
+  const handleConnect = async () => {
+    setError('');
+    setStep('connecting');
+    try {
+      const res = await powerbiLiveConnect(tenantId, clientId, clientSecret);
+      setSessionToken(res.session_token);
+      const ws = await powerbiLiveWorkspaces(res.session_token);
+      setWorkspaces(ws);
+      setStep('workspaces');
+    } catch (e: any) {
+      setError(e.response?.data?.detail || e.message || 'Connection failed');
+      setStep('credentials');
+    }
+  };
+
+  const handleSelectWorkspace = async (wsId: string) => {
+    setSelectedWorkspace(wsId);
+    setError('');
+    try {
+      const ds = await powerbiLiveDatasets(wsId, sessionToken);
+      setDatasets(ds);
+      setStep('datasets');
+    } catch (e: any) {
+      setError(e.response?.data?.detail || e.message || 'Failed to list datasets');
+    }
+  };
+
+  const handleExtract = async (datasetId: string) => {
+    setSelectedDataset(datasetId);
+    setError('');
+    setStep('extracting');
+    try {
+      const result = await powerbiLiveExtract(selectedWorkspace, datasetId, sessionToken);
+      onExtracted(result);
+      setStep('idle');
+    } catch (e: any) {
+      setError(e.response?.data?.detail || e.message || 'Extraction failed');
+      setStep('datasets');
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (sessionToken) {
+      try { await powerbiLiveDisconnect(sessionToken); } catch { /* ignore */ }
+    }
+    setSessionToken('');
+    setWorkspaces([]);
+    setDatasets([]);
+    setSelectedWorkspace('');
+    setSelectedDataset('');
+    setStep('idle');
+    setError('');
+  };
+
+  if (step === 'idle') {
+    return (
+      <button
+        onClick={() => setStep('credentials')}
+        disabled={disabled}
+        className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium border-2 border-dashed rounded-xl transition-all ${
+          disabled
+            ? 'opacity-50 cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400'
+            : 'border-blue-300 bg-blue-50/30 text-blue-700 hover:border-blue-400 hover:bg-blue-50 cursor-pointer'
+        }`}
+      >
+        <Database className="w-4 h-4" />
+        Connect to Power BI Online
+      </button>
+    );
+  }
+
+  return (
+    <div className="bg-white border border-blue-200 rounded-xl p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center">
+            <Database className="w-3.5 h-3.5 text-blue-600" />
+          </div>
+          <span className="text-xs font-semibold text-blue-700">
+            {step === 'credentials' || step === 'connecting' ? 'Connect to Power BI' :
+             step === 'workspaces' ? 'Select Workspace' :
+             step === 'datasets' ? 'Select Dataset' :
+             'Extracting Schema...'}
+          </span>
+        </div>
+        <button
+          onClick={handleDisconnect}
+          className="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors"
+          title="Cancel"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {error && (
+        <div className="flex items-start gap-2 text-xs text-red-600 bg-red-50 rounded-lg px-2.5 py-2">
+          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+          {error}
+        </div>
+      )}
+
+      {/* Credentials form */}
+      {(step === 'credentials' || step === 'connecting') && (
+        <div className="space-y-2">
+          <input
+            type="text"
+            value={tenantId}
+            onChange={e => setTenantId(e.target.value)}
+            placeholder="Tenant ID"
+            className="w-full text-xs border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <input
+            type="text"
+            value={clientId}
+            onChange={e => setClientId(e.target.value)}
+            placeholder="Client ID (App Registration)"
+            className="w-full text-xs border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <input
+            type="password"
+            value={clientSecret}
+            onChange={e => setClientSecret(e.target.value)}
+            placeholder="Client Secret"
+            className="w-full text-xs border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <button
+            onClick={handleConnect}
+            disabled={step === 'connecting' || !tenantId || !clientId || !clientSecret}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {step === 'connecting' ? (
+              <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Connecting...</>
+            ) : (
+              <><Zap className="w-3.5 h-3.5" /> Connect</>
+            )}
+          </button>
+          <p className="text-[10px] text-gray-400 text-center">
+            Uses service principal authentication. Credentials are stored in memory only.
+          </p>
+        </div>
+      )}
+
+      {/* Workspace selection */}
+      {step === 'workspaces' && (
+        <div className="space-y-1.5 max-h-48 overflow-y-auto">
+          {workspaces.length === 0 ? (
+            <p className="text-xs text-gray-400 text-center py-3">No workspaces found</p>
+          ) : (
+            workspaces.map(ws => (
+              <button
+                key={ws.id}
+                onClick={() => handleSelectWorkspace(ws.id)}
+                className="w-full text-left px-3 py-2 text-xs rounded-lg hover:bg-blue-50 border border-gray-200 hover:border-blue-300 transition-colors"
+              >
+                <span className="font-medium text-gray-900">{ws.name}</span>
+                <span className="text-gray-400 ml-1.5 text-[10px]">{ws.id.slice(0, 8)}...</span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Dataset selection */}
+      {step === 'datasets' && (
+        <div className="space-y-1.5 max-h-48 overflow-y-auto">
+          <button
+            onClick={() => { setStep('workspaces'); setDatasets([]); }}
+            className="flex items-center gap-1 text-[10px] text-blue-600 hover:text-blue-800 mb-1"
+          >
+            <ChevronLeft className="w-3 h-3" /> Back to workspaces
+          </button>
+          {datasets.length === 0 ? (
+            <p className="text-xs text-gray-400 text-center py-3">No datasets found</p>
+          ) : (
+            datasets.map(ds => (
+              <button
+                key={ds.id}
+                onClick={() => handleExtract(ds.id)}
+                className="w-full text-left px-3 py-2 text-xs rounded-lg hover:bg-blue-50 border border-gray-200 hover:border-blue-300 transition-colors"
+              >
+                <span className="font-medium text-gray-900">{ds.name}</span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Extracting */}
+      {step === 'extracting' && (
+        <div className="flex items-center justify-center gap-2 py-3 text-xs text-blue-600">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Extracting schema from dataset...
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Panel ──────────────────────────────────────────────────────────
 
 export function IngestionPanel({ onClose }: IngestionPanelProps) {
@@ -498,6 +723,7 @@ export function IngestionPanel({ onClose }: IngestionPanelProps) {
     error,
     uploadProgress,
     addFiles,
+    addStagedSource,
     removeSource,
     clearAll,
     startEnrichment,
@@ -568,6 +794,16 @@ export function IngestionPanel({ onClose }: IngestionPanelProps) {
         <section>
           <StepHeader number={1} title="Upload Sources" active={!isEnriching} />
           <DropZone onFiles={addFiles} disabled={isEnriching || stage === 'loading'} />
+
+          <div className="mt-2">
+            <PowerBIConnector
+              onExtracted={(data) => {
+                const dsName = data.dataset_name || data.source_type || 'Power BI Dataset';
+                addStagedSource(dsName, 'powerbi', data);
+              }}
+              disabled={isEnriching || stage === 'loading'}
+            />
+          </div>
 
           {uploadProgress && (
             <div className="flex items-center gap-2 mt-2 text-xs text-blue-600">

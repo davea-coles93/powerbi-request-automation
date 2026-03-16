@@ -350,6 +350,9 @@ class GraphService:
                 "systems_used_ids": step.systems_used_ids,
                 "consumes_attribute_ids": step.consumes_attribute_ids,
                 "produces_attribute_ids": step.produces_attribute_ids,
+                "crystallizes_attribute_ids": step.crystallizes_attribute_ids,
+                "produces_measure_ids": step.produces_measure_ids,
+                "produces_metric_ids": step.produces_metric_ids,
                 "uses_metric_ids": step.uses_metric_ids,
             })
 
@@ -766,38 +769,20 @@ class GraphService:
             },
         }
 
-    def get_lineage_with_costs(self) -> dict:
+    def _compute_step_costs(
+        self,
+        entity_step_map: dict[str, list[tuple]],
+        step_maps: dict[str, dict],
+        entity_ids: list[str],
+    ) -> dict:
+        """Compute cost summaries from a map of entity_id → list[(process, step)].
+
+        Uses backward-walk through step dependencies to accumulate contributing
+        chain costs (duration, manual effort, system switches, waste).
         """
-        Get full lineage graph with crystallisation cost annotations.
-
-        Returns all metrics, measures, attributes, entities, systems plus a
-        crystallisation_costs map keyed by attribute_id with rolled-up stats.
-        """
-        all_metrics = self.metrics.get_all()
-        all_measures = self.measures.get_all()
-        all_attributes = self.attributes.get_all()
-        all_entities = self.entities.get_all()
-        all_systems = self.systems.get_all()
-        all_processes = self.processes.get_all()
-
-        # Pre-compute crystallisation costs for all attributes in one pass
-        # Build a map: attribute_id → list of (process, step) that crystallise/produce it
-        attr_step_map: dict[str, list[tuple]] = {}
-        step_maps: dict[str, dict] = {}
-
-        for process in all_processes:
-            s_map = {s.id: s for s in process.steps}
-            step_maps[process.id] = s_map
-            for step in process.steps:
-                for attr_id in step.crystallizes_attribute_ids + step.produces_attribute_ids:
-                    if attr_id not in attr_step_map:
-                        attr_step_map[attr_id] = []
-                    attr_step_map[attr_id].append((process, step))
-
-        crystallisation_costs = {}
-
-        for attr in all_attributes:
-            entries = attr_step_map.get(attr.id, [])
+        costs = {}
+        for eid in entity_ids:
+            entries = entity_step_map.get(eid, [])
             if not entries:
                 continue
 
@@ -807,9 +792,9 @@ class GraphService:
             all_sys_ids = set()
             waste_cats = set()
             process_names = set()
+            process_ids = set()
 
             for process, step in entries:
-                # Walk backward to collect contributing chain
                 s_map = step_maps[process.id]
                 visited = set()
                 queue = [step.id]
@@ -835,8 +820,9 @@ class GraphService:
                                 queue.append(dep_id)
 
                 process_names.add(process.name)
+                process_ids.add(process.id)
 
-            crystallisation_costs[attr.id] = {
+            costs[eid] = {
                 "total_duration_minutes": total_duration,
                 "weighted_manual_effort_pct": (
                     round(weighted_manual_sum / total_weighted_dur)
@@ -845,7 +831,58 @@ class GraphService:
                 "system_switch_count": max(0, len(all_sys_ids) - 1),
                 "waste_categories": sorted(waste_cats),
                 "process_names": sorted(process_names),
+                "process_ids": sorted(process_ids),
             }
+
+        return costs
+
+    def get_lineage_with_costs(self) -> dict:
+        """
+        Get full lineage graph with crystallisation cost annotations.
+
+        Returns all metrics, measures, attributes, entities, systems plus
+        cost maps for attributes, measures, and metrics.
+        """
+        all_metrics = self.metrics.get_all()
+        all_measures = self.measures.get_all()
+        all_attributes = self.attributes.get_all()
+        all_entities = self.entities.get_all()
+        all_systems = self.systems.get_all()
+        all_processes = self.processes.get_all()
+
+        # Build step maps and entity→step maps for all three edge types
+        attr_step_map: dict[str, list[tuple]] = {}
+        measure_step_map: dict[str, list[tuple]] = {}
+        metric_step_map: dict[str, list[tuple]] = {}
+        step_maps: dict[str, dict] = {}
+
+        for process in all_processes:
+            s_map = {s.id: s for s in process.steps}
+            step_maps[process.id] = s_map
+            for step in process.steps:
+                # Attribute costs (existing: crystallisation + production)
+                for attr_id in step.crystallizes_attribute_ids + step.produces_attribute_ids:
+                    if attr_id not in attr_step_map:
+                        attr_step_map[attr_id] = []
+                    attr_step_map[attr_id].append((process, step))
+                # Measure costs (new)
+                for meas_id in step.produces_measure_ids:
+                    if meas_id not in measure_step_map:
+                        measure_step_map[meas_id] = []
+                    measure_step_map[meas_id].append((process, step))
+                # Metric costs (new)
+                for met_id in step.produces_metric_ids:
+                    if met_id not in metric_step_map:
+                        metric_step_map[met_id] = []
+                    metric_step_map[met_id].append((process, step))
+
+        attr_ids = [a.id for a in all_attributes]
+        meas_ids = [m.id for m in all_measures]
+        met_ids = [m.id for m in all_metrics]
+
+        crystallisation_costs = self._compute_step_costs(attr_step_map, step_maps, attr_ids)
+        measure_costs = self._compute_step_costs(measure_step_map, step_maps, meas_ids)
+        metric_costs = self._compute_step_costs(metric_step_map, step_maps, met_ids)
 
         return {
             "metrics": [m.model_dump() for m in all_metrics],
@@ -854,4 +891,64 @@ class GraphService:
             "entities": [e.model_dump() for e in all_entities],
             "systems": [s.model_dump() for s in all_systems],
             "crystallisation_costs": crystallisation_costs,
+            "measure_costs": measure_costs,
+            "metric_costs": metric_costs,
         }
+
+    def get_process_interconnections(self) -> dict:
+        """
+        Get process-to-process connections via shared attributes.
+
+        Finds where one process produces/crystallises an attribute that
+        another process consumes.
+        """
+        all_processes = self.processes.get_all()
+        all_attributes = self.attributes.get_all()
+        attr_name_map = {a.id: a.name for a in all_attributes}
+
+        # Build per-process produced and consumed sets
+        process_produced: dict[str, set[str]] = {}
+        process_consumed: dict[str, set[str]] = {}
+
+        for process in all_processes:
+            produced = set()
+            consumed = set()
+            for step in process.steps:
+                produced.update(step.produces_attribute_ids)
+                produced.update(step.crystallizes_attribute_ids)
+                consumed.update(step.consumes_attribute_ids)
+            process_produced[process.id] = produced
+            process_consumed[process.id] = consumed
+
+        # Find connections: process A produces what process B consumes
+        connections = []
+        seen = set()
+        for p_a in all_processes:
+            for p_b in all_processes:
+                if p_a.id == p_b.id:
+                    continue
+                shared = process_produced.get(p_a.id, set()) & process_consumed.get(p_b.id, set())
+                if shared:
+                    key = (p_a.id, p_b.id)
+                    if key not in seen:
+                        seen.add(key)
+                        connections.append({
+                            "from_id": p_a.id,
+                            "to_id": p_b.id,
+                            "shared_attributes": [
+                                {"id": aid, "name": attr_name_map.get(aid, aid)}
+                                for aid in sorted(shared)
+                            ],
+                        })
+
+        processes = [
+            {
+                "id": p.id,
+                "name": p.name,
+                "description": p.description,
+                "step_count": len(p.steps),
+            }
+            for p in all_processes
+        ]
+
+        return {"processes": processes, "connections": connections}

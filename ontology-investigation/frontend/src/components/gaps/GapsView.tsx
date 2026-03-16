@@ -12,6 +12,12 @@ import {
   useSaveGapAnalysisData,
   useAutoDetectGaps,
   useMaterializeElement,
+  useDetectGapsStandalone,
+  useMetrics,
+  useAttributes,
+  useMeasures,
+  useEntities,
+  usePerspectives,
 } from '../../hooks/useOntology';
 import { StepLineageDrawer } from '../StepLineageDrawer';
 import { BusinessQuestionCostCards } from './BusinessQuestionCostCards';
@@ -33,8 +39,29 @@ export function GapsView() {
   const saveGapAnalysisData = useSaveGapAnalysisData();
   const autoDetectGaps = useAutoDetectGaps();
   const materializeElement = useMaterializeElement();
+  const detectStandalone = useDetectGapsStandalone();
+  const { data: perspectives } = usePerspectives();
+  const { data: allMetrics } = useMetrics();
+  const { data: allAttributes } = useAttributes();
+  const { data: allMeasures } = useMeasures();
+  const { data: allEntities } = useEntities();
 
+  // Build element name lookup for gap cards
+  const elementNames = useMemo<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    for (const m of allMetrics ?? []) map[m.id] = m.name;
+    for (const a of allAttributes ?? []) map[a.id] = a.name;
+    for (const m of allMeasures ?? []) map[m.id] = m.name;
+    for (const e of allEntities ?? []) map[e.id] = e.name;
+    for (const p of processes ?? []) map[p.id] = p.name;
+    return map;
+  }, [allMetrics, allAttributes, allMeasures, allEntities, processes]);
+
+  const automationRef = useRef<HTMLDivElement>(null);
   const [hourlyRate, setHourlyRate] = useState(75);
+  const [automationFactor, setAutomationFactor] = useState(80);
+  const [selectedPerspectiveId, setSelectedPerspectiveId] = useState<string | null>(null);
+  const [gapSortMode, setGapSortMode] = useState<'type' | 'impact'>('impact');
   const [lineageStepId, setLineageStepId] = useState<string | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [data, setData] = useState<GapAnalysisData>({
@@ -95,11 +122,16 @@ export function GapsView() {
   }, [data, persistData, activeSessionId]);
 
   // --- Efficiency metrics ---
+  const selectedPerspectiveName = perspectives?.find((p) => p.id === selectedPerspectiveId)?.name?.toLowerCase() ?? null;
+
   const efficiency = useMemo<EfficiencyMetrics>(() => {
     if (!processes || processes.length === 0) {
       return { totalSteps: 0, avgManualEffort: 0, totalManualHours: 0, estimatedMonthlyCost: 0, automationOpportunities: [], systemSwitchingCount: 0 };
     }
-    const allSteps: ProcessStep[] = processes.flatMap((p) => p.steps);
+    let allSteps: ProcessStep[] = processes.flatMap((p) => p.steps);
+    if (selectedPerspectiveName) {
+      allSteps = allSteps.filter((s) => s.perspective_level?.toLowerCase() === selectedPerspectiveName);
+    }
     const totalSteps = allSteps.length;
     const stepsWithManual = allSteps.filter((s) => s.manual_effort_percentage !== undefined);
     const avgManualEffort =
@@ -120,7 +152,7 @@ export function GapsView() {
       });
     const systemSwitchingCount = allSteps.filter((s) => s.systems_used_ids && s.systems_used_ids.length > 1).length;
     return { totalSteps, avgManualEffort, totalManualHours, estimatedMonthlyCost: totalManualHours * hourlyRate, automationOpportunities, systemSwitchingCount };
-  }, [processes, hourlyRate]);
+  }, [processes, hourlyRate, selectedPerspectiveName]);
 
   // --- Source session selection ---
   const topDownSessions = (allSessions ?? []).filter((s) => s.session_type === 'top_down');
@@ -168,6 +200,31 @@ export function GapsView() {
   const addGap = (gap: GapItem) =>
     setData((prev) => ({ ...prev, gaps: [...prev.gaps, gap] }));
 
+  const handleScanOntology = async () => {
+    try {
+      const result = await detectStandalone.mutateAsync();
+      const detected: GapItem[] = (result?.gaps ?? []).map((g: any) => ({
+        id: g.id,
+        gap_type: g.gap_type,
+        description: g.description,
+        priority: g.priority || 'medium',
+        related_entity_ids: g.related_entity_ids || [],
+        related_attribute_ids: g.related_attribute_ids || [],
+        related_measure_ids: g.related_measure_ids || [],
+        related_process_ids: g.related_process_ids || [],
+        suggested_action: g.suggested_action,
+        resolved: false,
+        status: 'open' as const,
+      }));
+      setData((prev) => {
+        const existingDescs = new Set(prev.gaps.map((g) => g.description));
+        return { ...prev, gaps: [...prev.gaps, ...detected.filter((g) => !existingDescs.has(g.description))] };
+      });
+    } catch {
+      // detection failed
+    }
+  };
+
   const handleMaterialize = (gap: GapItem) => {
     if (!activeSessionId || gap.related_attribute_ids.length === 0) return;
     materializeElement.mutate({
@@ -187,52 +244,123 @@ export function GapsView() {
               Cross-reference demand vs supply, identify automation opportunities
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Hourly Rate:</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-              <input
-                type="number"
-                value={hourlyRate}
-                onChange={(e) => setHourlyRate(Number(e.target.value))}
-                className="pl-7 pr-3 py-2 border border-gray-300 rounded-lg w-24 text-sm"
-                min="0"
-                step="5"
-              />
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600">Hourly Rate:</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                <input
+                  type="number"
+                  value={hourlyRate}
+                  onChange={(e) => setHourlyRate(Number(e.target.value))}
+                  className="pl-7 pr-3 py-2 border border-gray-300 rounded-lg w-24 text-sm"
+                  min="0"
+                  step="5"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600">Automation Factor:</label>
+              <div className="relative">
+                <input
+                  type="number"
+                  value={automationFactor}
+                  onChange={(e) => setAutomationFactor(Math.min(100, Math.max(0, Number(e.target.value))))}
+                  className="pl-3 pr-7 py-2 border border-gray-300 rounded-lg w-20 text-sm"
+                  min="0"
+                  max="100"
+                  step="5"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">%</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <BusinessQuestionCostCards />
+        {/* Perspective filter tabs */}
+        {perspectives && perspectives.length > 0 && (
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setSelectedPerspectiveId(null)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                !selectedPerspectiveId
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              All Perspectives
+            </button>
+            {perspectives.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setSelectedPerspectiveId(p.id)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  selectedPerspectiveId === p.id
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <BusinessQuestionCostCards
+          perspectiveId={selectedPerspectiveId}
+          onScrollToAutomation={() => automationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+        />
 
         <EfficiencySummaryCards efficiency={efficiency} />
 
+        <div ref={automationRef} />
         <AutomationOpportunities
           opportunities={efficiency.automationOpportunities}
           hourlyRate={hourlyRate}
+          automationFactor={automationFactor / 100}
           onViewLineage={setLineageStepId}
         />
 
         {/* AI Gap Analysis */}
-        <AIGapAnalysis />
+        <AIGapAnalysis onAcceptGap={addGap} />
 
         {/* Gap Analysis Section */}
         <div className="border-t pt-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-red-500" />
               Gap Analysis
             </h3>
-            {!activeSession && (
+            <div className="flex items-center gap-2">
               <button
-                onClick={createDefaultSession}
-                disabled={createSession.isPending}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50"
+                onClick={handleScanOntology}
+                disabled={detectStandalone.isPending}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50"
+                title="Automatically find structural gaps: unused attributes, broken lineage chains, missing data journey points, and coverage issues"
               >
-                {createSession.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                Initialize Gap Analysis
+                {detectStandalone.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                Scan Ontology
               </button>
-            )}
+              {!activeSession && (
+                <button
+                  onClick={createDefaultSession}
+                  disabled={createSession.isPending}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50"
+                  title="Create a gap analysis session to track and persist detected gaps"
+                >
+                  {createSession.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  Initialize Session
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Detection method guide */}
+          <div className="mb-4 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600 leading-relaxed">
+            <span className="font-medium text-gray-700">Three ways to find gaps: </span>
+            <span className="text-green-700 font-medium">Scan Ontology</span> finds structural issues automatically.{' '}
+            <span className="text-purple-700 font-medium">Detect Gaps</span> cross-references your selected workshop sessions (demand vs supply).{' '}
+            <span className="text-indigo-700 font-medium">AI Gap Analysis</span> (above) uses Claude to suggest improvements across the whole ontology.
           </div>
 
           {/* Source Selection */}
@@ -272,6 +400,7 @@ export function GapsView() {
             onClick={handleDetectGaps}
             disabled={autoDetectGaps.isPending || (!activeSession && createSession.isPending)}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-6"
+            title="Cross-reference selected top-down (demand) and bottom-up (supply) sessions to find demand-supply mismatches"
           >
             {autoDetectGaps.isPending ? (
               <><Loader2 className="w-5 h-5 animate-spin" /> Detecting Gaps...</>
@@ -280,34 +409,88 @@ export function GapsView() {
             )}
           </button>
 
-          {/* Gap Cards grouped by type */}
-          {GAP_TYPES.map((gapType) => {
-            const config = GAP_TYPE_CONFIG[gapType];
-            const gaps = data.gaps.filter((g) => g.gap_type === gapType);
-            if (gaps.length === 0) return null;
-            const Icon = config.icon;
-            const cls = colorClasses(config.color);
-            return (
-              <div key={gapType} className="mb-4">
-                <h4 className={`text-sm font-semibold mb-2 flex items-center gap-1.5 ${cls.text}`}>
-                  <Icon className="w-4 h-4" />
-                  {config.label} ({gaps.length})
-                </h4>
-                <div className="space-y-3">
-                  {gaps.map((gap) => (
-                    <GapCard
-                      key={gap.id}
-                      gap={gap}
-                      onUpdate={updateGap}
-                      onDelete={deleteGap}
-                      onMaterialize={handleMaterialize}
-                      isMaterializing={materializeElement.isPending}
-                    />
-                  ))}
-                </div>
+          {/* Sort mode toggle */}
+          {data.gaps.length > 0 && (
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-xs text-gray-500">Sort:</span>
+              <div className="flex items-center bg-gray-100 rounded-md p-0.5">
+                <button
+                  onClick={() => setGapSortMode('impact')}
+                  className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+                    gapSortMode === 'impact' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  By Impact
+                </button>
+                <button
+                  onClick={() => setGapSortMode('type')}
+                  className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+                    gapSortMode === 'type' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  By Type
+                </button>
               </div>
-            );
-          })}
+            </div>
+          )}
+
+          {/* Gap Cards */}
+          {gapSortMode === 'type' ? (
+            // Grouped by type
+            GAP_TYPES.map((gapType) => {
+              const config = GAP_TYPE_CONFIG[gapType];
+              const gaps = data.gaps.filter((g) => g.gap_type === gapType);
+              if (gaps.length === 0) return null;
+              const Icon = config.icon;
+              const cls = colorClasses(config.color);
+              return (
+                <div key={gapType} className="mb-4">
+                  <h4 className={`text-sm font-semibold mb-2 flex items-center gap-1.5 ${cls.text}`}>
+                    <Icon className="w-4 h-4" />
+                    {config.label} ({gaps.length})
+                  </h4>
+                  <div className="space-y-3">
+                    {gaps.map((gap) => (
+                      <GapCard
+                        key={gap.id}
+                        gap={gap}
+                        onUpdate={updateGap}
+                        onDelete={deleteGap}
+                        onMaterialize={handleMaterialize}
+                        elementNames={elementNames}
+                        isMaterializing={materializeElement.isPending}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            // Flat list sorted by impact score
+            <div className="space-y-3">
+              {[...data.gaps]
+                .sort((a, b) => {
+                  const severityWeight = { high: 3, medium: 2, low: 1 };
+                  const aWeight = severityWeight[a.priority] || 1;
+                  const bWeight = severityWeight[b.priority] || 1;
+                  // Factor in number of related elements as a proxy for blast radius
+                  const aElements = a.related_attribute_ids.length + a.related_process_ids.length + a.related_measure_ids.length + a.related_entity_ids.length;
+                  const bElements = b.related_attribute_ids.length + b.related_process_ids.length + b.related_measure_ids.length + b.related_entity_ids.length;
+                  return (bWeight * (1 + bElements)) - (aWeight * (1 + aElements));
+                })
+                .map((gap) => (
+                  <GapCard
+                    key={gap.id}
+                    gap={gap}
+                    onUpdate={updateGap}
+                    onDelete={deleteGap}
+                    onMaterialize={handleMaterialize}
+                    elementNames={elementNames}
+                    isMaterializing={materializeElement.isPending}
+                  />
+                ))}
+            </div>
+          )}
 
           {/* Empty state */}
           {data.gaps.length === 0 && (
@@ -325,6 +508,7 @@ export function GapsView() {
         <AnnualROISummary
           opportunities={efficiency.automationOpportunities}
           hourlyRate={hourlyRate}
+          automationFactor={automationFactor / 100}
         />
       </div>
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import {
-  Lock, ArrowRight, X, ChevronRight, Layers, Users, Calendar, Plus, Trash2, Copy, BookOpen, Sparkles,
+  Lock, ArrowRight, X, ChevronRight, Layers, Users, Calendar, Plus, Trash2, Copy, BookOpen, Sparkles, Workflow,
 } from 'lucide-react';
 import { useState } from 'react';
 import type { WorkshopSession } from '../../types/ontology';
@@ -82,12 +82,13 @@ export function ProcessCanvas({ processId, workshopSession, crystallisationConte
     if (pid) setActiveProcessId(pid);
   }, [processId, crystallisationContext?.processId, setActiveProcessId]);
 
-  // ── Auto-select first process ──────────────────────────────
+  // ── Auto-select first process (only when no prop overrides) ─
   useEffect(() => {
-    if (!activeProcessId && processes && processes.length > 0) {
+    const hasPropOverride = crystallisationContext?.processId || processId;
+    if (!activeProcessId && !hasPropOverride && processes && processes.length > 0) {
       setActiveProcessId(processes[0].id);
     }
-  }, [activeProcessId, processes, setActiveProcessId]);
+  }, [activeProcessId, processes, setActiveProcessId, crystallisationContext?.processId, processId]);
 
   // ── Connection creation callback ───────────────────────────
   const handleCreateConnection = useCallback(
@@ -397,59 +398,45 @@ export function ProcessCanvas({ processId, workshopSession, crystallisationConte
       )}
 
       {/* ── Header / Toolbar ────────────────────────────────── */}
-      <div className="p-4 border-b bg-gray-50">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-3">
-            {/* Process Selector */}
-            {processes && processes.length > 1 ? (
-              <select
-                value={activeProcessId}
-                onChange={(e) => setActiveProcessId(e.target.value)}
-                className="text-xl font-bold bg-white border border-gray-300 rounded-lg px-3 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {processes.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            ) : (
-              <h2 className="text-xl font-bold">{flow.process.name}</h2>
-            )}
-            {flow.process.description && (
-              <p className="text-sm text-gray-600 hidden lg:block">{flow.process.description}</p>
-            )}
-            {/* Process management */}
-            {showCreateProcess ? (
-              <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg p-2">
-                <input
-                  type="text"
-                  value={newProcessName}
-                  onChange={(e) => setNewProcessName(e.target.value)}
-                  className="px-2 py-1 border border-gray-300 rounded text-sm w-48 focus:ring-2 focus:ring-blue-500"
-                  placeholder="Process name..."
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && newProcessName.trim()) {
-                      createProcessMutation.mutate(
-                        { name: newProcessName.trim(), description: '', steps: [] },
-                        {
-                          onSuccess: (result: any) => {
-                            setActiveProcessId(result.id);
-                            setShowCreateProcess(false);
-                            setNewProcessName('');
-                            toast.success('Process created!');
-                          },
-                          onError: (err: any) => toast.error(err?.response?.data?.detail || 'Failed to create process'),
-                        },
-                      );
-                    } else if (e.key === 'Escape') {
-                      setShowCreateProcess(false);
-                      setNewProcessName('');
-                    }
-                  }}
-                />
-                <button
-                  onClick={() => {
-                    if (!newProcessName.trim()) return;
+      <div className="border-b bg-white">
+        {/* Row 1: Process selector + controls */}
+        <div className="flex items-center gap-3 px-4 py-2">
+          {/* View identity */}
+          <div className="flex flex-col mr-1">
+            <div className="flex items-center gap-1.5 text-sm font-medium text-gray-900">
+              <Workflow className="w-4 h-4 text-blue-600" />
+              Process Builder
+            </div>
+            <span className="text-[10px] text-gray-400 ml-5.5">What work happens and where is effort wasted?</span>
+          </div>
+          <div className="w-px h-8 bg-gray-200" />
+          {/* Process Selector */}
+          {processes && processes.length > 1 ? (
+            <select
+              value={activeProcessId}
+              onChange={(e) => setActiveProcessId(e.target.value)}
+              className="text-sm font-bold bg-white border border-gray-300 rounded-md px-2 py-1.5 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 max-w-xs truncate"
+            >
+              {processes.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          ) : (
+            <h2 className="text-sm font-bold text-gray-900 truncate max-w-xs">{flow.process.name}</h2>
+          )}
+
+          {/* Process management */}
+          {showCreateProcess ? (
+            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-md p-1.5">
+              <input
+                type="text"
+                value={newProcessName}
+                onChange={(e) => setNewProcessName(e.target.value)}
+                className="px-2 py-1 border border-gray-300 rounded text-xs w-40 focus:ring-1 focus:ring-blue-500"
+                placeholder="Process name..."
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newProcessName.trim()) {
                     createProcessMutation.mutate(
                       { name: newProcessName.trim(), description: '', steps: [] },
                       {
@@ -462,160 +449,162 @@ export function ProcessCanvas({ processId, workshopSession, crystallisationConte
                         onError: (err: any) => toast.error(err?.response?.data?.detail || 'Failed to create process'),
                       },
                     );
-                  }}
-                  disabled={!newProcessName.trim()}
-                  className="px-2 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50"
-                >
-                  Create
-                </button>
-                <button
-                  onClick={() => { setShowCreateProcess(false); setNewProcessName(''); }}
-                  className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-sm hover:bg-gray-200"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setShowCreateProcess(true)}
-                  className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                  title="Create new process"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => {
-                    duplicateProcessMutation.mutate(activeProcessId, {
+                  } else if (e.key === 'Escape') {
+                    setShowCreateProcess(false);
+                    setNewProcessName('');
+                  }
+                }}
+              />
+              <button
+                onClick={() => {
+                  if (!newProcessName.trim()) return;
+                  createProcessMutation.mutate(
+                    { name: newProcessName.trim(), description: '', steps: [] },
+                    {
                       onSuccess: (result: any) => {
                         setActiveProcessId(result.id);
-                        toast.success('Process duplicated!');
+                        setShowCreateProcess(false);
+                        setNewProcessName('');
+                        toast.success('Process created!');
                       },
-                      onError: () => toast.error('Failed to duplicate process'),
-                    });
-                  }}
-                  className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                  title="Duplicate this process"
-                >
-                  <Copy className="w-4 h-4" />
-                </button>
+                      onError: (err: any) => toast.error(err?.response?.data?.detail || 'Failed to create process'),
+                    },
+                  );
+                }}
+                disabled={!newProcessName.trim()}
+                className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 disabled:opacity-50"
+              >
+                Create
+              </button>
+              <button
+                onClick={() => { setShowCreateProcess(false); setNewProcessName(''); }}
+                className="p-1 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-0.5">
+              <button
+                onClick={() => setShowCreateProcess(true)}
+                className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                title="Create new process"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => {
+                  duplicateProcessMutation.mutate(activeProcessId, {
+                    onSuccess: (result: any) => {
+                      setActiveProcessId(result.id);
+                      toast.success('Process duplicated!');
+                    },
+                    onError: () => toast.error('Failed to duplicate process'),
+                  });
+                }}
+                className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                title="Duplicate this process"
+              >
+                <Copy className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setShowLibrary(true)}
+                className="p-1 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors"
+                title="Import from template library"
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setShowProcessAI(true)}
+                className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                title="AI Process Builder"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+              </button>
+              {processes && processes.length > 1 && (
                 <button
-                  onClick={() => setShowLibrary(true)}
-                  className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded transition-colors"
-                  title="Import from template library"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                  title="Delete this process"
                 >
-                  <BookOpen className="w-4 h-4" />
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
-                <button
-                  onClick={() => setShowProcessAI(true)}
-                  className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
-                  title="AI Process Builder"
-                >
-                  <Sparkles className="w-4 h-4" />
-                </button>
-                {processes && processes.length > 1 && (
-                  <button
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                    title="Delete this process"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
-          {/* Mode toggles + Search + Layout */}
-          <div className="flex items-center gap-2">
-            <SearchFilter cyRef={cyRef} />
-            <LayoutSwitcher cyRef={cyRef} />
-            <ExportMenu cyRef={cyRef} />
-            <div className="h-6 w-px bg-gray-300" />
-            <button
-              onClick={toggleConnectionMode}
-              className={`px-3 py-1.5 rounded text-sm font-semibold ${
-                connectionMode
-                  ? 'bg-green-600 text-white hover:bg-green-700'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              {connectionMode ? '🔗 Connect: ON' : '🔗 Connect'}
-            </button>
-            <button
-              onClick={toggleCrystallizationView}
-              className={`px-3 py-1.5 rounded text-sm font-semibold flex items-center gap-1 ${
-                crystallizationView
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              <Lock className="w-3.5 h-3.5" />
-              {crystallizationView ? 'Crystal: ON' : 'Crystal'}
-            </button>
-            <button
-              className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm font-semibold hover:bg-blue-700 flex items-center gap-1"
-              onClick={() => setShowAddModal(true)}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Add Step
-            </button>
-          </div>
+          {/* Divider */}
+          <div className="w-px h-5 bg-gray-200" />
+
+          {/* Search + Layout + Export */}
+          <SearchFilter cyRef={cyRef} />
+          <LayoutSwitcher cyRef={cyRef} />
+          <ExportMenu cyRef={cyRef} />
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-gray-200" />
+
+          {/* Mode toggles */}
+          <button
+            onClick={toggleConnectionMode}
+            className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md border transition-all ${
+              connectionMode
+                ? 'bg-green-50 text-green-700 border-green-300 shadow-sm'
+                : 'bg-white text-gray-500 border-gray-200 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            🔗 Connect
+          </button>
+          <button
+            onClick={toggleCrystallizationView}
+            className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md border transition-all ${
+              crystallizationView
+                ? 'bg-blue-50 text-blue-700 border-blue-300 shadow-sm'
+                : 'bg-white text-gray-500 border-gray-200 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Lock className="w-3 h-3" />
+            Crystal
+          </button>
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Stats badges */}
+          {stats && (
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-md">
+                {stats.totalSteps} steps
+              </span>
+              <span className="inline-flex items-center px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-md">
+                {stats.totalDuration}m
+              </span>
+              {stats.manualSteps > 0 && (
+                <span className="inline-flex items-center px-2 py-1 text-xs bg-orange-50 text-orange-700 rounded-md border border-orange-200">
+                  {stats.manualSteps} manual
+                </span>
+              )}
+              {stats.handoffCount > 0 && (
+                <span className="inline-flex items-center px-2 py-1 text-xs bg-purple-50 text-purple-700 rounded-md border border-purple-200">
+                  {stats.handoffCount} handoffs
+                </span>
+              )}
+            </div>
+          )}
+
+          <button
+            className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-xs font-semibold hover:bg-blue-700 flex items-center gap-1"
+            onClick={() => setShowAddModal(true)}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add Step
+          </button>
         </div>
 
-        {/* ── Summary Stats Bar ─────────────────────────────── */}
-        {stats && (
-          <div className="flex gap-6 text-sm bg-white border rounded-lg p-3 mb-2">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-gray-700">Total Steps:</span>
-              <span className="text-lg font-bold text-blue-600">{stats.totalSteps}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-gray-700">Total Time:</span>
-              <span className="text-lg font-bold text-purple-600">{stats.totalDuration}m</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-gray-700">Automation:</span>
-              <div className="flex gap-2">
-                {stats.automationCounts.High > 0 && (
-                  <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold">
-                    {stats.automationCounts.High} High
-                  </span>
-                )}
-                {stats.automationCounts.Medium > 0 && (
-                  <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs font-bold">
-                    {stats.automationCounts.Medium} Med
-                  </span>
-                )}
-                {stats.automationCounts.Low > 0 && (
-                  <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-bold">
-                    {stats.automationCounts.Low} Low
-                  </span>
-                )}
-                {stats.automationCounts.None > 0 && (
-                  <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">
-                    {stats.automationCounts.None} None
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-gray-700">High Manual:</span>
-              <span className="text-lg font-bold text-orange-600">{stats.manualSteps}</span>
-            </div>
-            {stats.handoffCount > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-gray-700">Handoffs:</span>
-                <span className="text-lg font-bold text-purple-600">{stats.handoffCount}</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── Connection mode indicator ─────────────────────── */}
-        {connectionMode && (
-          <div className="flex items-center gap-3 bg-green-50 border border-green-300 rounded-lg p-2 mb-2">
-            <span className="text-green-700 font-semibold text-sm">
+        {/* Row 2: Connection mode banner OR legend (compact) */}
+        {connectionMode ? (
+          <div className="flex items-center gap-3 px-4 py-1.5 bg-green-50 border-t border-green-200">
+            <span className="text-green-700 font-medium text-xs">
               {firstNodeForConnection
                 ? 'Now click a target step to create the connection (or press Escape to cancel)'
                 : 'Click a source step to start connecting'}
@@ -626,60 +615,44 @@ export function ProcessCanvas({ processId, workshopSession, crystallisationConte
                   setFirstNodeForConnection(null);
                   cyRef.current?.$('.connection-source').removeClass('connection-source');
                 }}
-                className="px-2 py-1 bg-gray-200 rounded text-xs font-semibold hover:bg-gray-300"
+                className="px-2 py-0.5 bg-gray-200 rounded text-xs font-semibold hover:bg-gray-300"
               >
-                Clear Selection
+                Clear
               </button>
             )}
           </div>
-        )}
-
-        {/* ── Legend ─────────────────────────────────────────── */}
-        <div className="flex gap-4 text-xs flex-wrap">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold">Perspectives:</span>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded border-2 border-green-400 bg-green-50" />
+        ) : (
+          <div className="flex items-center gap-3 px-4 py-1 border-t border-gray-100 text-[11px] text-gray-500">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded border-2 border-green-400 bg-green-50" />
               <span>Operational</span>
-            </div>
-            <ArrowRight className="w-3 h-3 text-gray-400" />
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded border-2 border-yellow-400 bg-yellow-50" />
+              <ArrowRight className="w-2.5 h-2.5 text-gray-300" />
+              <div className="w-2.5 h-2.5 rounded border-2 border-yellow-400 bg-yellow-50" />
               <span>Management</span>
-            </div>
-            <ArrowRight className="w-3 h-3 text-gray-400" />
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded border-2 border-blue-400 bg-blue-50" />
+              <ArrowRight className="w-2.5 h-2.5 text-gray-300" />
+              <div className="w-2.5 h-2.5 rounded border-2 border-blue-400 bg-blue-50" />
               <span>Financial</span>
             </div>
+            <div className="w-px h-3 bg-gray-200" />
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-0.5 bg-gray-400" />
+              <span>Within</span>
+              <div className="w-4 h-0.5 bg-purple-500" style={{ borderTop: '2px dashed #a855f7', height: 0 }} />
+              <span className="text-purple-500">Handoff</span>
+            </div>
+            {crystallizationView && crystallizationData?.crystallization_points && (
+              <>
+                <div className="w-px h-3 bg-gray-200" />
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded border-2 border-blue-500 bg-blue-100" />
+                  <span className="text-blue-600 font-medium">
+                    {crystallizationData.crystallization_points.length} data journey point{crystallizationData.crystallization_points.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
-          <div className="flex items-center gap-2 border-l pl-4">
-            <span className="font-semibold">Edges:</span>
-            <div className="flex items-center gap-1">
-              <div className="w-6 h-0.5 bg-gray-400" />
-              <span>Within perspective</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-6 h-0.5 bg-purple-500 border-dashed border-t-2 border-purple-500" style={{ borderStyle: 'dashed' }} />
-              <span className="text-purple-600 font-medium">Handoff</span>
-            </div>
-          </div>
-          {crystallizationView && (
-            <div className="flex items-center gap-2 border-l pl-4">
-              <span className="font-semibold">Crystallization:</span>
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded border-2 border-blue-500 bg-blue-100" />
-                <span>Freezes data</span>
-              </div>
-              {crystallizationData?.crystallization_points && (
-                <span className="text-blue-600 font-semibold">
-                  ({crystallizationData.crystallization_points.length} step
-                  {crystallizationData.crystallization_points.length !== 1 ? 's' : ''})
-                </span>
-              )}
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
       {/* ── Drill-down Breadcrumb ────────────────────────────── */}

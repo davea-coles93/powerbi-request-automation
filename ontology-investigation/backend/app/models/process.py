@@ -49,6 +49,14 @@ class ProcessStep(BaseModel):
         default_factory=list,
         description="Attributes that become frozen after this step",
     )
+    produces_measure_ids: list[str] = Field(
+        default_factory=list,
+        description="Measures whose calculation this step performs",
+    )
+    produces_metric_ids: list[str] = Field(
+        default_factory=list,
+        description="Metrics/reports this step directly produces",
+    )
     depends_on_step_ids: list[str] = Field(
         default_factory=list, description="Steps that must complete before this one"
     )

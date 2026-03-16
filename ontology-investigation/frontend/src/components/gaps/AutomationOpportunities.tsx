@@ -7,12 +7,14 @@ import type { ProcessStep } from './types';
 interface AutomationOpportunitiesProps {
   opportunities: ProcessStep[];
   hourlyRate: number;
+  automationFactor?: number;
   onViewLineage: (stepId: string) => void;
 }
 
 export function AutomationOpportunities({
   opportunities,
   hourlyRate,
+  automationFactor = 0.8,
   onViewLineage,
 }: AutomationOpportunitiesProps) {
   const [collapsed, setCollapsed] = useState(false);
@@ -52,11 +54,11 @@ export function AutomationOpportunities({
               </tr>
             </thead>
             <tbody>
-              {opportunities.slice(0, 8).map((step) => {
+              {opportunities.map((step) => {
                 const manualHours =
                   ((step.estimated_duration_minutes || 0) / 60) *
                   ((step.manual_effort_percentage || 0) / 100);
-                const monthlySavings = manualHours * hourlyRate * 0.8;
+                const monthlySavings = manualHours * hourlyRate * automationFactor;
                 return (
                   <tr key={step.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 text-sm text-gray-900">{step.name}</td>

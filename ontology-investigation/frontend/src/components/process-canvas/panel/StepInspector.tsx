@@ -1,11 +1,13 @@
 import { useCallback, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Lock, ExternalLink, Copy, Trash2, Pencil } from 'lucide-react';
+import { Lock, ExternalLink, Copy, Trash2, Pencil, GitBranch, Workflow, BarChart3, Target } from 'lucide-react';
 import { ConfirmDeleteDialog } from '../../ConfirmDeleteDialog';
 import { PropertyRow } from '../../shared/PropertyRow';
 import { useCanvasStore } from '../hooks/useCanvasStore';
 import { useProcessData } from '../hooks/useProcessData';
+import { useNavigationStore } from '../../../hooks/useNavigationStore';
 import { perspectiveLabels, automationColors } from '../nodes/perspectiveConfig';
+import { useMeasures, useMetrics } from '../../../hooks/useOntology';
 import { StepEditForm } from './StepEditForm';
 
 export function StepInspector() {
@@ -22,6 +24,9 @@ export function StepInspector() {
     flow, crystallizationData,
     createStepMutation, deleteStepMutation,
   } = useProcessData();
+
+  const { data: allMeasures } = useMeasures();
+  const { data: allMetrics } = useMetrics();
 
   const navigateToStep = useCallback(
     (stepId: string) => {
@@ -184,10 +189,66 @@ export function StepInspector() {
           </h4>
           <div className="flex flex-wrap gap-1">
             {crystPoint.crystallized_attributes.map((attr: any) => (
-              <span key={attr.id || attr.name} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+              <button
+                key={attr.id || attr.name}
+                onClick={() => attr.id && useNavigationStore.getState().focusNodeInLineage(attr.id)}
+                className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200 transition-colors flex items-center gap-1 cursor-pointer"
+                title="View in Lineage"
+              >
                 {attr.name}
-              </span>
+                <GitBranch className="w-2.5 h-2.5 opacity-50" />
+              </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Produces Measures */}
+      {selectedStep.produces_measure_ids && selectedStep.produces_measure_ids.length > 0 && (
+        <div className="border-t pt-3">
+          <h4 className="font-semibold text-xs text-amber-600 uppercase tracking-wide mb-2 flex items-center gap-1">
+            <BarChart3 className="w-3 h-3" /> Produces Measures
+          </h4>
+          <div className="flex flex-wrap gap-1">
+            {selectedStep.produces_measure_ids.map((mid: string) => {
+              const measure = allMeasures?.find((m: any) => m.id === mid);
+              return (
+                <button
+                  key={mid}
+                  onClick={() => useNavigationStore.getState().focusNodeInLineage(mid)}
+                  className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium hover:bg-amber-200 transition-colors flex items-center gap-1 cursor-pointer"
+                  title="View in Lineage"
+                >
+                  {measure?.name || mid}
+                  <GitBranch className="w-2.5 h-2.5 opacity-50" />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Produces Metrics */}
+      {selectedStep.produces_metric_ids && selectedStep.produces_metric_ids.length > 0 && (
+        <div className="border-t pt-3">
+          <h4 className="font-semibold text-xs text-rose-600 uppercase tracking-wide mb-2 flex items-center gap-1">
+            <Target className="w-3 h-3" /> Produces Metrics
+          </h4>
+          <div className="flex flex-wrap gap-1">
+            {selectedStep.produces_metric_ids.map((mid: string) => {
+              const metric = allMetrics?.find((m: any) => m.id === mid);
+              return (
+                <button
+                  key={mid}
+                  onClick={() => useNavigationStore.getState().focusNodeInLineage(mid)}
+                  className="px-2 py-1 bg-rose-100 text-rose-700 rounded text-xs font-medium hover:bg-rose-200 transition-colors flex items-center gap-1 cursor-pointer"
+                  title="View in Lineage"
+                >
+                  {metric?.name || mid}
+                  <GitBranch className="w-2.5 h-2.5 opacity-50" />
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -207,6 +268,13 @@ export function StepInspector() {
         >
           <ExternalLink className="w-3.5 h-3.5" />
           View Full Lineage
+        </button>
+        <button
+          onClick={() => useNavigationStore.getState().setActiveTab('processMap')}
+          className="w-full px-3 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg font-medium hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2 text-sm"
+        >
+          <Workflow className="w-3.5 h-3.5" />
+          Process Map
         </button>
         <div className="grid grid-cols-2 gap-2">
           <button
