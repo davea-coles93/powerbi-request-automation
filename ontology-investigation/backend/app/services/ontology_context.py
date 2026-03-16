@@ -109,16 +109,55 @@ class OntologyContextBuilder:
         header = "AVAILABLE PERSPECTIVES" if detail == "process" else "PERSPECTIVES"
         return f"{header}:\n" + "\n".join(lines)
 
+    def _get_system_connectivity(self) -> dict[str, dict]:
+        """Compute system connectivity: which systems have attributes used by measures."""
+        attr_measure_map = self._get_attr_to_measures()
+        sys_info: dict[str, dict] = {}
+        for s in self.systems:
+            sys_info[s.id] = {"attr_count": 0, "connected_attrs": 0}
+        for a in self.attributes:
+            sid = a.system_id
+            if sid not in sys_info:
+                continue
+            sys_info[sid]["attr_count"] += 1
+            if a.id in attr_measure_map:
+                sys_info[sid]["connected_attrs"] += 1
+        return sys_info
+
     def _systems_section(self, detail: str = "summary") -> str | None:
         if not self.systems:
             return None
         if detail == "full":
-            lines = [f"  - {s.id}: {s.name} (type: {s.type}, vendor: {s.vendor or 'none'})" for s in self.systems]
+            connectivity = self._get_system_connectivity()
+            lines = []
+            for s in self.systems:
+                conn = connectivity.get(s.id, {"attr_count": 0, "connected_attrs": 0})
+                orphan_flag = ""
+                if conn["attr_count"] == 0:
+                    orphan_flag = " | ORPHANED (no attributes)"
+                elif conn["connected_attrs"] == 0:
+                    orphan_flag = " | ORPHANED (attributes exist but none feed measures)"
+                lines.append(
+                    f"  - {s.id}: {s.name} (type: {s.type}, vendor: {s.vendor or 'none'}, "
+                    f"{conn['connected_attrs']}/{conn['attr_count']} attrs connected to measures){orphan_flag}"
+                )
         elif detail == "process":
             lines = [f"  - {s.id}: {s.name} ({s.type})" for s in self.systems]
             return "EXISTING SYSTEMS (use these IDs in systems_used_ids):\n" + "\n".join(lines)
         else:
-            lines = [f"  - {s.id}: {s.name} ({s.type}, {s.vendor or 'no vendor'})" for s in self.systems]
+            connectivity = self._get_system_connectivity()
+            lines = []
+            for s in self.systems:
+                conn = connectivity.get(s.id, {"attr_count": 0, "connected_attrs": 0})
+                orphan_note = ""
+                if conn["attr_count"] > 0 and conn["connected_attrs"] == 0:
+                    orphan_note = " — ORPHANED in lineage"
+                elif conn["attr_count"] == 0:
+                    orphan_note = " — no attributes"
+                lines.append(
+                    f"  - {s.id}: {s.name} ({s.type}, {s.vendor or 'no vendor'}, "
+                    f"{conn['attr_count']} attrs){orphan_note}"
+                )
         return "SYSTEMS:\n" + "\n".join(lines)
 
     def _entities_section(self, detail: str = "summary") -> str | None:
