@@ -69,6 +69,7 @@ class AttributeDB(Base):
     source_connection = Column(String)
     constraints = Column(JSON)
     perspective_ids = Column(JSON)
+    data_type = Column(String, default="string")
     state = Column(String, default="as-is")
 
 

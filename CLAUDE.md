@@ -50,22 +50,24 @@ cd mcp-servers/powerbi-automation && pip install -e .
 docker-compose up --build    # Full stack in containers
 ```
 
-### Ontology Investigation (separate sub-app)
+### Ontology Investigation (separate sub-app, Docker only)
 ```bash
-# Backend (FastAPI + SQLAlchemy + SQLite)
-cd ontology-investigation/backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+# Start everything (backend on :8000, frontend on :3000)
+cd ontology-investigation
+docker compose up --build
 
-# Frontend (React + Vite + Tailwind + ReactFlow)
-cd ontology-investigation/frontend
-npm install && npm run dev
+# Rebuild after dependency changes
+docker compose up --build --force-recreate
 
-# E2E tests (Playwright)
+# Stop
+docker compose down
+
+# E2E tests (Playwright, run locally against Docker services)
 cd ontology-investigation/e2e-tests
 npx playwright test
 npx playwright test --headed     # with browser visible
 ```
+Backend uses hot-reload via volume mount — code changes apply automatically. Frontend runs `npm install` on startup and uses Vite dev server with hot module replacement.
 
 ## Architecture
 
@@ -174,7 +176,7 @@ If you edit seed data, copy the file to both locations or changes won't take eff
 
 **Business Unit Scope:** Each ontology instance represents ONE business unit/domain. Cross-unit integration happens via shared attributes flowing between units.
 
-**Tech Stack:** FastAPI + SQLAlchemy + SQLite (backend, port 8000), React 18 + Vite + Tailwind + Cytoscape.js + ReactFlow (frontend, port 3000), Playwright (e2e tests), pytest (backend tests)
+**Tech Stack:** FastAPI + SQLAlchemy + SQLite (backend, port 8000), React 18 + Vite + Tailwind + Cytoscape.js + ReactFlow (frontend, port 3000), Playwright (e2e tests), pytest (backend tests). Runs exclusively via Docker Compose (`docker compose up --build`). Seed data and DB live in `backend/data/` (single source of truth, no separate `data/` directory).
 
 ### Client Models
 

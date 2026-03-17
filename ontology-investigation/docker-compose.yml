@@ -3,47 +3,13 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./data:/app/data
-    environment:
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    profiles:
-      - prod
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "3000:80"
-    depends_on:
-      - backend
-    profiles:
-      - prod
-
-  # Development services
-  backend-dev:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
-      - ./data:/app/data
-      - "../Self-service AI/models:/data/models:ro"
-      - "../Self-service AI/sample-data:/data/sample-data:ro"
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - TMDL_SCAN_DIRS=/data/models,/data/sample-data
       - AI_PROVIDER=${AI_PROVIDER:-anthropic}
       - AI_MODEL=${AI_MODEL:-}
       - AZURE_AI_PROJECT_ENDPOINT=${AZURE_AI_PROJECT_ENDPOINT:-}
@@ -52,10 +18,8 @@ services:
       - AZURE_AI_SCOPE=${AZURE_AI_SCOPE:-https://ai.azure.com/.default}
       - USE_AZURE_MANAGED_IDENTITY=${USE_AZURE_MANAGED_IDENTITY:-false}
       - AZURE_AGENT_AUTH_TOKEN=${AZURE_AGENT_AUTH_TOKEN:-}
-    profiles:
-      - dev
 
-  frontend-dev:
+  frontend:
     image: node:20-slim
     working_dir: /app
     command: sh -c "npm install && npm run dev -- --host"
@@ -65,8 +29,6 @@ services:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      - VITE_API_TARGET=http://backend-dev:8000
+      - VITE_API_TARGET=http://backend:8000
     depends_on:
-      - backend-dev
-    profiles:
-      - dev
+      - backend
