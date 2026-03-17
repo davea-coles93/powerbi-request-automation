@@ -339,11 +339,6 @@ export const useSuggestMeasures = () =>
     mutationFn: (requirement: string) => api.suggestMeasures(requirement),
   });
 
-export const useAnalyzeProcesses = () =>
-  useMutation({
-    mutationFn: () => api.analyzeProcesses(),
-  });
-
 // TMDL Ingestion hooks
 export const useAvailableModels = () =>
   useQuery({

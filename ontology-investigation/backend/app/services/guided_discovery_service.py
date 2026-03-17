@@ -9,11 +9,14 @@ Sessions track progress through phases/questions and accumulate proposals.
 """
 
 import json
+import logging
 import time
 import uuid
 from collections import OrderedDict
 from pathlib import Path
 from typing import AsyncGenerator
+
+logger = logging.getLogger(__name__)
 
 from sqlalchemy.orm import Session
 
@@ -36,6 +39,18 @@ def _knowledge_dir() -> Path:
 def list_knowledge_packs() -> list[dict]:
     """List available industry knowledge packs (excluding _base)."""
     kdir = _knowledge_dir()
+    if not kdir.exists():
+        logger.warning(
+            "Knowledge directory not found at %s — no knowledge packs available. "
+            "Create the directory and add JSON knowledge pack files to enable guided discovery.",
+            kdir,
+        )
+        return [{
+            "id": "_none",
+            "name": "No Knowledge Packs",
+            "icon": "📭",
+            "description": "Knowledge pack directory not found. Add packs to enable industry-specific discovery.",
+        }]
     packs = []
     for f in sorted(kdir.glob("*.json")):
         if f.stem.startswith("_"):
@@ -50,6 +65,12 @@ def list_knowledge_packs() -> list[dict]:
             })
         except (json.JSONDecodeError, KeyError):
             continue
+    if not packs:
+        logger.warning(
+            "Knowledge directory exists at %s but contains no valid knowledge packs "
+            "(JSON files without a leading underscore).",
+            kdir,
+        )
     return packs
 
 

@@ -25,11 +25,13 @@ def _tmdl_data_type(attr_data_type: str | None) -> str:
     """Map ontology attribute data types to TMDL data types."""
     mapping = {
         "string": "string",
-        "number": "double",
+        "number": "int64",
+        "decimal": "decimal",
         "date": "dateTime",
         "datetime": "dateTime",
         "boolean": "boolean",
         "int": "int64",
+        "double": "double",
     }
     return mapping.get((attr_data_type or "string").lower(), "string")
 
@@ -173,6 +175,30 @@ def generate_tmdl_export(db: Session) -> dict[str, str]:
         dim_table_names[entity.id] = table_name
         dim_pk_names[entity.id] = pk_name
 
+    # Pre-compute FK columns needed on each dimension for dim-to-dim relationships
+    # Key: from_entity_id -> list of FK column dicts to add
+    dim_fk_columns: dict[str, list[dict]] = defaultdict(list)
+    for rel in entity_relationships:
+        if not rel.is_active:
+            continue
+        from_eid = rel.from_entity_id
+        to_eid = rel.to_entity_id
+        if from_eid in dim_table_names and to_eid in dim_table_names:
+            to_entity = entity_map.get(to_eid)
+            to_name = _to_pascal_case(to_entity.name) if to_entity else to_eid
+            fk_col_name = f"{to_name}Key"
+            dim_fk_columns[from_eid].append({
+                "name": fk_col_name,
+                "data_type": "int64",
+                "is_key": False,
+                "is_hidden": True,
+                "description": f"Foreign key to Dim_{to_name}",
+            })
+
+    for entity in entities:
+        table_name = dim_table_names[entity.id]
+        pk_name = dim_pk_names[entity.id]
+
         entity_attrs = attrs_by_entity.get(entity.id, [])
 
         columns = [
@@ -185,10 +211,13 @@ def generate_tmdl_export(db: Session) -> dict[str, str]:
             }
         ]
 
+        # Add FK columns for dim-to-dim relationships
+        columns.extend(dim_fk_columns.get(entity.id, []))
+
         for attr in entity_attrs:
             columns.append({
                 "name": _to_pascal_case(attr.name),
-                "data_type": _tmdl_data_type(None),  # attributes don't have data_type field
+                "data_type": _tmdl_data_type(getattr(attr, "data_type", None)),
                 "is_key": False,
                 "is_hidden": False,
                 "description": attr.description,
@@ -311,11 +340,13 @@ def generate_tmdl_export(db: Session) -> dict[str, str]:
         from_eid = rel.from_entity_id
         to_eid = rel.to_entity_id
         if from_eid in dim_table_names and to_eid in dim_table_names:
-            # Use the FK/PK names from the dimension tables
             from_table = dim_table_names[from_eid]
             to_table = dim_table_names[to_eid]
-            # The FK column in the "from" dimension references the PK of the "to" dimension
-            fk_col_name = dim_pk_names[to_eid]  # e.g. "ProductKey" in Dim_Sales pointing to Dim_Product
+            to_entity = entity_map.get(to_eid)
+            to_name = _to_pascal_case(to_entity.name) if to_entity else to_eid
+            # FK column on the "from" dimension named after the target entity
+            fk_col_name = f"{to_name}Key"
+            # PK column on the "to" dimension
             pk_col_name = dim_pk_names[to_eid]
             dim_to_dim_relationships.append({
                 "from_table": from_table,

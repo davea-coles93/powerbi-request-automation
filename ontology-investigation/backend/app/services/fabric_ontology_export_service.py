@@ -61,11 +61,13 @@ def _fabric_value_type(data_type: str | None) -> str:
     """Map ontology data types to Fabric property value types."""
     mapping = {
         "string": "String",
-        "number": "Double",
+        "number": "Int64",
+        "decimal": "Decimal",
         "date": "DateTime",
         "datetime": "DateTime",
         "boolean": "Boolean",
         "int": "BigInt",
+        "double": "Double",
     }
     return mapping.get((data_type or "string").lower(), "String")
 
@@ -113,7 +115,7 @@ def _build_entity_type(
             "name": prop_name,
             "redefines": None,
             "baseTypeNamespaceType": None,
-            "valueType": "String",  # attributes don't have explicit data_type
+            "valueType": _fabric_value_type(getattr(attr, "data_type", None)),
         })
 
     # Perspective-specific derived attributes from entity lenses

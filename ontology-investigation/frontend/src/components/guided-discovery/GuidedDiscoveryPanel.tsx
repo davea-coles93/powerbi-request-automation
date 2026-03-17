@@ -108,31 +108,46 @@ function DiscoveryLauncher({
       {/* Industry selection */}
       <div className="w-full space-y-2 mb-6">
         <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">2. Choose Industry</p>
-        {knowledgePacks.map((pack) => {
-          const isSelected = selectedIndustry === pack.id;
-          return (
-            <button
-              key={pack.id}
-              onClick={() => setSelectedIndustry(pack.id)}
-              className={`w-full text-left px-3 py-2.5 rounded-lg border transition-all ${
-                isSelected
-                  ? 'bg-teal-50 border-teal-300 ring-1 ring-teal-400'
-                  : 'bg-white border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-lg">{pack.icon}</span>
-                <div className="flex-1">
-                  <span className={`text-xs font-semibold ${isSelected ? 'text-teal-700' : 'text-gray-900'}`}>
-                    {pack.name}
-                  </span>
-                  <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-1">{pack.description}</p>
+        {knowledgePacks.length === 0 ? (
+          <div className="w-full px-3 py-4 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-center">
+            <p className="text-xs text-gray-500 font-medium">No knowledge packs available</p>
+            <p className="text-[10px] text-gray-400 mt-1">
+              Add industry knowledge packs to the backend to enable guided discovery.
+            </p>
+          </div>
+        ) : (
+          knowledgePacks.map((pack) => {
+            const isPlaceholder = pack.id === '_none';
+            const isSelected = selectedIndustry === pack.id;
+            return (
+              <button
+                key={pack.id}
+                onClick={() => !isPlaceholder && setSelectedIndustry(pack.id)}
+                disabled={isPlaceholder}
+                className={`w-full text-left px-3 py-2.5 rounded-lg border transition-all ${
+                  isPlaceholder
+                    ? 'bg-gray-50 border-dashed border-gray-300 cursor-not-allowed'
+                    : isSelected
+                      ? 'bg-teal-50 border-teal-300 ring-1 ring-teal-400'
+                      : 'bg-white border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{pack.icon}</span>
+                  <div className="flex-1">
+                    <span className={`text-xs font-semibold ${
+                      isPlaceholder ? 'text-gray-400' : isSelected ? 'text-teal-700' : 'text-gray-900'
+                    }`}>
+                      {pack.name}
+                    </span>
+                    <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-1">{pack.description}</p>
+                  </div>
+                  {isSelected && !isPlaceholder && <CheckCircle2 className="w-4 h-4 text-teal-600" />}
                 </div>
-                {isSelected && <CheckCircle2 className="w-4 h-4 text-teal-600" />}
-              </div>
-            </button>
-          );
-        })}
+              </button>
+            );
+          })
+        )}
       </div>
 
       {/* Start button */}

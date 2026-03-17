@@ -67,6 +67,11 @@ class StepPartialUpdate(BaseModel):
     waste_category: Optional[str] = None
     automation_potential: Optional[str] = None
     estimated_duration_minutes: Optional[int] = None
+    produces_measure_ids: Optional[list[str]] = None
+    produces_metric_ids: Optional[list[str]] = None
+    crystallizes_attribute_ids: Optional[list[str]] = None
+    consumes_attribute_ids: Optional[list[str]] = None
+    produces_attribute_ids: Optional[list[str]] = None
 
 class BulkStepUpdateRequest(BaseModel):
     step_ids: list[str]

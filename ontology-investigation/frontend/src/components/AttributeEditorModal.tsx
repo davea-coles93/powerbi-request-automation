@@ -25,6 +25,7 @@ interface AttributeData {
   source_table?: string;
   source_column?: string;
   source_connection?: string;
+  data_type?: 'string' | 'number' | 'date' | 'boolean' | 'decimal';
   constraints?: ConstraintData[];
   perspective_ids?: string[];
   state?: OntologyState;
@@ -54,6 +55,7 @@ const defaultFormData: AttributeData = {
   source_table: '',
   source_column: '',
   source_connection: '',
+  data_type: 'string',
   constraints: [],
   perspective_ids: [],
   state: 'as-is',
@@ -220,6 +222,31 @@ export function AttributeEditorModal({
                   rows={2}
                   placeholder="Describe what this attribute represents..."
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Data Type
+                </label>
+                <select
+                  value={formData.data_type || 'string'}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      data_type: e.target.value as AttributeData['data_type'],
+                    })
+                  }
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="string">String</option>
+                  <option value="number">Number (Integer)</option>
+                  <option value="decimal">Decimal</option>
+                  <option value="date">Date</option>
+                  <option value="boolean">Boolean</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  The data type of this attribute's values. Used in TMDL and Fabric exports.
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

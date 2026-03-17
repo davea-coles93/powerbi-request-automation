@@ -81,6 +81,7 @@ export interface Attribute {
     unit?: string;
     description: string;
   }>;
+  data_type?: 'string' | 'number' | 'date' | 'boolean' | 'decimal';
   perspective_ids?: string[];
   state?: OntologyState;
 }

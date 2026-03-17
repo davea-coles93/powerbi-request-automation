@@ -3,7 +3,7 @@
     "id": "month_end_close",
     "name": "Month End Close",
     "description": "Manufacturing month-end close process: production cutoff, inventory counts, GR/IR reconciliation, WIP valuation, and financial review. 57 steps across all three perspectives.",
-    "icon": "\ud83d\udcca",
+    "icon": "📊",
     "category": "Finance"
   },
   "systems": [
@@ -130,7 +130,7 @@
             {
               "name": "Yield %",
               "data_type": "number",
-              "derivation": "Actual / (Actual + Scrap) \u00d7 100"
+              "derivation": "Actual / (Actual + Scrap) × 100"
             },
             {
               "name": "On-Time Status",
@@ -210,12 +210,12 @@
             {
               "name": "Handling Requirements",
               "data_type": "string",
-              "derivation": "Metal \u2192 Heavy Equipment, Non-Metal \u2192 Standard"
+              "derivation": "Metal → Heavy Equipment, Non-Metal → Standard"
             },
             {
               "name": "Storage Requirements",
               "data_type": "string",
-              "derivation": "Metal \u2192 Climate Control, Non-Metal \u2192 Standard"
+              "derivation": "Metal → Climate Control, Non-Metal → Standard"
             }
           ]
         },
@@ -254,7 +254,7 @@
             {
               "name": "Inventory Value",
               "data_type": "number",
-              "derivation": "Quantity \u00d7 Standard Cost"
+              "derivation": "Quantity × Standard Cost"
             },
             {
               "name": "Valuation Method",
@@ -311,7 +311,7 @@
             {
               "name": "Value",
               "data_type": "number",
-              "derivation": "Quantity \u00d7 Price"
+              "derivation": "Quantity × Price"
             }
           ]
         }
@@ -361,7 +361,7 @@
             {
               "name": "Labor Cost",
               "data_type": "number",
-              "derivation": "Hours \u00d7 Labor Rate"
+              "derivation": "Hours × Labor Rate"
             }
           ]
         }
@@ -938,7 +938,7 @@
       "name": "Material Cost Consumed",
       "description": "Total material cost issued to production",
       "logic": "Sum of material quantities issued multiplied by standard cost",
-      "formula": "SUM(issue_qty \u00d7 std_cost)",
+      "formula": "SUM(issue_qty × std_cost)",
       "input_attribute_ids": [
         "goods_issues",
         "standard_costs"
@@ -953,7 +953,7 @@
       "name": "Labor Cost Applied",
       "description": "Total labor cost applied to production",
       "logic": "Sum of labor hours multiplied by labor rates",
-      "formula": "SUM(hours \u00d7 labor_rate)",
+      "formula": "SUM(hours × labor_rate)",
       "input_attribute_ids": [
         "labor_time_recordings",
         "labor_rates"
@@ -968,7 +968,7 @@
       "name": "Overhead Absorbed",
       "description": "Overhead costs absorbed into production",
       "logic": "Machine hours or labor hours multiplied by overhead rate",
-      "formula": "SUM(activity_hours \u00d7 overhead_rate)",
+      "formula": "SUM(activity_hours × overhead_rate)",
       "input_attribute_ids": [
         "labor_time_recordings",
         "overhead_rates"
@@ -1028,7 +1028,7 @@
       "name": "Total Inventory Value",
       "description": "Total value of inventory on hand",
       "logic": "Sum of quantity multiplied by standard cost",
-      "formula": "SUM(qty \u00d7 std_cost)",
+      "formula": "SUM(qty × std_cost)",
       "input_attribute_ids": [
         "system_stock",
         "standard_costs"
@@ -1041,9 +1041,9 @@
     {
       "id": "metal_inventory_value",
       "name": "Metal Inventory Value",
-      "description": "Quantity \u00d7 Current Spot Price (only for metals)",
+      "description": "Quantity × Current Spot Price (only for metals)",
       "logic": "Sum of metal material quantities multiplied by current spot price",
-      "formula": "SUM(qty \u00d7 spot_price) WHERE Material_Type = 'Metal'",
+      "formula": "SUM(qty × spot_price) WHERE Material_Type = 'Metal'",
       "input_attribute_ids": [
         "system_stock",
         "metal_spot_prices"
@@ -1056,9 +1056,9 @@
     {
       "id": "non_metal_inventory_value",
       "name": "Non-Metal Inventory Value",
-      "description": "Quantity \u00d7 Standard Cost (only for non-metals)",
+      "description": "Quantity × Standard Cost (only for non-metals)",
       "logic": "Sum of non-metal material quantities multiplied by standard cost",
-      "formula": "SUM(qty \u00d7 std_cost) WHERE Material_Type <> 'Metal'",
+      "formula": "SUM(qty × std_cost) WHERE Material_Type <> 'Metal'",
       "input_attribute_ids": [
         "system_stock",
         "standard_costs"
@@ -1071,9 +1071,9 @@
     {
       "id": "metal_scrap_recovery_value",
       "name": "Metal Scrap Recovery Value",
-      "description": "Metal scrap quantity \u00d7 Scrap metal price (positive)",
+      "description": "Metal scrap quantity × Scrap metal price (positive)",
       "logic": "Revenue from selling metal scrap to recyclers",
-      "formula": "SUM(scrap_qty \u00d7 scrap_metal_price) WHERE Material_Type = 'Metal'",
+      "formula": "SUM(scrap_qty × scrap_metal_price) WHERE Material_Type = 'Metal'",
       "input_attribute_ids": [
         "metal_scrap_recovery",
         "metal_spot_prices"
@@ -1086,9 +1086,9 @@
     {
       "id": "non_metal_disposal_cost",
       "name": "Non-Metal Disposal Cost",
-      "description": "Non-metal scrap quantity \u00d7 Disposal rate (negative)",
+      "description": "Non-metal scrap quantity × Disposal rate (negative)",
       "logic": "Cost of disposing of non-metal waste",
-      "formula": "SUM(scrap_qty \u00d7 disposal_rate) WHERE Material_Type <> 'Metal'",
+      "formula": "SUM(scrap_qty × disposal_rate) WHERE Material_Type <> 'Metal'",
       "input_attribute_ids": [
         "disposal_cost_postings"
       ],
@@ -1100,9 +1100,9 @@
     {
       "id": "metal_price_variance",
       "name": "Metal Price Variance",
-      "description": "(Current Spot - Standard Cost) \u00d7 Quantity",
+      "description": "(Current Spot - Standard Cost) × Quantity",
       "logic": "Difference between current market value and standard cost for metals",
-      "formula": "SUM((spot_price - std_cost) \u00d7 qty) WHERE Material_Type = 'Metal'",
+      "formula": "SUM((spot_price - std_cost) × qty) WHERE Material_Type = 'Metal'",
       "input_attribute_ids": [
         "system_stock",
         "metal_spot_prices",
@@ -1116,9 +1116,9 @@
     {
       "id": "oee",
       "name": "Overall Equipment Effectiveness",
-      "description": "Availability \u00d7 Performance \u00d7 Quality - comprehensive equipment productivity metric",
+      "description": "Availability × Performance × Quality - comprehensive equipment productivity metric",
       "logic": "Product of availability rate, performance rate, and quality rate",
-      "formula": "(runtime / scheduled_time) \u00d7 (actual_output / expected_output) \u00d7 (good_output / total_output)",
+      "formula": "(runtime / scheduled_time) × (actual_output / expected_output) × (good_output / total_output)",
       "input_attribute_ids": [
         "equipment_runtime",
         "equipment_downtime",
@@ -1166,8 +1166,8 @@
       "id": "supplier_quality_score",
       "name": "Supplier Quality Score",
       "description": "Weighted quality score based on defect rates and inspection results",
-      "logic": "100 - (defect_rate \u00d7 100), weighted by delivery volume",
-      "formula": "100 - (SUM(defects) / SUM(receipts) \u00d7 100)",
+      "logic": "100 - (defect_rate × 100), weighted by delivery volume",
+      "formula": "100 - (SUM(defects) / SUM(receipts) × 100)",
       "input_attribute_ids": [
         "quality_inspections",
         "goods_receipts"
@@ -1182,7 +1182,7 @@
       "name": "Inspection Pass Rate",
       "description": "Percentage of inspections that pass without defects",
       "logic": "Count of passing inspections divided by total inspections",
-      "formula": "COUNT(inspection WHERE result = 'Pass') / COUNT(inspection) \u00d7 100",
+      "formula": "COUNT(inspection WHERE result = 'Pass') / COUNT(inspection) × 100",
       "input_attribute_ids": [
         "quality_inspections"
       ],
@@ -1407,7 +1407,13 @@
           "manual_effort_percentage": 30,
           "waste_category": "Manual Verification",
           "estimated_duration_minutes": 60,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [
+            "actual_production_qty"
+          ],
+          "produces_metric_ids": [
+            "production_vs_plan"
+          ]
         },
         {
           "id": "inventory_cutoff",
@@ -1439,7 +1445,11 @@
           "manual_effort_percentage": 40,
           "waste_category": "Manual Verification, System Switching",
           "estimated_duration_minutes": 120,
-          "automation_potential": "Medium"
+          "automation_potential": "Medium",
+          "produces_measure_ids": [
+            "total_inventory_value"
+          ],
+          "produces_metric_ids": []
         },
         {
           "id": "physical_count",
@@ -1460,7 +1470,9 @@
           "produces_attribute_ids": [
             "inventory_counts"
           ],
-          "crystallizes_attribute_ids": [],
+          "crystallizes_attribute_ids": [
+            "system_stock"
+          ],
           "systems_used_ids": [
             "wms",
             "excel"
@@ -1468,7 +1480,13 @@
           "manual_effort_percentage": 90,
           "waste_category": "Manual Data Entry, Physical Media",
           "estimated_duration_minutes": 180,
-          "automation_potential": "High"
+          "automation_potential": "High",
+          "produces_measure_ids": [
+            "inventory_variance_qty"
+          ],
+          "produces_metric_ids": [
+            "inventory_accuracy"
+          ]
         },
         {
           "id": "metal_price_revaluation",
@@ -1503,7 +1521,15 @@
           "manual_effort_percentage": 50,
           "waste_category": "Manual Data Entry, System Switching",
           "estimated_duration_minutes": 30,
-          "automation_potential": "High"
+          "automation_potential": "High",
+          "produces_measure_ids": [
+            "metal_inventory_value",
+            "metal_price_variance"
+          ],
+          "produces_metric_ids": [
+            "metal_inventory_valuation",
+            "metal_exposure"
+          ]
         },
         {
           "id": "count_reconciliation",
@@ -1536,7 +1562,13 @@
           "manual_effort_percentage": 60,
           "waste_category": "Manual Verification, System Switching",
           "estimated_duration_minutes": 60,
-          "automation_potential": "High"
+          "automation_potential": "High",
+          "produces_measure_ids": [
+            "inventory_variance_qty"
+          ],
+          "produces_metric_ids": [
+            "inventory_accuracy"
+          ]
         },
         {
           "id": "gr_ir_reconciliation",
@@ -1569,7 +1601,13 @@
           "manual_effort_percentage": 70,
           "waste_category": "Manual Data Entry, System Switching",
           "estimated_duration_minutes": 45,
-          "automation_potential": "High"
+          "automation_potential": "High",
+          "produces_measure_ids": [
+            "gr_ir_balance"
+          ],
+          "produces_metric_ids": [
+            "gr_ir_accrual"
+          ]
         },
         {
           "id": "scrap_reconciliation",
@@ -1601,7 +1639,14 @@
           "manual_effort_percentage": 65,
           "waste_category": "Manual Data Entry",
           "estimated_duration_minutes": 45,
-          "automation_potential": "High"
+          "automation_potential": "High",
+          "produces_measure_ids": [
+            "metal_scrap_recovery_value",
+            "non_metal_disposal_cost"
+          ],
+          "produces_metric_ids": [
+            "scrap_net_value"
+          ]
         },
         {
           "id": "wip_valuation",
@@ -1632,7 +1677,15 @@
           "manual_effort_percentage": 20,
           "waste_category": null,
           "estimated_duration_minutes": 30,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [
+            "material_cost_consumed",
+            "labor_cost_applied",
+            "overhead_absorbed"
+          ],
+          "produces_metric_ids": [
+            "cogs"
+          ]
         },
         {
           "id": "inventory_valuation",
@@ -1665,7 +1718,17 @@
           "manual_effort_percentage": 15,
           "waste_category": null,
           "estimated_duration_minutes": 60,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [
+            "total_inventory_value",
+            "metal_inventory_value",
+            "non_metal_inventory_value"
+          ],
+          "produces_metric_ids": [
+            "inventory_valuation",
+            "metal_inventory_valuation",
+            "non_metal_inventory_valuation"
+          ]
         },
         {
           "id": "production_settlement",
@@ -1693,7 +1756,15 @@
           "manual_effort_percentage": 10,
           "waste_category": null,
           "estimated_duration_minutes": 60,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [
+            "material_cost_consumed",
+            "labor_cost_applied",
+            "overhead_absorbed"
+          ],
+          "produces_metric_ids": [
+            "cogs"
+          ]
         },
         {
           "id": "close_review",
@@ -1726,7 +1797,18 @@
           "manual_effort_percentage": 50,
           "waste_category": "Manual Verification, System Switching",
           "estimated_duration_minutes": 120,
-          "automation_potential": "High"
+          "automation_potential": "High",
+          "produces_measure_ids": [
+            "total_inventory_value",
+            "gr_ir_balance"
+          ],
+          "produces_metric_ids": [
+            "cogs",
+            "inventory_valuation",
+            "gr_ir_accrual",
+            "yield_rate",
+            "inventory_accuracy"
+          ]
         },
         {
           "id": "quality_variance_analysis",
@@ -1757,7 +1839,14 @@
           "manual_effort_percentage": 70,
           "waste_category": "Manual Data Entry, System Switching",
           "estimated_duration_minutes": 45,
-          "automation_potential": "High"
+          "automation_potential": "High",
+          "produces_measure_ids": [
+            "first_pass_yield",
+            "inspection_pass_rate"
+          ],
+          "produces_metric_ids": [
+            "quality_performance"
+          ]
         },
         {
           "id": "equipment_performance_review",
@@ -1790,7 +1879,14 @@
           "manual_effort_percentage": 65,
           "waste_category": "Manual Data Entry, System Switching",
           "estimated_duration_minutes": 45,
-          "automation_potential": "High"
+          "automation_potential": "High",
+          "produces_measure_ids": [
+            "oee",
+            "equipment_downtime_hours"
+          ],
+          "produces_metric_ids": [
+            "equipment_performance"
+          ]
         },
         {
           "id": "production_cutoff_mgmt_1",
@@ -1817,7 +1913,11 @@
           "manual_effort_percentage": 40,
           "waste_category": "Manual Verification",
           "estimated_duration_minutes": 120,
-          "automation_potential": "Medium"
+          "automation_potential": "Medium",
+          "produces_measure_ids": [
+            "actual_production_qty"
+          ],
+          "produces_metric_ids": []
         },
         {
           "id": "production_cutoff_mgmt_2",
@@ -1846,7 +1946,9 @@
           "manual_effort_percentage": 20,
           "waste_category": null,
           "estimated_duration_minutes": 60,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "production_cutoff_op_1",
@@ -1870,7 +1972,9 @@
           "manual_effort_percentage": 20,
           "waste_category": null,
           "estimated_duration_minutes": 20,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "production_cutoff_op_2",
@@ -1896,7 +2000,9 @@
           "manual_effort_percentage": 60,
           "waste_category": "Manual Verification",
           "estimated_duration_minutes": 20,
-          "automation_potential": "Medium"
+          "automation_potential": "Medium",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "production_cutoff_op_3",
@@ -1923,7 +2029,9 @@
           "manual_effort_percentage": 30,
           "waste_category": "System Switching",
           "estimated_duration_minutes": 20,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "production_cutoff_op_4",
@@ -1949,7 +2057,9 @@
           "manual_effort_percentage": 10,
           "waste_category": null,
           "estimated_duration_minutes": 15,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "production_cutoff_op_5",
@@ -1973,7 +2083,9 @@
           "manual_effort_percentage": 40,
           "waste_category": "Manual Verification",
           "estimated_duration_minutes": 20,
-          "automation_potential": "Medium"
+          "automation_potential": "Medium",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "inventory_cutoff_mgmt_1",
@@ -2001,7 +2113,11 @@
           "manual_effort_percentage": 50,
           "waste_category": "Manual Verification",
           "estimated_duration_minutes": 120,
-          "automation_potential": "Medium"
+          "automation_potential": "Medium",
+          "produces_measure_ids": [
+            "total_inventory_value"
+          ],
+          "produces_metric_ids": []
         },
         {
           "id": "inventory_cutoff_mgmt_2",
@@ -2031,7 +2147,9 @@
           "manual_effort_percentage": 30,
           "waste_category": null,
           "estimated_duration_minutes": 60,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "inventory_cutoff_op_1",
@@ -2055,7 +2173,9 @@
           "manual_effort_percentage": 30,
           "waste_category": null,
           "estimated_duration_minutes": 20,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "inventory_cutoff_op_2",
@@ -2081,7 +2201,9 @@
           "manual_effort_percentage": 30,
           "waste_category": null,
           "estimated_duration_minutes": 20,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "inventory_cutoff_op_3",
@@ -2107,7 +2229,9 @@
           "manual_effort_percentage": 20,
           "waste_category": null,
           "estimated_duration_minutes": 20,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "inventory_cutoff_op_4",
@@ -2132,7 +2256,9 @@
           "manual_effort_percentage": 10,
           "waste_category": null,
           "estimated_duration_minutes": 15,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "inventory_cutoff_op_5",
@@ -2158,7 +2284,9 @@
           "manual_effort_percentage": 30,
           "waste_category": null,
           "estimated_duration_minutes": 60,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "physical_count_mgmt_1",
@@ -2186,7 +2314,9 @@
           "manual_effort_percentage": 40,
           "waste_category": "Manual Data Entry",
           "estimated_duration_minutes": 120,
-          "automation_potential": "High"
+          "automation_potential": "High",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "physical_count_mgmt_2",
@@ -2217,7 +2347,9 @@
           "manual_effort_percentage": 50,
           "waste_category": "Manual Verification",
           "estimated_duration_minutes": 120,
-          "automation_potential": "Medium"
+          "automation_potential": "Medium",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "physical_count_op_1",
@@ -2239,7 +2371,9 @@
           "manual_effort_percentage": 95,
           "waste_category": "Physical Media, Manual Data Entry",
           "estimated_duration_minutes": 60,
-          "automation_potential": "High"
+          "automation_potential": "High",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "physical_count_op_2",
@@ -2267,7 +2401,9 @@
           "manual_effort_percentage": 100,
           "waste_category": "Physical Media, Manual Verification",
           "estimated_duration_minutes": 60,
-          "automation_potential": "High"
+          "automation_potential": "High",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "physical_count_op_3",
@@ -2293,7 +2429,9 @@
           "manual_effort_percentage": 80,
           "waste_category": "Manual Data Entry",
           "estimated_duration_minutes": 60,
-          "automation_potential": "High"
+          "automation_potential": "High",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "physical_count_op_4",
@@ -2318,7 +2456,9 @@
           "manual_effort_percentage": null,
           "waste_category": null,
           "estimated_duration_minutes": 15,
-          "automation_potential": null
+          "automation_potential": null,
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "physical_count_op_5",
@@ -2345,7 +2485,9 @@
           "manual_effort_percentage": null,
           "waste_category": null,
           "estimated_duration_minutes": 60,
-          "automation_potential": null
+          "automation_potential": null,
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "physical_count_op_6",
@@ -2369,7 +2511,9 @@
           "manual_effort_percentage": null,
           "waste_category": null,
           "estimated_duration_minutes": 60,
-          "automation_potential": null
+          "automation_potential": null,
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "inventory_valuation_mgmt_1",
@@ -2397,7 +2541,9 @@
           "manual_effort_percentage": 30,
           "waste_category": "Manual Verification",
           "estimated_duration_minutes": 60,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "inventory_valuation_mgmt_2",
@@ -2424,7 +2570,9 @@
           "manual_effort_percentage": 20,
           "waste_category": null,
           "estimated_duration_minutes": 60,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "inventory_valuation_op_1",
@@ -2449,7 +2597,9 @@
           "manual_effort_percentage": 10,
           "waste_category": null,
           "estimated_duration_minutes": 30,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "inventory_valuation_op_2",
@@ -2476,7 +2626,9 @@
           "manual_effort_percentage": 60,
           "waste_category": "Manual Verification, System Switching",
           "estimated_duration_minutes": 45,
-          "automation_potential": "High"
+          "automation_potential": "High",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "inventory_valuation_op_3",
@@ -2500,7 +2652,9 @@
           "manual_effort_percentage": 5,
           "waste_category": null,
           "estimated_duration_minutes": 15,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "inventory_valuation_op_4",
@@ -2522,7 +2676,9 @@
           "manual_effort_percentage": null,
           "waste_category": null,
           "estimated_duration_minutes": 15,
-          "automation_potential": null
+          "automation_potential": null,
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "production_settlement_mgmt_1",
@@ -2547,7 +2703,9 @@
           "manual_effort_percentage": 30,
           "waste_category": "Manual Verification",
           "estimated_duration_minutes": 60,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "production_settlement_mgmt_2",
@@ -2572,7 +2730,9 @@
           "manual_effort_percentage": 15,
           "waste_category": null,
           "estimated_duration_minutes": 60,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "production_settlement_op_1",
@@ -2596,7 +2756,9 @@
           "manual_effort_percentage": 40,
           "waste_category": "Manual Verification",
           "estimated_duration_minutes": 20,
-          "automation_potential": "Medium"
+          "automation_potential": "Medium",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "production_settlement_op_2",
@@ -2620,7 +2782,9 @@
           "manual_effort_percentage": 10,
           "waste_category": null,
           "estimated_duration_minutes": 30,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "production_settlement_op_3",
@@ -2643,7 +2807,9 @@
           "manual_effort_percentage": 70,
           "waste_category": "Manual Verification, System Switching",
           "estimated_duration_minutes": 30,
-          "automation_potential": "High"
+          "automation_potential": "High",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "production_settlement_op_4",
@@ -2665,7 +2831,9 @@
           "manual_effort_percentage": null,
           "waste_category": null,
           "estimated_duration_minutes": 45,
-          "automation_potential": null
+          "automation_potential": null,
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "close_review_mgmt_1",
@@ -2693,7 +2861,9 @@
           "manual_effort_percentage": 80,
           "waste_category": "Manual Data Entry, System Switching",
           "estimated_duration_minutes": 180,
-          "automation_potential": "High"
+          "automation_potential": "High",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "close_review_mgmt_2",
@@ -2721,7 +2891,9 @@
           "manual_effort_percentage": 60,
           "waste_category": "Manual Verification",
           "estimated_duration_minutes": 120,
-          "automation_potential": "Medium"
+          "automation_potential": "Medium",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "close_review_mgmt_3",
@@ -2744,7 +2916,9 @@
           "manual_effort_percentage": null,
           "waste_category": null,
           "estimated_duration_minutes": 60,
-          "automation_potential": null
+          "automation_potential": null,
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "close_review_op_1",
@@ -2769,7 +2943,9 @@
           "manual_effort_percentage": 90,
           "waste_category": "Manual Data Entry, System Switching",
           "estimated_duration_minutes": 45,
-          "automation_potential": "High"
+          "automation_potential": "High",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "close_review_op_2",
@@ -2795,7 +2971,9 @@
           "manual_effort_percentage": 95,
           "waste_category": "Manual Data Entry, Physical Media",
           "estimated_duration_minutes": 45,
-          "automation_potential": "High"
+          "automation_potential": "High",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "close_review_op_3",
@@ -2821,7 +2999,9 @@
           "manual_effort_percentage": 30,
           "waste_category": null,
           "estimated_duration_minutes": 45,
-          "automation_potential": "Low"
+          "automation_potential": "Low",
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "close_review_op_4",
@@ -2843,7 +3023,9 @@
           "manual_effort_percentage": null,
           "waste_category": null,
           "estimated_duration_minutes": 45,
-          "automation_potential": null
+          "automation_potential": null,
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "close_review_op_5",
@@ -2867,7 +3049,9 @@
           "manual_effort_percentage": null,
           "waste_category": null,
           "estimated_duration_minutes": 60,
-          "automation_potential": null
+          "automation_potential": null,
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "close_review_op_6",
@@ -2887,7 +3071,9 @@
           "manual_effort_percentage": null,
           "waste_category": null,
           "estimated_duration_minutes": 15,
-          "automation_potential": null
+          "automation_potential": null,
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "close_review_op_7",
@@ -2909,7 +3095,9 @@
           "manual_effort_percentage": null,
           "waste_category": null,
           "estimated_duration_minutes": 15,
-          "automation_potential": null
+          "automation_potential": null,
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         }
       ]
     }

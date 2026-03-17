@@ -192,9 +192,6 @@ export const findGaps = (focusArea?: string) =>
 export const suggestMeasures = (requirement: string) =>
   api.post('/ai/suggest-measures', { requirement }).then((res) => res.data);
 
-export const analyzeProcesses = () =>
-  api.post('/ai/analyze-processes').then((res) => res.data);
-
 // Semantic Model endpoints
 export const getSemanticModel = () =>
   api.get<SemanticModel>('/semantic-model').then((res) => res.data);

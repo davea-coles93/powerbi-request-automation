@@ -1151,7 +1151,8 @@
       "source_actor": "Finance Team",
       "reliability": "High",
       "volatility": "Point-in-time",
-      "notes": "Created in Oracle when project is approved. Used as join key across Mieruka, Jira, and timesheets."
+      "notes": "Created in Oracle when project is approved. Used as join key across Mieruka, Jira, and timesheets.",
+      "data_type": "string"
     },
     {
       "id": "attr_project_stage",
@@ -1162,7 +1163,8 @@
       "source_actor": "PM",
       "reliability": "Medium",
       "volatility": "Point-in-time",
-      "notes": "Current issue: projects created without formal initiation gate. No blocking transition to Active until Finance approves project code."
+      "notes": "Current issue: projects created without formal initiation gate. No blocking transition to Active until Finance approves project code.",
+      "data_type": "string"
     },
     {
       "id": "attr_rag_status",
@@ -1173,7 +1175,8 @@
       "source_actor": "PM",
       "reliability": "Medium",
       "volatility": "Point-in-time",
-      "notes": "Subjective. Different PMs have different thresholds. No automated triggers."
+      "notes": "Subjective. Different PMs have different thresholds. No automated triggers.",
+      "data_type": "string"
     },
     {
       "id": "attr_budget_approved",
@@ -1184,7 +1187,8 @@
       "source_actor": "Finance / PMO",
       "reliability": "High",
       "volatility": "Point-in-time",
-      "notes": "Subject to threshold-based approval routing rules (TC_ProjectApprovalRules). Budget versioning with Latest Plan flag. Multiple versions per project supported."
+      "notes": "Subject to threshold-based approval routing rules (TC_ProjectApprovalRules). Budget versioning with Latest Plan flag. Multiple versions per project supported.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_budget_data",
@@ -1195,7 +1199,8 @@
       "source_actor": "PM / Finance",
       "reliability": "Medium",
       "volatility": "Accumulating",
-      "notes": "Often out of date. Detailed breakdowns sometimes only exist in PM's Excel."
+      "notes": "Often out of date. Detailed breakdowns sometimes only exist in PM's Excel.",
+      "data_type": "string"
     },
     {
       "id": "attr_actuals",
@@ -1206,7 +1211,8 @@
       "source_actor": "Finance System",
       "reliability": "High",
       "volatility": "Accumulating",
-      "notes": "Reliable but only updated after month-end close. 2-3 week lag for current period."
+      "notes": "Reliable but only updated after month-end close. 2-3 week lag for current period.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_terms_of_ref",
@@ -1217,7 +1223,8 @@
       "source_actor": "PM",
       "reliability": "Medium",
       "volatility": "Point-in-time",
-      "notes": "Link stored in Mieruka, actual document in SharePoint."
+      "notes": "Link stored in Mieruka, actual document in SharePoint.",
+      "data_type": "string"
     },
     {
       "id": "attr_sow_doc",
@@ -1228,7 +1235,8 @@
       "source_actor": "PM / Legal",
       "reliability": "High",
       "volatility": "Point-in-time",
-      "notes": "Once signed, immutable. Metadata linking to project not always set."
+      "notes": "Once signed, immutable. Metadata linking to project not always set.",
+      "data_type": "string"
     },
     {
       "id": "attr_architecture_doc",
@@ -1239,7 +1247,8 @@
       "source_actor": "Solution Architect",
       "reliability": "Medium",
       "volatility": "Point-in-time",
-      "notes": "Quality varies. Not all projects have formal architecture docs."
+      "notes": "Quality varies. Not all projects have formal architecture docs.",
+      "data_type": "string"
     },
     {
       "id": "attr_presales_estimate",
@@ -1250,7 +1259,8 @@
       "source_actor": "Presales / Solution Architect",
       "reliability": "Low",
       "volatility": "Point-in-time",
-      "notes": "Produced in Excel during proposal phase. Often used as baseline even when scope changes."
+      "notes": "Produced in Excel during proposal phase. Often used as baseline even when scope changes.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_demand_by_role",
@@ -1261,7 +1271,8 @@
       "source_actor": "Presales / RM",
       "reliability": "Low",
       "volatility": "Point-in-time",
-      "notes": "Tracked in Excel. No automated link to actual resource availability."
+      "notes": "Tracked in Excel. No automated link to actual resource availability.",
+      "data_type": "string"
     },
     {
       "id": "attr_gm_estimate",
@@ -1272,7 +1283,8 @@
       "source_actor": "Presales / Finance",
       "reliability": "Low",
       "volatility": "Point-in-time",
-      "notes": "Based on presales estimate and assumed rates. Often optimistic."
+      "notes": "Based on presales estimate and assumed rates. Often optimistic.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_completed_tasks",
@@ -1283,7 +1295,8 @@
       "source_actor": "Dev Team",
       "reliability": "High",
       "volatility": "Accumulating",
-      "notes": "Good quality data when teams follow Jira workflow. Some teams less disciplined."
+      "notes": "Good quality data when teams follow Jira workflow. Some teams less disciplined.",
+      "data_type": "number"
     },
     {
       "id": "attr_story_points",
@@ -1294,7 +1307,8 @@
       "source_actor": "Dev Team",
       "reliability": "High",
       "volatility": "Accumulating",
-      "notes": "Depends on consistent estimation across teams. Not all teams use story points."
+      "notes": "Depends on consistent estimation across teams. Not all teams use story points.",
+      "data_type": "number"
     },
     {
       "id": "attr_planned_points",
@@ -1305,7 +1319,8 @@
       "source_actor": "Scrum Master",
       "reliability": "High",
       "volatility": "Point-in-time",
-      "notes": "Set at sprint planning. Good indicator of capacity commitment."
+      "notes": "Set at sprint planning. Good indicator of capacity commitment.",
+      "data_type": "number"
     },
     {
       "id": "attr_backlog_size",
@@ -1316,7 +1331,8 @@
       "source_actor": "Product Owner",
       "reliability": "Medium",
       "volatility": "Accumulating",
-      "notes": "Only meaningful if backlog is groomed. Stale backlogs give misleading numbers."
+      "notes": "Only meaningful if backlog is groomed. Stale backlogs give misleading numbers.",
+      "data_type": "number"
     },
     {
       "id": "attr_blended_rate",
@@ -1327,7 +1343,8 @@
       "source_actor": "Finance / RM",
       "reliability": "Medium",
       "volatility": "Point-in-time",
-      "notes": "Updated annually. May not reflect actual cost for contractors."
+      "notes": "Updated annually. May not reflect actual cost for contractors.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_people_cost",
@@ -1338,7 +1355,8 @@
       "source_actor": "Finance / HR",
       "reliability": "Medium",
       "volatility": "Point-in-time",
-      "notes": "Synchronized from HR. Updated when salary changes."
+      "notes": "Synchronized from HR. Updated when salary changes.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_contracts",
@@ -1349,7 +1367,8 @@
       "source_actor": "HR / Procurement",
       "reliability": "High",
       "volatility": "Point-in-time",
-      "notes": "Immutable once signed. Metadata linking to resource not always set."
+      "notes": "Immutable once signed. Metadata linking to resource not always set.",
+      "data_type": "string"
     },
     {
       "id": "attr_resource_level",
@@ -1360,7 +1379,8 @@
       "source_actor": "HR / RM",
       "reliability": "High",
       "volatility": "Point-in-time",
-      "notes": "Updated during promotions/reviews."
+      "notes": "Updated during promotions/reviews.",
+      "data_type": "string"
     },
     {
       "id": "attr_availability",
@@ -1371,7 +1391,8 @@
       "source_actor": "RM",
       "reliability": "Medium",
       "volatility": "Continuous",
-      "notes": "Should account for holidays but HiBob integration is manual."
+      "notes": "Should account for holidays but HiBob integration is manual.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_allocation",
@@ -1382,7 +1403,8 @@
       "source_actor": "RM",
       "reliability": "Medium",
       "volatility": "Continuous",
-      "notes": "Stored in TC_FTEValues. No aggregation layer exists. No team hierarchy enforces supply-side capacity limits."
+      "notes": "Stored in TC_FTEValues. No aggregation layer exists. No team hierarchy enforces supply-side capacity limits.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_allocation_excel",
@@ -1393,7 +1415,8 @@
       "source_actor": "RM",
       "reliability": "Low",
       "volatility": "Continuous",
-      "notes": "The real source of truth for multi-project allocation. Mieruka data is often wrong."
+      "notes": "The real source of truth for multi-project allocation. Mieruka data is often wrong.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_fte_allocation",
@@ -1404,7 +1427,8 @@
       "source_actor": "RM / PM",
       "reliability": "Low",
       "volatility": "Continuous",
-      "notes": "Mieruka cannot do partial allocation. Excel is the only place this data exists."
+      "notes": "Mieruka cannot do partial allocation. Excel is the only place this data exists.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_account_status",
@@ -1414,7 +1438,8 @@
       "system_id": "mieruka",
       "source_actor": "Account Manager",
       "reliability": "Medium",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "data_type": "string"
     },
     {
       "id": "attr_account_type",
@@ -1424,7 +1449,8 @@
       "system_id": "mieruka",
       "source_actor": "Admin",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "data_type": "string"
     },
     {
       "id": "attr_start_date",
@@ -1434,7 +1460,8 @@
       "system_id": "mieruka",
       "source_actor": "Admin",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "data_type": "date"
     },
     {
       "id": "attr_end_date",
@@ -1444,7 +1471,8 @@
       "system_id": "mieruka",
       "source_actor": "Admin",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "data_type": "date"
     },
     {
       "id": "attr_hours_submitted",
@@ -1455,7 +1483,8 @@
       "source_actor": "Resource",
       "reliability": "Medium",
       "volatility": "Accumulating",
-      "notes": "Self-reported. Quality depends on whether resources submit daily or batch at end of week."
+      "notes": "Self-reported. Quality depends on whether resources submit daily or batch at end of week.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_hours_approved",
@@ -1466,7 +1495,8 @@
       "source_actor": "PM",
       "reliability": "High",
       "volatility": "Accumulating",
-      "notes": "Currently Finance blanket-approves without validation. Rebuild changes approver to Team Manager. Only approved timesheets feed invoice and revenue recognition."
+      "notes": "Currently Finance blanket-approves without validation. Rebuild changes approver to Team Manager. Only approved timesheets feed invoice and revenue recognition.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_approved_days",
@@ -1477,7 +1507,8 @@
       "source_actor": "PM",
       "reliability": "High",
       "volatility": "Accumulating",
-      "notes": "Derived from approved hours. Used for financial reporting."
+      "notes": "Derived from approved hours. Used for financial reporting.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_time_off",
@@ -1488,7 +1519,8 @@
       "source_actor": "HR System",
       "reliability": "High",
       "volatility": "Accumulating",
-      "notes": "Reliable source but not automatically reflected in Mieruka availability."
+      "notes": "Reliable source but not automatically reflected in Mieruka availability.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_timesheet_granularity",
@@ -1499,7 +1531,8 @@
       "source_actor": "Developer",
       "reliability": "Medium",
       "volatility": "Accumulating",
-      "notes": "More granular than Mieruka timesheets. Not all teams use Jira time logging."
+      "notes": "More granular than Mieruka timesheets. Not all teams use Jira time logging.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_revenue",
@@ -1510,7 +1543,8 @@
       "source_actor": "Finance System",
       "reliability": "High",
       "volatility": "Accumulating",
-      "notes": "System of record. Updated after month-end. Basis for all financial reporting."
+      "notes": "System of record. Updated after month-end. Basis for all financial reporting.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_forecast_spend",
@@ -1521,7 +1555,8 @@
       "source_actor": "PM",
       "reliability": "Medium",
       "volatility": "Continuous",
-      "notes": "Often stale. PMs prefer to maintain forecasts in Excel due to Mieruka performance."
+      "notes": "Often stale. PMs prefer to maintain forecasts in Excel due to Mieruka performance.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_forecast_excel",
@@ -1532,7 +1567,8 @@
       "source_actor": "PM",
       "reliability": "Low",
       "volatility": "Continuous",
-      "notes": "Often the real forecast. Version control issues mean different stakeholders may have different versions."
+      "notes": "Often the real forecast. Version control issues mean different stakeholders may have different versions.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_lead_status",
@@ -1543,7 +1579,8 @@
       "source_actor": "BD / Presales",
       "reliability": "Medium",
       "volatility": "Point-in-time",
-      "notes": "Tracked as Jira issues in a presales board."
+      "notes": "Tracked as Jira issues in a presales board.",
+      "data_type": "string"
     },
     {
       "id": "attr_conversion_prob",
@@ -1554,7 +1591,8 @@
       "source_actor": "BD / Presales",
       "reliability": "Low",
       "volatility": "Point-in-time",
-      "notes": "Subjective assessment. Used for weighted pipeline calculations."
+      "notes": "Subjective assessment. Used for weighted pipeline calculations.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_pipeline_value",
@@ -1565,7 +1603,8 @@
       "source_actor": "BD / Presales",
       "reliability": "Low",
       "volatility": "Point-in-time",
-      "notes": "Based on presales estimate. May change significantly during negotiation."
+      "notes": "Based on presales estimate. May change significantly during negotiation.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_change_history",
@@ -1576,7 +1615,8 @@
       "source_actor": "PM / System",
       "reliability": "Medium",
       "volatility": "Accumulating",
-      "notes": "Mieruka tracks some changes but not all. Significant changes often only documented in email."
+      "notes": "Mieruka tracks some changes but not all. Significant changes often only documented in email.",
+      "data_type": "string"
     },
     {
       "id": "attr_resource_change_hist",
@@ -1587,7 +1627,8 @@
       "source_actor": "RM / System",
       "reliability": "Medium",
       "volatility": "Accumulating",
-      "notes": "Useful for understanding account staffing trends."
+      "notes": "Useful for understanding account staffing trends.",
+      "data_type": "string"
     },
     {
       "id": "attr_status_report",
@@ -1598,7 +1639,8 @@
       "source_actor": "PM",
       "reliability": "Medium",
       "volatility": "Accumulating",
-      "notes": "Produced manually in Excel/PowerPoint. Time-consuming and often inconsistent format."
+      "notes": "Produced manually in Excel/PowerPoint. Time-consuming and often inconsistent format.",
+      "data_type": "string"
     },
     {
       "id": "attr_resource_cost_rate",
@@ -1610,7 +1652,8 @@
       "reliability": "High",
       "volatility": "Point-in-time",
       "notes": "Sourced from TC_FTE table. GDPR and commercial sensitivity risk — rebuild requires field-level security.",
-      "source_table": "TC_FTE"
+      "source_table": "TC_FTE",
+      "data_type": "decimal"
     },
     {
       "id": "attr_resource_charge_out",
@@ -1622,7 +1665,8 @@
       "reliability": "High",
       "volatility": "Point-in-time",
       "notes": "Stored on FTE record, visible to standard read access — GDPR risk. Rebuild requires secure storage.",
-      "source_table": "TC_FTE"
+      "source_table": "TC_FTE",
+      "data_type": "decimal"
     },
     {
       "id": "attr_fte_value_days",
@@ -1634,7 +1678,8 @@
       "reliability": "Medium",
       "volatility": "Continuous",
       "notes": "Sourced from TC_FTEValues. No capacity ceiling enforcement. Used in Yamazumi capacity view.",
-      "source_table": "TC_FTEValues"
+      "source_table": "TC_FTEValues",
+      "data_type": "decimal"
     },
     {
       "id": "attr_fte_charge_out",
@@ -1646,7 +1691,8 @@
       "reliability": "High",
       "volatility": "Point-in-time",
       "notes": "Sourced from TC_FTEValues. Used in revenue and margin calculation.",
-      "source_table": "TC_FTEValues"
+      "source_table": "TC_FTEValues",
+      "data_type": "decimal"
     },
     {
       "id": "attr_fte_cost_rate",
@@ -1658,7 +1704,8 @@
       "reliability": "High",
       "volatility": "Point-in-time",
       "notes": "Sourced from TC_FTEValues.",
-      "source_table": "TC_FTEValues"
+      "source_table": "TC_FTEValues",
+      "data_type": "decimal"
     },
     {
       "id": "attr_budget_version",
@@ -1670,7 +1717,8 @@
       "reliability": "High",
       "volatility": "Accumulating",
       "notes": "Multiple versions per project allowed. Latest Plan flag identifies current budget.",
-      "source_table": "TC_ProjectBudget"
+      "source_table": "TC_ProjectBudget",
+      "data_type": "number"
     },
     {
       "id": "attr_budget_latest_plan",
@@ -1681,7 +1729,8 @@
       "source_actor": "Finance",
       "reliability": "High",
       "volatility": "Point-in-time",
-      "source_table": "TC_ProjectBudget"
+      "source_table": "TC_ProjectBudget",
+      "data_type": "boolean"
     },
     {
       "id": "attr_budget_approval_status",
@@ -1693,7 +1742,8 @@
       "reliability": "Medium",
       "volatility": "Point-in-time",
       "notes": "Routing rules exist but execution unreliable.",
-      "source_table": "TC_ProjectApprovals"
+      "source_table": "TC_ProjectApprovals",
+      "data_type": "string"
     },
     {
       "id": "attr_tba_status",
@@ -1705,7 +1755,8 @@
       "reliability": "Medium",
       "volatility": "Point-in-time",
       "notes": "Resource Managers cannot distinguish TBA from TBR without navigating multiple screens.",
-      "source_table": "TC_TBA"
+      "source_table": "TC_TBA",
+      "data_type": "string"
     },
     {
       "id": "attr_tba_tbr_flag",
@@ -1716,7 +1767,8 @@
       "source_actor": "Resource Manager",
       "reliability": "High",
       "volatility": "Point-in-time",
-      "source_table": "TC_TBA"
+      "source_table": "TC_TBA",
+      "data_type": "boolean"
     },
     {
       "id": "attr_timesheet_entry_type",
@@ -1728,7 +1780,8 @@
       "reliability": "High",
       "volatility": "Point-in-time",
       "notes": "Determines revenue recognition treatment.",
-      "source_table": "TC_TimeSheet"
+      "source_table": "TC_TimeSheet",
+      "data_type": "string"
     },
     {
       "id": "attr_timesheet_week_ending",
@@ -1739,7 +1792,8 @@
       "source_actor": "System",
       "reliability": "High",
       "volatility": "Point-in-time",
-      "source_table": "TC_TimeSheet"
+      "source_table": "TC_TimeSheet",
+      "data_type": "date"
     },
     {
       "id": "attr_revenue_type",
@@ -1751,7 +1805,8 @@
       "reliability": "High",
       "volatility": "Point-in-time",
       "notes": "T&M from approved timesheets; milestone and fixed from PM inputs.",
-      "source_table": "TC_RevenueValues"
+      "source_table": "TC_RevenueValues",
+      "data_type": "string"
     },
     {
       "id": "attr_revenue_currency",
@@ -1763,7 +1818,8 @@
       "reliability": "High",
       "volatility": "Point-in-time",
       "notes": "FX rates applied via TC_CurrencyFXRate table.",
-      "source_table": "TC_RevenueValues"
+      "source_table": "TC_RevenueValues",
+      "data_type": "string"
     },
     {
       "id": "attr_project_code_dv",
@@ -1775,7 +1831,8 @@
       "reliability": "Medium",
       "volatility": "Point-in-time",
       "notes": "No finance gate enforced at project initiation.",
-      "source_table": "TC_Projects"
+      "source_table": "TC_Projects",
+      "data_type": "string"
     },
     {
       "id": "attr_programme_code",
@@ -1786,7 +1843,8 @@
       "source_actor": "PMO",
       "reliability": "High",
       "volatility": "Point-in-time",
-      "source_table": "TC_Programmes"
+      "source_table": "TC_Programmes",
+      "data_type": "string"
     },
     {
       "id": "attr_programme_name",
@@ -1796,7 +1854,8 @@
       "system_id": "mieruka",
       "source_actor": "PMO",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "data_type": "string"
     },
     {
       "id": "attr_programme_owner",
@@ -1806,7 +1865,8 @@
       "system_id": "mieruka",
       "source_actor": "PMO",
       "reliability": "Medium",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "data_type": "string"
     },
     {
       "id": "attr_programme_budget",
@@ -1817,7 +1877,8 @@
       "source_actor": "Finance",
       "reliability": "Medium",
       "volatility": "Point-in-time",
-      "notes": "Calculated by summing project-level budgets. Drift risk when project budgets update independently."
+      "notes": "Calculated by summing project-level budgets. Drift risk when project budgets update independently.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_person_name",
@@ -1827,7 +1888,8 @@
       "system_id": "hibob",
       "source_actor": "HR",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "data_type": "string"
     },
     {
       "id": "attr_person_role",
@@ -1837,7 +1899,8 @@
       "system_id": "hibob",
       "source_actor": "HR",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "data_type": "string"
     },
     {
       "id": "attr_person_team",
@@ -1848,7 +1911,8 @@
       "source_actor": "HR",
       "reliability": "High",
       "volatility": "Point-in-time",
-      "notes": "Synced to Mieruka but can drift."
+      "notes": "Synced to Mieruka but can drift.",
+      "data_type": "string"
     },
     {
       "id": "attr_person_manager",
@@ -1858,7 +1922,8 @@
       "system_id": "hibob",
       "source_actor": "HR",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "data_type": "string"
     },
     {
       "id": "attr_person_rate",
@@ -1869,7 +1934,8 @@
       "source_actor": "HR / Finance",
       "reliability": "Medium",
       "volatility": "Point-in-time",
-      "notes": "Used as input for blended rate calculations."
+      "notes": "Used as input for blended rate calculations.",
+      "data_type": "decimal"
     },
     {
       "id": "attr_person_discipline",
@@ -1879,7 +1945,8 @@
       "system_id": "hibob",
       "source_actor": "HR",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "data_type": "string"
     },
     {
       "id": "attr_team_name",
@@ -1889,7 +1956,8 @@
       "system_id": "hibob",
       "source_actor": "HR",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "data_type": "string"
     },
     {
       "id": "attr_team_manager",
@@ -1899,7 +1967,8 @@
       "system_id": "hibob",
       "source_actor": "HR",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "data_type": "string"
     },
     {
       "id": "attr_team_headcount",
@@ -1910,7 +1979,8 @@
       "source_actor": "HR",
       "reliability": "Medium",
       "volatility": "Point-in-time",
-      "notes": "Changes with joiners/leavers. Impacts capacity planning."
+      "notes": "Changes with joiners/leavers. Impacts capacity planning.",
+      "data_type": "number"
     },
     {
       "id": "attr_discipline_name",
@@ -1920,7 +1990,8 @@
       "system_id": "hibob",
       "source_actor": "HR",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "data_type": "string"
     },
     {
       "id": "attr_discipline_rm",
@@ -1930,7 +2001,8 @@
       "system_id": "hibob",
       "source_actor": "HR",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "data_type": "string"
     },
     {
       "id": "attr_tbr_position",
@@ -1941,7 +2013,8 @@
       "source_actor": "Resource Manager",
       "reliability": "High",
       "volatility": "Point-in-time",
-      "source_table": "TC_TBR"
+      "source_table": "TC_TBR",
+      "data_type": "string"
     },
     {
       "id": "attr_tbr_grade",
@@ -1951,7 +2024,8 @@
       "system_id": "mieruka",
       "source_actor": "Resource Manager",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "data_type": "string"
     },
     {
       "id": "attr_tbr_start_date",
@@ -1961,7 +2035,8 @@
       "system_id": "mieruka",
       "source_actor": "Resource Manager",
       "reliability": "Medium",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "data_type": "date"
     },
     {
       "id": "attr_tbr_status",
@@ -1971,7 +2046,8 @@
       "system_id": "mieruka",
       "source_actor": "Resource Manager",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "data_type": "string"
     },
     {
       "id": "attr_tbr_domain",
@@ -1981,7 +2057,8 @@
       "system_id": "mieruka",
       "source_actor": "Resource Manager",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "data_type": "string"
     },
     {
       "id": "attr_approval_cost_threshold",
@@ -1992,7 +2069,8 @@
       "source_actor": "Finance",
       "reliability": "High",
       "volatility": "Point-in-time",
-      "source_table": "TC_ApprovalRules"
+      "source_table": "TC_ApprovalRules",
+      "data_type": "decimal"
     },
     {
       "id": "attr_approval_gm_threshold",
@@ -2002,7 +2080,8 @@
       "system_id": "mieruka",
       "source_actor": "Finance",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "data_type": "decimal"
     },
     {
       "id": "attr_approval_product_type",
@@ -2012,7 +2091,8 @@
       "system_id": "mieruka",
       "source_actor": "Finance",
       "reliability": "High",
-      "volatility": "Point-in-time"
+      "volatility": "Point-in-time",
+      "data_type": "string"
     },
     {
       "id": "attr_teams_approval_notification",
@@ -2023,7 +2103,8 @@
       "source_actor": "System",
       "reliability": "Medium",
       "volatility": "Continuous",
-      "notes": "Triggered by Power Automate Get Team ID workflow. Routing depends on team membership lookup."
+      "notes": "Triggered by Power Automate Get Team ID workflow. Routing depends on team membership lookup.",
+      "data_type": "string"
     },
     {
       "id": "attr_pbi_compliance_report",
@@ -2034,7 +2115,8 @@
       "source_actor": "PMO",
       "reliability": "Medium",
       "volatility": "Point-in-time",
-      "notes": "Read-only consumption from Dataverse. Not a data source — Mieruka feeds Power BI."
+      "notes": "Read-only consumption from Dataverse. Not a data source — Mieruka feeds Power BI.",
+      "data_type": "string"
     },
     {
       "id": "attr_fabric_unified_dataset",
@@ -2045,7 +2127,8 @@
       "source_actor": "Data Engineering",
       "reliability": "High",
       "volatility": "Point-in-time",
-      "notes": "Part of Option C architecture. Enables cross-system analytics and continuous reconciliation."
+      "notes": "Part of Option C architecture. Enables cross-system analytics and continuous reconciliation.",
+      "data_type": "string"
     }
   ],
   "measures": [
@@ -2644,7 +2727,11 @@
             "excel"
           ],
           "waste_category": "Manual Data Entry",
-          "manual_effort_percentage": 80
+          "manual_effort_percentage": 80,
+          "produces_measure_ids": [
+            "meas_weighted_pipeline"
+          ],
+          "produces_metric_ids": []
         },
         {
           "id": "step_presales_estimate",
@@ -2673,7 +2760,9 @@
             "excel"
           ],
           "waste_category": null,
-          "manual_effort_percentage": 95
+          "manual_effort_percentage": 95,
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "step_qualify_lead",
@@ -2692,7 +2781,9 @@
           "uses_metric_ids": [
             "kpi_pipeline_health"
           ],
-          "crystallizes_attribute_ids": [],
+          "crystallizes_attribute_ids": [
+            "attr_presales_estimate"
+          ],
           "depends_on_step_ids": [
             "step_presales_estimate"
           ],
@@ -2704,7 +2795,13 @@
             "jira"
           ],
           "waste_category": null,
-          "manual_effort_percentage": 90
+          "manual_effort_percentage": 90,
+          "produces_measure_ids": [
+            "meas_lead_conversion_rate"
+          ],
+          "produces_metric_ids": [
+            "kpi_pipeline_health"
+          ]
         },
         {
           "id": "step_create_sow",
@@ -2735,7 +2832,9 @@
             "excel"
           ],
           "waste_category": null,
-          "manual_effort_percentage": 85
+          "manual_effort_percentage": 85,
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "step_setup_project",
@@ -2754,7 +2853,8 @@
           ],
           "uses_metric_ids": [],
           "crystallizes_attribute_ids": [
-            "attr_sow_doc"
+            "attr_sow_doc",
+            "attr_project_code"
           ],
           "depends_on_step_ids": [
             "step_create_sow"
@@ -2768,7 +2868,11 @@
             "jira"
           ],
           "waste_category": "System Switching",
-          "manual_effort_percentage": 90
+          "manual_effort_percentage": 90,
+          "produces_measure_ids": [
+            "meas_budget_variance"
+          ],
+          "produces_metric_ids": []
         },
         {
           "id": "step_allocate_resources",
@@ -2790,7 +2894,9 @@
           "uses_metric_ids": [
             "kpi_resource_utilization"
           ],
-          "crystallizes_attribute_ids": [],
+          "crystallizes_attribute_ids": [
+            "attr_demand_by_role"
+          ],
           "depends_on_step_ids": [
             "step_setup_project"
           ],
@@ -2803,7 +2909,12 @@
             "hibob"
           ],
           "waste_category": "System Switching",
-          "manual_effort_percentage": 85
+          "manual_effort_percentage": 85,
+          "produces_measure_ids": [
+            "meas_resource_capacity",
+            "meas_total_allocated_fte"
+          ],
+          "produces_metric_ids": []
         }
       ]
     },
@@ -2837,7 +2948,9 @@
             "jira"
           ],
           "waste_category": null,
-          "manual_effort_percentage": 100
+          "manual_effort_percentage": 100,
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "step_execute_sprint",
@@ -2855,12 +2968,16 @@
             "attr_timesheet_granularity"
           ],
           "uses_metric_ids": [],
-          "crystallizes_attribute_ids": [],
+          "crystallizes_attribute_ids": [
+            "attr_planned_points"
+          ],
           "produces_measure_ids": [
             "meas_sprint_velocity",
             "meas_sprint_completion_rate"
           ],
-          "produces_metric_ids": [],
+          "produces_metric_ids": [
+            "kpi_project_delivery"
+          ],
           "depends_on_step_ids": [
             "step_sprint_planning"
           ],
@@ -2887,7 +3004,9 @@
             "attr_hours_submitted"
           ],
           "uses_metric_ids": [],
-          "crystallizes_attribute_ids": [],
+          "crystallizes_attribute_ids": [
+            "attr_hours_submitted"
+          ],
           "depends_on_step_ids": [
             "step_execute_sprint"
           ],
@@ -2898,7 +3017,9 @@
             "mieruka"
           ],
           "waste_category": "Manual Data Entry",
-          "manual_effort_percentage": 100
+          "manual_effort_percentage": 100,
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "step_approve_timesheets",
@@ -2922,9 +3043,15 @@
           ],
           "produces_measure_ids": [
             "meas_resource_utilization",
-            "meas_billable_days"
+            "meas_billable_days",
+            "meas_billable_hours",
+            "meas_timesheet_approval_rate",
+            "meas_timesheet_cycle_time"
           ],
-          "produces_metric_ids": [],
+          "produces_metric_ids": [
+            "kpi_timesheet_compliance",
+            "kpi_timesheet_cycle_time"
+          ],
           "depends_on_step_ids": [
             "step_submit_timesheets"
           ],
@@ -2954,7 +3081,10 @@
           "uses_metric_ids": [
             "kpi_project_delivery"
           ],
-          "crystallizes_attribute_ids": [],
+          "crystallizes_attribute_ids": [
+            "attr_story_points",
+            "attr_completed_tasks"
+          ],
           "depends_on_step_ids": [
             "step_approve_timesheets"
           ],
@@ -2966,7 +3096,12 @@
             "jira"
           ],
           "waste_category": "Manual Data Entry",
-          "manual_effort_percentage": 90
+          "manual_effort_percentage": 90,
+          "produces_measure_ids": [
+            "meas_sprint_completion_rate",
+            "meas_backlog_completion"
+          ],
+          "produces_metric_ids": []
         },
         {
           "id": "step_produce_status_report",
@@ -3029,9 +3164,14 @@
           "crystallizes_attribute_ids": [],
           "produces_measure_ids": [
             "meas_forecast_accuracy",
-            "meas_budget_variance"
+            "meas_budget_variance",
+            "meas_budget_burn_rate",
+            "meas_forecast_vs_budget"
           ],
-          "produces_metric_ids": [],
+          "produces_metric_ids": [
+            "kpi_budget_adherence",
+            "kpi_forecast_accuracy"
+          ],
           "depends_on_step_ids": [
             "step_produce_status_report"
           ],
@@ -3080,7 +3220,14 @@
             "mieruka"
           ],
           "waste_category": "Manual Verification",
-          "manual_effort_percentage": 70
+          "manual_effort_percentage": 70,
+          "produces_measure_ids": [
+            "meas_billable_days",
+            "meas_timesheet_approval_rate"
+          ],
+          "produces_metric_ids": [
+            "kpi_timesheet_compliance"
+          ]
         },
         {
           "id": "step_post_actuals",
@@ -3098,7 +3245,10 @@
             "attr_revenue"
           ],
           "uses_metric_ids": [],
-          "crystallizes_attribute_ids": [],
+          "crystallizes_attribute_ids": [
+            "attr_approved_days",
+            "attr_blended_rate"
+          ],
           "depends_on_step_ids": [
             "step_close_timesheets"
           ],
@@ -3110,7 +3260,16 @@
             "mieruka"
           ],
           "waste_category": "System Switching",
-          "manual_effort_percentage": 60
+          "manual_effort_percentage": 60,
+          "produces_measure_ids": [
+            "meas_people_cost_total",
+            "meas_revenue_per_project",
+            "meas_project_labor_cost",
+            "meas_monthly_revenue_by_billing"
+          ],
+          "produces_metric_ids": [
+            "kpi_revenue_margin"
+          ]
         },
         {
           "id": "step_variance_analysis",
@@ -3132,10 +3291,16 @@
           "crystallizes_attribute_ids": [
             "attr_actuals"
           ],
-          "produces_measure_ids": [],
+          "produces_measure_ids": [
+            "meas_budget_variance",
+            "meas_forecast_accuracy",
+            "meas_forecast_vs_budget",
+            "meas_gross_margin"
+          ],
           "produces_metric_ids": [
             "kpi_budget_adherence",
-            "kpi_forecast_accuracy"
+            "kpi_forecast_accuracy",
+            "kpi_margin_by_project"
           ],
           "depends_on_step_ids": [
             "step_post_actuals"
@@ -3168,7 +3333,10 @@
             "kpi_budget_adherence",
             "kpi_pipeline_health"
           ],
-          "crystallizes_attribute_ids": [],
+          "crystallizes_attribute_ids": [
+            "attr_actuals",
+            "attr_revenue"
+          ],
           "depends_on_step_ids": [
             "step_variance_analysis"
           ],
@@ -3182,7 +3350,18 @@
             "power_bi"
           ],
           "waste_category": "System Switching",
-          "manual_effort_percentage": 90
+          "manual_effort_percentage": 90,
+          "produces_measure_ids": [
+            "meas_gross_margin",
+            "meas_programme_total_budget",
+            "meas_weighted_pipeline"
+          ],
+          "produces_metric_ids": [
+            "kpi_revenue_margin",
+            "kpi_budget_adherence",
+            "kpi_pipeline_health",
+            "kpi_3_9_forecast_accuracy"
+          ]
         }
       ]
     },
@@ -3219,7 +3398,14 @@
             "hibob"
           ],
           "waste_category": "System Switching",
-          "manual_effort_percentage": 85
+          "manual_effort_percentage": 85,
+          "produces_measure_ids": [
+            "meas_resource_capacity",
+            "meas_resource_utilization"
+          ],
+          "produces_metric_ids": [
+            "kpi_resource_utilization"
+          ]
         },
         {
           "id": "step_match_demand",
@@ -3237,7 +3423,9 @@
             "kpi_resource_utilization",
             "kpi_pipeline_health"
           ],
-          "crystallizes_attribute_ids": [],
+          "crystallizes_attribute_ids": [
+            "attr_demand_by_role"
+          ],
           "depends_on_step_ids": [
             "step_review_capacity"
           ],
@@ -3249,7 +3437,14 @@
             "mieruka"
           ],
           "waste_category": "Manual Data Entry",
-          "manual_effort_percentage": 90
+          "manual_effort_percentage": 90,
+          "produces_measure_ids": [
+            "meas_resource_over_allocation",
+            "meas_team_capacity"
+          ],
+          "produces_metric_ids": [
+            "kpi_resource_over_allocation"
+          ]
         },
         {
           "id": "step_update_allocations",
@@ -3265,7 +3460,10 @@
             "attr_fte_allocation"
           ],
           "uses_metric_ids": [],
-          "crystallizes_attribute_ids": [],
+          "crystallizes_attribute_ids": [
+            "attr_allocation",
+            "attr_fte_allocation"
+          ],
           "depends_on_step_ids": [
             "step_match_demand"
           ],
@@ -3277,7 +3475,12 @@
             "excel"
           ],
           "waste_category": "System Switching",
-          "manual_effort_percentage": 95
+          "manual_effort_percentage": 95,
+          "produces_measure_ids": [
+            "meas_total_allocated_fte",
+            "meas_person_cost_rate"
+          ],
+          "produces_metric_ids": []
         },
         {
           "id": "step_review_costs",
@@ -3295,7 +3498,10 @@
           "uses_metric_ids": [
             "kpi_revenue_margin"
           ],
-          "crystallizes_attribute_ids": [],
+          "crystallizes_attribute_ids": [
+            "attr_blended_rate",
+            "attr_people_cost"
+          ],
           "depends_on_step_ids": [
             "step_update_allocations"
           ],
@@ -3307,7 +3513,14 @@
             "oracle"
           ],
           "waste_category": "Manual Verification",
-          "manual_effort_percentage": 70
+          "manual_effort_percentage": 70,
+          "produces_measure_ids": [
+            "meas_people_cost_total",
+            "meas_project_labor_cost"
+          ],
+          "produces_metric_ids": [
+            "kpi_revenue_margin"
+          ]
         }
       ]
     },
@@ -3339,7 +3552,11 @@
             "mieruka"
           ],
           "waste_category": "Manual Data Entry",
-          "manual_effort_percentage": 80
+          "manual_effort_percentage": 80,
+          "produces_measure_ids": [
+            "meas_resource_over_allocation"
+          ],
+          "produces_metric_ids": []
         },
         {
           "id": "step_rm_review_tba",
@@ -3370,7 +3587,14 @@
             "excel"
           ],
           "waste_category": "System Switching",
-          "manual_effort_percentage": 85
+          "manual_effort_percentage": 85,
+          "produces_measure_ids": [
+            "meas_resource_capacity",
+            "meas_total_allocated_fte"
+          ],
+          "produces_metric_ids": [
+            "kpi_resource_over_allocation"
+          ]
         },
         {
           "id": "step_match_or_escalate",
@@ -3406,7 +3630,11 @@
             "hibob"
           ],
           "waste_category": "System Switching",
-          "manual_effort_percentage": 90
+          "manual_effort_percentage": 90,
+          "produces_measure_ids": [
+            "meas_resource_capacity"
+          ],
+          "produces_metric_ids": []
         },
         {
           "id": "step_tbr_recruitment",
@@ -3434,7 +3662,13 @@
             "hibob"
           ],
           "waste_category": "Manual Data Entry",
-          "manual_effort_percentage": 75
+          "manual_effort_percentage": 75,
+          "produces_measure_ids": [
+            "meas_tbr_fill_rate"
+          ],
+          "produces_metric_ids": [
+            "kpi_project_code_governance"
+          ]
         },
         {
           "id": "step_assign_to_project",
@@ -3454,7 +3688,10 @@
             "attr_fte_value_days"
           ],
           "uses_metric_ids": [],
-          "crystallizes_attribute_ids": [],
+          "crystallizes_attribute_ids": [
+            "attr_allocation",
+            "attr_fte_value_days"
+          ],
           "depends_on_step_ids": [
             "step_match_or_escalate"
           ],
@@ -3466,7 +3703,14 @@
             "excel"
           ],
           "waste_category": "System Switching",
-          "manual_effort_percentage": 90
+          "manual_effort_percentage": 90,
+          "produces_measure_ids": [
+            "meas_total_allocated_fte",
+            "meas_person_cost_rate"
+          ],
+          "produces_metric_ids": [
+            "kpi_resource_utilization"
+          ]
         }
       ]
     },
@@ -3502,7 +3746,12 @@
             "excel"
           ],
           "waste_category": "System Switching",
-          "manual_effort_percentage": 85
+          "manual_effort_percentage": 85,
+          "produces_measure_ids": [
+            "meas_project_labor_cost",
+            "meas_monthly_revenue_by_billing"
+          ],
+          "produces_metric_ids": []
         },
         {
           "id": "step_submit_for_approval",
@@ -3532,7 +3781,9 @@
             "mieruka"
           ],
           "waste_category": "Manual Data Entry",
-          "manual_effort_percentage": 60
+          "manual_effort_percentage": 60,
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "step_threshold_routing",
@@ -3559,7 +3810,9 @@
             "teams"
           ],
           "waste_category": null,
-          "manual_effort_percentage": 10
+          "manual_effort_percentage": 10,
+          "produces_measure_ids": [],
+          "produces_metric_ids": []
         },
         {
           "id": "step_approver_review",
@@ -3579,7 +3832,9 @@
             "kpi_budget_adherence",
             "kpi_margin_by_project"
           ],
-          "crystallizes_attribute_ids": [],
+          "crystallizes_attribute_ids": [
+            "attr_budget_data"
+          ],
           "depends_on_step_ids": [
             "step_threshold_routing"
           ],
@@ -3590,7 +3845,15 @@
             "mieruka"
           ],
           "waste_category": "Waiting Time",
-          "manual_effort_percentage": 80
+          "manual_effort_percentage": 80,
+          "produces_measure_ids": [
+            "meas_budget_variance",
+            "meas_gross_margin"
+          ],
+          "produces_metric_ids": [
+            "kpi_budget_adherence",
+            "kpi_margin_by_project"
+          ]
         },
         {
           "id": "step_activate_budget",
@@ -3621,7 +3884,14 @@
             "mieruka"
           ],
           "waste_category": null,
-          "manual_effort_percentage": 30
+          "manual_effort_percentage": 30,
+          "produces_measure_ids": [
+            "meas_forecast_vs_budget",
+            "meas_programme_total_budget"
+          ],
+          "produces_metric_ids": [
+            "kpi_budget_adherence"
+          ]
         }
       ]
     }

@@ -58,6 +58,10 @@ class Attribute(BaseModel):
         default=None,
         description="Perspectives this attribute is relevant to",
     )
+    data_type: str = Field(
+        default="string",
+        description="Data type: string, number, date, boolean, decimal",
+    )
     state: Optional[OntologyState] = Field(
         default="as-is", description="Whether this attribute exists today (as-is), is planned (to-be), or both"
     )
